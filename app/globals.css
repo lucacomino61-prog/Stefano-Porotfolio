@@ -505,6 +505,158 @@ body {
   font-family: var(--font-display);
 }
 
+/*
+ * The desktop is the screen's own surface, so the ground lives here rather than
+ * on each view. It used to be set twice, on the home view and again on the
+ * paged one, which is how the paged sections ended up printing black on bone
+ * the first time a section that was neither of those two appeared.
+ *
+ * A screen is a screen under any light: the roles are rebound to the slate, the
+ * same rule .cinema-copy and the bar follow, so a lit panel does not turn over
+ * with the hour outside it. Rebinding rather than setting colours means the
+ * contact form, built from --ink and --rule like everything else, comes along
+ * without knowing it is on a screen.
+ */
+.screen-desktop {
+  background: var(--slate);
+  color: var(--slate-ink);
+
+  --ink: var(--slate-ink);
+  --ink-muted: var(--slate-ink-muted);
+  --warm: var(--slate-ink-muted);
+  --mark: var(--slate-mark);
+  --mark-ink: var(--slate);
+  --rule: color-mix(in oklab, var(--slate-ink) 20%, transparent);
+}
+
+/* The desktop's own content: who this is, and the four things you can open. */
+.screen-desk {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 2.6cqh;
+  height: 100%;
+  width: 100%;
+  max-width: min(46rem, 88cqw);
+  padding: calc(var(--header-h) + max(4rem, 8cqh)) 6cqw 3cqh;
+}
+
+.screen-desk nav {
+  justify-self: stretch;
+  width: 100%;
+}
+
+/*
+ * A window, over the desktop rather than instead of it.
+ *
+ * Inset so the desktop is still visible around it, which is the whole reason it
+ * reads as a window and not as another full screen. Below a narrow container it
+ * goes full bleed: a window inside a 390px screen is a stamp, and the frame
+ * would cost more room than the border is worth.
+ *
+ * No radius, per the shape lock in DESIGN.md.
+ */
+.screen-window {
+  position: absolute;
+  /* Generous on purpose. At 7cqw the desktop showed as an 89px sliver and the
+     thing read as a bordered full screen rather than a window standing on
+     something. The margin IS the metaphor. */
+  inset: max(11cqh, calc(var(--header-h) + 1.5rem)) 13cqw 11cqh;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  border: 1px solid color-mix(in oklab, var(--slate-ink) 26%, transparent);
+  background: color-mix(in oklab, var(--slate-ink) 5%, var(--slate));
+  box-shadow: 0 2cqh 6cqh color-mix(in oklab, #000 55%, transparent);
+  outline: none;
+}
+
+@container screen (max-width: 620px) {
+  .screen-window {
+    inset: calc(var(--header-h) + 0.5rem) 0 0;
+    border-width: 1px 0 0;
+  }
+}
+
+/* The bar is the title and the handle, which is the convention every windowing
+   system has agreed on, so it needs no affordance beyond the cursor. */
+.screen-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding: 1.4cqh 2cqw 1.4cqh 3cqw;
+  border-bottom: 1px solid color-mix(in oklab, var(--slate-ink) 18%, transparent);
+  background: color-mix(in oklab, var(--slate-ink) 7%, transparent);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.screen-window-bar:active {
+  cursor: grabbing;
+}
+
+.screen-window-title {
+  font-family: var(--font-mono);
+  font-size: clamp(0.7rem, 1.1cqw, 0.95rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate-ink-muted);
+}
+
+.screen-window-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px is the touch floor, and this is the only way out of the window. */
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--slate-ink);
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+/* A fixed size, not a percentage.
+   The svg carries only a viewBox, so with no width it takes the replaced
+   element default of 300x150 — and a percentage width resolves against a button
+   whose own width is being decided by that svg, which is circular. The result
+   was a close control 340px wide with an X the height of the title bar. */
+.screen-window-close svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+}
+
+.screen-window-close:hover,
+.screen-window-close:focus-visible {
+  background: color-mix(in oklab, var(--slate-ink) 12%, transparent);
+  border-color: color-mix(in oklab, var(--slate-ink) 30%, transparent);
+}
+
+.screen-window-body {
+  position: relative;
+  min-height: 0;
+}
+
+/* The work window: the panes fill it, the switcher sits on them. */
+.screen-work {
+  position: relative;
+  height: 100%;
+}
+
+.screen-work .screen-tabs {
+  position: absolute;
+  right: 2cqw;
+  bottom: 2cqh;
+  z-index: 2;
+}
+
 .screen-pane {
   position: absolute;
   inset: 0;
@@ -1807,37 +1959,11 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------------------
-   THE MACHINE AT REST
 
-   The screen's first state. Everything here is in container query units like
-   the rest of the panel, so the same composition serves the monitor across the
-   room, the monitor you are standing at, and the still panel on a phone.
---------------------------------------------------------------------------- */
-.screen-home {
-  display: grid;
-  place-items: center;
-  background: var(--slate);
-  color: var(--slate-ink);
-}
 
-.screen-home-inner {
-  display: grid;
-  /* start, not stretch: the name and the kicker are set left and must not be
-     pulled to the full width of a monitor. The menu below opts back out,
-     because a list of four presses that is 180px wide inside a 390px screen is
-     a list nobody can hit. */
-  justify-items: start;
-  gap: 2.6cqh;
-  width: 100%;
-  max-width: min(46rem, 88cqw);
-  padding: 0 6cqw;
-}
 
-.screen-home-inner nav {
-  justify-self: stretch;
-  width: 100%;
-}
+
+
 
 .screen-home-kicker {
   margin: 0;
@@ -1854,56 +1980,12 @@ body {
   line-height: 1;
 }
 
-/* The one press on the screen. Deliberately the brightest thing on it. */
-.screen-enter {
-  display: inline-flex;
-  align-items: center;
-  gap: 1.1cqw;
-  margin-top: 1.4cqh;
-  padding: 1.9cqh 2.8cqw;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: clamp(0.78rem, 1.35cqw, 1.18rem);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--slate);
-  background: var(--slate-mark);
-  cursor: pointer;
-  transition:
-    transform var(--f6) var(--ease-out),
-    filter var(--f6) var(--ease-out);
-}
 
-.screen-enter:hover {
-  transform: translate3d(0, -0.4cqh, 0);
-  filter: brightness(1.1);
-}
 
-.screen-enter:hover .screen-cta-arrow {
-  transform: translate3d(0.5cqw, 0, 0);
-}
 
-/* The way back out of the work, in the chrome bar with the switcher. */
-.screen-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7cqw;
-  padding: 0.8cqh 1.4cqw;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
-  letter-spacing: 0.14em;
-  color: var(--screen-muted, var(--slate-ink-muted));
-  cursor: pointer;
-  transition:
-    color var(--f4) var(--ease-out),
-    background-color var(--f4) var(--ease-out);
-}
 
-.screen-back:hover {
-  color: var(--screen-ink, var(--slate-ink));
-  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 8%, transparent);
-}
+
+
 
 /* ---------------------------------------------------------------------------
    THE HERO'S TWO ACTIONS
@@ -2019,38 +2101,11 @@ html[data-machine='open'] body {
   display: grid;
   grid-template-rows: 1fr auto;
   height: 100%;
-  /*
-   * Clears the chrome bar, which is absolutely positioned over this and so
-   * takes no space of its own. Measured at 116px on a phone against 108px of
-   * padding: the section title was losing its top 8px to the bar.
-   *
-   * The floor is what makes it hold. In pure cqh this clears on a tall phone
-   * and fails in landscape, where the container is short but the bar is not:
-   * the bar carries --header-h plus its own type, neither of which shrinks
-   * with the viewport. Same failure the type sizes had.
-   */
-  padding: calc(var(--header-h) + max(4rem, 8cqh)) 6cqw 3cqh;
-
-  /*
-   * A screen is a screen under any light.
-   *
-   * Without this the paged sections inherited the page's own roles and printed
-   * black on bone inside a monitor standing in a dark room, on the day sheet.
-   * The same reasoning as .cinema-copy and the slates: a lit panel does not
-   * turn over with the hour outside it. Rebinding the roles rather than setting
-   * colours means the contact form, which is built from --ink and --rule like
-   * everything else, comes along without knowing it is on a screen.
-   */
-  background: var(--slate);
-  color: var(--slate-ink);
-
-  --ink: var(--slate-ink);
-  --ink-muted: var(--slate-ink-muted);
-  --warm: var(--slate-ink-muted);
-  --mark: var(--slate-mark);
-  --mark-ink: var(--slate);
-  --rule: color-mix(in oklab, var(--slate-ink) 20%, transparent);
+  /* Inside a window now, so this clears the window's own bar rather than the
+     screen's chrome, and the bar is part of the same box. */
+  padding: 3cqh 4cqw 2.5cqh;
 }
+
 
 .screen-page {
   display: grid;
