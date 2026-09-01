@@ -49,7 +49,6 @@ export function Hero({
       </div>
 
       <div className="hero-statement">
-        <p className="display hero-line">{dict.based}</p>
 
         <div className="hero-actions">
           {/* The monitor in the room is clickable, but a click target that only

@@ -823,7 +823,7 @@ function Workstation({
   const compact = size.width < 760
   const medium = size.width < 1180
   const sceneScale = compact ? 0.72 : medium ? 0.88 : 1
-  const sceneX = compact ? 0.12 : medium ? 0.45 : 0.95
+  const sceneX = compact ? 0.6 : medium ? 0.9 : 1.35
 
   /**
    * Inspectable at every size now.
@@ -843,7 +843,16 @@ function Workstation({
   const interactive = true
 
   return (
-    <group ref={rig} position={[sceneX, compact ? -0.12 : -0.03, 0]} scale={sceneScale}>
+    // Set into the corner, at an angle to the room. Square to the camera it
+    // read as a product shot with a wall behind it; a desk pushed into the
+    // angle of two walls is how a desk sits in a room, and it gives the wide
+    // shot a diagonal to read along instead of a flat elevation.
+    <group
+      ref={rig}
+      position={[sceneX, compact ? -0.12 : -0.03, -1.35]}
+      rotation={[0, -0.46, 0]}
+      scale={sceneScale}
+    >
       <Model
         url={DESK}
         size={[3.25, 0.96, 1.48]}
@@ -883,6 +892,12 @@ function Workstation({
         position={[0.55, -0.2, 0.72]}
         rotation={[0, Math.PI, 0]}
       />
+
+      {/* What makes it a desk somebody uses rather than a product shot: a
+          clock showing the real time, and something alive next to it. */}
+      <DeskClock />
+      <Cactus position={[-1.3, -0.2, 0.46]} scale={0.9} />
+      <Cactus position={[1.24, -0.2, 0.2]} scale={0.62} />
     </group>
   )
 }
@@ -901,6 +916,96 @@ function Workstation({
  * which is a full scene re-render into a square target, and the desk objects
  * that actually need to cast still do.
  */
+/**
+ * A little digital clock on the desk, showing the real time.
+ *
+ * Redrawn once a minute rather than once a second: at this size the seconds are
+ * two pixels of noise, and a texture upload every second for something nobody
+ * can read is a cost with no picture attached. The site already keeps a clock
+ * to the second in the apparatus row, where it can actually be read.
+ */
+function DeskClock() {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 128
+    const next = new CanvasTexture(canvas)
+    next.colorSpace = SRGBColorSpace
+    return next
+  }, [])
+
+  useEffect(() => {
+    const canvas = texture.image as HTMLCanvasElement
+    const context = canvas.getContext('2d')
+    if (!context) return
+
+    const paint = () => {
+      const now = new Date()
+      context.fillStyle = '#07110f'
+      context.fillRect(0, 0, 256, 128)
+      context.fillStyle = '#6ff2c8'
+      context.font = '600 76px ui-monospace, monospace'
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillText(
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        128,
+        68,
+      )
+      // eslint-disable-next-line react-hooks/immutability
+      texture.needsUpdate = true
+    }
+
+    paint()
+    const id = setInterval(paint, 60_000)
+    return () => clearInterval(id)
+  }, [texture])
+
+  useEffect(() => () => texture.dispose(), [texture])
+
+  return (
+    <group position={[-1.06, -0.16, 0.62]} rotation={[0, 0.5, 0]}>
+      <mesh castShadow>
+        <boxGeometry args={[0.19, 0.1, 0.06]} />
+        <meshStandardMaterial color="#22262c" roughness={0.6} metalness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.004, 0.031]}>
+        <planeGeometry args={[0.15, 0.07]} />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
+    </group>
+  )
+}
+
+/**
+ * A cactus, built from primitives rather than downloaded.
+ *
+ * Three capsules and a pot: at the size this reads on screen a modelled plant
+ * would be a megabyte spent on silhouette, and silhouette is all a cactus is.
+ */
+function Cactus({ position, scale = 1 }: { position: Vec3; scale?: number }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.075, 0.058, 0.1, 16]} />
+        <meshStandardMaterial color="#b0705a" roughness={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 0.185, 0]}>
+        <capsuleGeometry args={[0.042, 0.15, 4, 12]} />
+        <meshStandardMaterial color="#4e8b5f" roughness={0.78} />
+      </mesh>
+      <mesh castShadow position={[0.062, 0.2, 0]} rotation={[0, 0, -0.6]}>
+        <capsuleGeometry args={[0.024, 0.07, 4, 10]} />
+        <meshStandardMaterial color="#4e8b5f" roughness={0.78} />
+      </mesh>
+      <mesh castShadow position={[-0.058, 0.235, 0.01]} rotation={[0, 0, 0.7]}>
+        <capsuleGeometry args={[0.021, 0.055, 4, 10]} />
+        <meshStandardMaterial color="#57986a" roughness={0.78} />
+      </mesh>
+    </group>
+  )
+}
+
 function RoomModel() {
   const { scene } = useGLTF(ROOM)
   const room = useMemo(() => {
@@ -962,22 +1067,19 @@ function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void })
 
       {/* A large architectural window gives the room depth without adding a
           heavyweight architectural model to the hero bundle. */}
-      {/* Evening outside, not a lightbox. The window is the room's only other
-          source and it has to stay quieter than the panel, or the eye goes to
-          the brightest rectangle and the section is about a window. */}
-      <mesh position={[-2.55, 1.38, -3.04]}>
-        <planeGeometry args={[2.7, 2.9]} />
-        <meshStandardMaterial color="#2c3646" emissive="#3d5578" emissiveIntensity={0.22} />
-      </mesh>
-      {[-3.9, -2.55, -1.2].map((x) => (
-        <mesh key={x} position={[x, 1.38, -2.96]}>
-          <boxGeometry args={[0.045, 2.95, 0.045]} />
-          <meshStandardMaterial color="#27272a" metalness={0.7} roughness={0.3} />
-        </mesh>
-      ))}
-      <mesh position={[-2.55, 1.38, -2.95]}>
-        <boxGeometry args={[2.75, 0.045, 0.045]} />
-        <meshStandardMaterial color="#27272a" metalness={0.7} roughness={0.3} />
+      {/*
+        Daylight behind the opening, and nothing else.
+
+        The glazing bars that used to sit here were primitives floating a
+        centimetre proud of a flat pane, from before the shell was modelled.
+        The shell now carries a real opening with depth and a reveal, so the
+        bars had nothing to frame: they read as four dark lines broken across
+        the wall, which is exactly what they looked like. One lit plane set back
+        inside the opening is the whole window now.
+      */}
+      <mesh position={[-2.55, 1.38, -3.02]}>
+        <planeGeometry args={[2.62, 2.82]} />
+        <meshStandardMaterial color="#dbe6f2" emissive="#cfe0f2" emissiveIntensity={0.55} />
       </mesh>
 
       <mesh position={[2.8, 1.35, -3.02]}>

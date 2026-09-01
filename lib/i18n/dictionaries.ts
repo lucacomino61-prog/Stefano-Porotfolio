@@ -98,12 +98,6 @@ export type Dictionary = {
    * tabbed to and is invisible to a screen reader, so each one has a real
    * button here and the button is what carries the name.
    */
-  deskIndex: {
-    label: string
-    hint: string
-    release: string
-    objects: Record<'tower' | 'keyboard' | 'mouse', { name: string; note: string }>
-  }
   about: {
     heading: string
     kicker: string
@@ -213,16 +207,6 @@ const en: Dictionary = {
         alt: 'Bar Martiri: the beach at Spille, sunbeds and the sea behind them.',
         facts: ['Menu and sunbeds', 'Three languages', 'Spille, on the coast'],
       },
-    },
-  },
-  deskIndex: {
-    label: 'The desk',
-    hint: 'Press a device to look closer. Escape steps back.',
-    release: 'Step back',
-    objects: {
-      tower: { name: 'Tower', note: 'The machine both sites were built and shipped from.' },
-      keyboard: { name: 'Keyboard', note: 'The build half. Typed, tested, committed.' },
-      mouse: { name: 'Mouse', note: 'The design half. Drawn at real widths, in the browser.' },
     },
   },
   about: {
@@ -372,22 +356,6 @@ const it: Dictionary = {
       },
     },
   },
-  deskIndex: {
-    label: 'La scrivania',
-    hint: 'Premi un oggetto per guardarlo da vicino. Esc per tornare indietro.',
-    release: 'Torna indietro',
-    objects: {
-      tower: { name: 'Il computer', note: 'La macchina da cui sono stati costruiti e pubblicati entrambi i siti.' },
-      keyboard: {
-        name: 'Tastiera',
-        note: 'La metà dello sviluppo. Scritto, provato, committato.',
-      },
-      mouse: {
-        name: 'Mouse',
-        note: 'La metà del progetto. Disegnato alle larghezze vere, nel browser.',
-      },
-    },
-  },
   about: {
     heading: 'Chi sono',
     kicker: 'Un solo paio di mani',
@@ -532,28 +500,6 @@ const al: Dictionary = {
           'Një bar mbi rërën në Spille. Menuja, shezlonet dhe rruga deri te deti, në tri gjuhë, për ata që po vendosin ku ta kalojnë pasditen.',
         alt: 'Bar Martiri: plazhi i Spilles, shezlonet dhe deti pas tyre.',
         facts: ['Menu dhe shezlone', 'Tri gjuhë', 'Spille, në bregdet'],
-      },
-    },
-  },
-  deskIndex: {
-    label: 'Tavolina e punës',
-    // Phrased to avoid an apostrophe. "Esc për t'u kthyer" is the more natural
-    // wording, but the apostrophe has to survive a single-quoted TypeScript
-    // string, and this file has already been mangled once by escaping.
-    hint: 'Shtypni një pajisje për ta parë nga afër. Esc ju kthen prapa.',
-    release: 'Kthehu prapa',
-    objects: {
-      tower: {
-        name: 'Kompjuteri',
-        note: 'Makina nga e cila u ndërtuan dhe u publikuan të dyja faqet.',
-      },
-      keyboard: {
-        name: 'Tastiera',
-        note: 'Gjysma e ndërtimit. E shkruar, e provuar, e commit-uar.',
-      },
-      mouse: {
-        name: 'Miu',
-        note: 'Gjysma e dizajnit. E vizatuar në gjerësi reale, në shfletues.',
       },
     },
   },

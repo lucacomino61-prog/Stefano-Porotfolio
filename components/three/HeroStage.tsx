@@ -139,7 +139,7 @@ export function HeroStage({
         dpr={profile.dpr}
         shadows
         gl={{ antialias: profile.antialias, alpha: false, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 1.15, 6.4], fov: 44, near: 0.1, far: 30 }}
+        camera={{ position: [4.9, 3.9, 5.6], fov: 32, near: 0.1, far: 40 }}
         onCreated={(created) => {
           state.current = created
           // Render one frame immediately rather than waiting for the ticker.

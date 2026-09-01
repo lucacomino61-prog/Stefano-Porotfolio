@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 
 import { Hero } from '@/components/sections/Hero'
 import { GateMount } from '@/components/three/GateMount'
-import { DeskIndex } from '@/components/ui/DeskIndex'
 import { ScreenOS } from '@/components/ui/ScreenOS'
 import type { ScreenView } from '@/lib/screen'
 import type { Locale } from '@/lib/i18n/config'
@@ -63,7 +62,6 @@ export function Cinema({
   dict,
   hero,
   calendar,
-  deskIndex,
   nav,
   about,
   process,
@@ -73,7 +71,6 @@ export function Cinema({
   dict: Dictionary['work']
   hero: Dictionary['hero']
   calendar: Dictionary['calendar']
-  deskIndex: Dictionary['deskIndex']
   nav: Dictionary['nav']
   about: Dictionary['about']
   process: Dictionary['process']
@@ -385,7 +382,6 @@ export function Cinema({
           */}
           <div data-hero-copy className="cinema-copy" inert={hasWalk && zoomed}>
             <Hero dict={hero} calendar={calendar} enterLabel={dict.enter} onEnter={enter} />
-            <DeskIndex dict={deskIndex} />
           </div>
         </div>
 
