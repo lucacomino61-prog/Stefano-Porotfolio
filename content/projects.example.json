@@ -1,0 +1,19 @@
+[
+  {
+    "slug": "replace-me",
+    "title": { "it": "Titolo del progetto", "en": "Project title", "al": "Titulli i projektit" },
+    "result": {
+      "it": "Una riga su cosa ha ottenuto il lavoro.",
+      "en": "One line on what the work achieved.",
+      "al": "Nje rresht per ate qe arriti puna."
+    },
+    "role": { "it": "Progetto e sviluppo", "en": "Design and build", "al": "Dizajn dhe ndertim" },
+    "year": 2026,
+    "stack": ["Next.js", "TypeScript", "GSAP"],
+    "liveUrl": null,
+    "repoUrl": null,
+    "position": 0,
+    "published": false,
+    "synthetic": false
+  }
+]

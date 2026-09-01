@@ -1,0 +1,18 @@
+WORKSTATION ASSET SOURCES
+
+Desk model
+Source: Kenney Furniture Kit
+https://kenney.nl/assets/furniture-kit
+Author: Kenney
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Room lighting environment
+Source: Poly Haven Studio
+https://polyhaven.com/a/poly_haven_studio
+Author: Greg Zaal / Poly Haven
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Both assets may be copied, modified, distributed, and used commercially
+without attribution. Their sources are retained here for provenance.

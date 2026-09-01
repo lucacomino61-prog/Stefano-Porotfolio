@@ -1,0 +1,1385 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   THE CAMERA REPORT
+
+   Two grounds now, and which one you get is the hour: the report sheet under
+   room light by day, the grading suite with the lights down after it. The
+   switch sits in the apparatus row and overrides the clock until the clock
+   next disagrees with it.
+
+   An earlier revision carried a light variant and it was reversed, for a
+   measured reason worth restating so it is not reintroduced: the canary was
+   kept as the accent, and canary ink on bone stock measures about 1.3:1, which
+   fails AA outright rather than marginally. The canary is a highlighter, and a
+   highlighter is a fill, never a line. So it stays the accent on the night
+   ground and the day ground takes a marker ink dark enough to read on paper —
+   the same job done with the pen the light calls for. Every pair below is
+   measured; scripts/contrast.ts prints the table.
+
+   Two things do not turn over with the hour. A slate is a dark board with
+   light lettering under any light in the world, so --slate and its inks are
+   fixed, and anything set on a slate reads from those rather than from --ink.
+   color-scheme is declared on both, so scrollbars, form fields and autofill
+   follow the sheet instead of punching holes in it.
+
+   Components reference roles, never hues. If you are typing a hex value into a
+   component, the token is missing. Add it here.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  /* --- surfaces ---
+     A graded room, not a flat field. Three planes: the room behind everything,
+     the page itself, and the surfaces that sit on it. Large areas of one flat
+     value are what made the earlier revision read as empty, and no amount of
+     type fixes a ground with no depth in it. */
+  --ground: #0b0d10; /* cool ink. Never #000: pure black has no depth. */
+  --ground-raised: #12151a; /* a surface lifted off the page */
+  --ground-sunk: #07090b; /* the room behind the page */
+
+  /* --- type --- */
+  --ink: #f2efe9; /* soft off-white, warm against the cool ground */
+  --ink-muted: #9ba1ad; /* 7.4:1 on the ground */
+  --warm: #d8d2c7; /* warm neutral. Editorial body, never UI chrome. */
+
+  /* --- ruling ---
+     Two weights and no more. A line earns its place by separating two things
+     that are actually different; everything else is lighting. */
+  --rule: #1b1f27; /* hairline, structural */
+  --rule-strong: #2c323d;
+
+  /* --- accents ---
+     One at a time. The blue is the site's own and carries interaction; the
+     rest belong to sections and to projects, and arrive as light rather than
+     as fill. Nothing here is decoration looking for a home. */
+  --accent: #4c7dff; /* electric blue. Interaction, focus, the live state. */
+  --accent-deep: #233b75; /* the blue in shadow, for depth and glow floors */
+  --violet: #856cff;
+  --cyan: #56c4d8;
+  --coral: #ff715b;
+  --gold: #c7a86b;
+
+  --mark: var(--accent); /* whatever is currently the site's own accent */
+  --mark-ink: #05070a; /* type that sits on a mark field */
+  --confirm: #6fbf8b;
+  --alert: #ff8a72;
+
+  /* --- the frame --- */
+  --gate: #07090b; /* inside the film gate, deeper than the page */
+
+  /* --- the slate, under any light ---
+     A slate is a dark board and the lettering on it is chalk. These do not
+     turn over with the hour, which is the whole reason they are separate
+     tokens: on the day ground --ink is near black, and a slate lettered in it
+     would be a black box with black writing in it. */
+  --slate: #05070a;
+  --slate-ink: #f2efe9;
+  --slate-ink-muted: #9ba1ad;
+  --slate-mark: #6f97ff; /* the accent, lifted to carry on the slate */
+
+  /* --- one gutter, not four margins --- */
+  --gutter: clamp(1.25rem, 4vw, 3.5rem);
+  --measure: 68ch; /* body measure, inside the 65-75ch floor */
+  --rail: 7.5rem; /* timecode rail. Fits 00:00:00:00 and the longest scene label. */
+
+  /* --- transport ---
+     Durations are frame counts at 24fps, because the world runs at 24fps.
+     One frame is 41.667ms. Nothing here is a round number by accident. */
+  --f4: 167ms;
+  --f6: 250ms;
+  --f10: 417ms;
+  --f15: 625ms;
+
+  /* Exponential ease-out from an already-visible default. Never ease-in. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* The gate: film advancing through it does not overshoot. */
+  --ease-gate: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The day sheet. Only the roles that change are restated; transport, easing
+   and the slate carry over from above untouched. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --ground: #f2efe9; /* bone stock. Never #fff, for the reason black is never #000. */
+  --ground-raised: #fbfaf6;
+  --ground-sunk: #e5e1d7;
+
+  --ink: #14161a; /* 15.4:1 on the sheet */
+  --ink-muted: #55585f; /* 7.2:1 */
+  --warm: #6b6558;
+
+  --rule: #dcd7cb;
+  --rule-strong: #b6b0a0;
+
+  /* The same hues, taken to where they read on paper. An accent is a
+     relationship to its ground, not a hex value that travels. */
+  --accent: #2b55c8;
+  --accent-deep: #1a2c58;
+  --violet: #5b44c4;
+  --cyan: #1c6b7c;
+  --coral: #b43a20;
+  --gold: #7a6224;
+
+  --mark: var(--accent);
+  --mark-ink: #f7f5f0;
+  --confirm: #3f6b48;
+  --alert: #9c3a1f;
+
+  --gate: #e5e1d7;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ground-raised: var(--ground-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-mark: var(--mark);
+  --color-mark-ink: var(--mark-ink);
+  --color-confirm: var(--confirm);
+  --color-alert: var(--alert);
+  --color-gate: var(--gate);
+  --color-slate: var(--slate);
+  --color-slate-ink: var(--slate-ink);
+  --color-slate-ink-muted: var(--slate-ink-muted);
+  --color-slate-mark: var(--slate-mark);
+  --color-ground-sunk: var(--ground-sunk);
+  --color-warm: var(--warm);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --color-coral: var(--coral);
+  --color-gold: var(--gold);
+
+  --font-display: var(--font-archivo), 'Arial Narrow', system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, monospace;
+
+  --ease-out: var(--ease-out);
+  --ease-gate: var(--ease-gate);
+
+  /* A ruled form has no radius. Anywhere. This is the shape lock. */
+  --radius-none: 0px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Lenis owns scrolling. Native smooth scroll would fight it. */
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The slate.
+
+   A camera slate is a filled rectangle with the take written across it, and the
+   first viewport is a stack of them: name, role, then the apparatus row. Filled
+   rather than ruled because a slate is read from across the room.
+
+   The fill is --gate, the inside of the gate, so a slate reads as a hole cut
+   into the lit ground rather than a card laid on top of it. Padding is set in
+   em on purpose: every slate is a different size, and one ratio keeps the
+   proportion identical from the name down to the clock. */
+.plate {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.42em 0.58em;
+  background-color: var(--slate);
+  color: var(--slate-ink);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+/* Which sheet is showing, decided in CSS off the root attribute rather than in
+   React off state. The theme is set before the first paint by the boot script,
+   so anything keyed to it is correct on the server, correct on load, and never
+   renders the wrong half for a frame while React catches up. */
+.theme-when-light {
+  display: none;
+}
+
+[data-theme='light'] .theme-when-light {
+  /* inline, not revert: this rides on both a span and an SVG group, and inline
+     is the initial value for both. */
+  display: inline;
+}
+
+[data-theme='light'] .theme-when-dark {
+  display: none;
+}
+
+/* Tabular figures everywhere a number is a measurement, which here is
+   everywhere: timecode, years, counts. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* The gate mask. A character reveal is film advancing, not a fade: the glyph
+   is already at full opacity and travels through a slot. Transform only --
+   an element at opacity 0 is not counted as painted, and the name is the LCP. */
+.gate-slot {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* Descenders need the room, or the mask crops them. */
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+
+.gate-slot > span {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* The follower.
+   Written as real CSS rather than utilities on purpose. Every state changes
+   the same properties the base state sets, and utility variants competing for
+   one property are decided by source order in the generated sheet, not by the
+   order they appear in the class attribute. Driving width and height through
+   custom properties keeps the centring maths automatic and leaves nothing for
+   the cascade to get wrong. */
+.cursor-ring {
+  --ring-w: 22px;
+  --ring-h: 22px;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: var(--ring-w);
+  height: var(--ring-h);
+  margin-top: calc(var(--ring-h) / -2);
+  margin-left: calc(var(--ring-w) / -2);
+  border: 1px solid #fff;
+  border-radius: 999px;
+  pointer-events: none;
+  /* Inverts whatever is under it, so it stays visible on the graphite ground
+     and on a canary field without owning a colour. */
+  mix-blend-mode: difference;
+  transition:
+    width var(--f6) var(--ease-out),
+    height var(--f6) var(--ease-out),
+    margin var(--f6) var(--ease-out),
+    border-radius var(--f6) var(--ease-out),
+    background-color var(--f6) var(--ease-out),
+    opacity var(--f6) var(--ease-out);
+}
+
+.cursor-ring[data-state='interactive'] {
+  --ring-w: 44px;
+  --ring-h: 44px;
+}
+
+/* Over a text field the ring becomes the caret it is standing in for. */
+.cursor-ring[data-state='text'] {
+  --ring-w: 2px;
+  --ring-h: 28px;
+
+  border-radius: 0;
+  background-color: #fff;
+}
+
+/* The native pointer is hidden only while the custom one is actually mounted.
+   That class is added by Cursor.tsx after it has confirmed a fine pointer and
+   no reduced-motion preference, so a touch device or a reduced-motion visitor
+   never loses their cursor. Hiding it unconditionally, as most drop-in cursor
+   components do, is the bug this guards against. */
+.has-custom-cursor,
+.has-custom-cursor * {
+  cursor: none;
+}
+
+/* Focus is a bracket, the mark a camera assistant makes. Not a browser ring. */
+:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--mark);
+  color: var(--mark-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   TYPE
+
+   A scale, not a pile of one-off clamps. Every size below is fluid between a
+   360px viewport and a 1600px one, which is why nothing here needs a
+   breakpoint to stay in proportion.
+
+   Monospace is for readings taken off the equipment — timecode, coordinates,
+   the clock, project numbering — and for nothing else. Setting an entire page
+   in it is a costume, not a voice.
+--------------------------------------------------------------------------- */
+:root {
+  --text-xs: clamp(0.66rem, 0.62rem + 0.18vw, 0.76rem);
+  --text-sm: clamp(0.8rem, 0.76rem + 0.2vw, 0.92rem);
+  --text-base: clamp(0.95rem, 0.9rem + 0.26vw, 1.12rem);
+  --text-lede: clamp(1.15rem, 1.02rem + 0.62vw, 1.6rem);
+  --text-h3: clamp(1.35rem, 1.1rem + 1.1vw, 2.1rem);
+  --text-h2: clamp(2rem, 1.4rem + 2.6vw, 4rem);
+  --text-h1: clamp(2.6rem, 1.5rem + 4.9vw, 7rem);
+  --text-mega: clamp(3.4rem, 1.2rem + 9.4vw, 12rem);
+
+  /* The bar's own height, declared once so anything that has to clear it can
+     say so rather than guess. */
+  --header-h: 3.6rem;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  font-stretch: 92%;
+  text-wrap: balance;
+}
+
+.lede {
+  font-family: var(--font-display);
+  font-size: var(--text-lede);
+  line-height: 1.42;
+  letter-spacing: -0.015em;
+  color: var(--warm);
+  text-wrap: pretty;
+}
+
+/* The apparatus register: small, tracked, monospace, uppercase. Labels on
+   equipment, never prose. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   LIGHT IN THE ROOM
+
+   Depth comes from lighting, not from borders. Each section carries its own
+   atmosphere, positioned off-centre and wide enough that no edge of the
+   gradient is ever visible — a gradient you can see the end of reads as a
+   shape sitting on the page rather than as light falling across it.
+
+   These sit at z-0 behind content and are inert to the pointer.
+--------------------------------------------------------------------------- */
+.atmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.atmos::before,
+.atmos::after {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background-repeat: no-repeat;
+}
+
+.atmos::before {
+  background-image: radial-gradient(
+    58% 52% at var(--atmos-x, 62%) var(--atmos-y, 26%),
+    color-mix(in oklab, var(--atmos-key, var(--accent)) 12%, transparent),
+    transparent 74%
+  );
+}
+
+.atmos::after {
+  background-image: radial-gradient(
+    62% 56% at var(--atmos-x2, 14%) var(--atmos-y2, 82%),
+    color-mix(in oklab, var(--atmos-fill, var(--accent-deep)) 18%, transparent),
+    transparent 76%
+  );
+}
+
+/* On the day sheet the same light has to fall a great deal softer: a wash that
+   reads as atmosphere on a dark ground reads as a stain on paper. */
+[data-theme='light'] .atmos::before {
+  background-image: radial-gradient(
+    46% 40% at var(--atmos-x, 62%) var(--atmos-y, 26%),
+    color-mix(in oklab, var(--atmos-key, var(--accent)) 7%, transparent),
+    transparent 70%
+  );
+}
+
+[data-theme='light'] .atmos::after {
+  background-image: radial-gradient(
+    50% 44% at var(--atmos-x2, 14%) var(--atmos-y2, 82%),
+    color-mix(in oklab, var(--atmos-fill, var(--accent-deep)) 8%, transparent),
+    transparent 72%
+  );
+}
+
+/* A surface lifted off the page: a top-lit plane, ruled only at its edge. Used
+   sparingly, and never as a rounded card holding an icon and a paragraph. */
+.surface {
+  position: relative;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--ink) 4%, transparent),
+      transparent 42%
+    ),
+    var(--ground-raised);
+  border: 1px solid var(--rule);
+}
+
+/* ---------------------------------------------------------------------------
+   GRAIN
+
+   One filter over the whole viewport, rendered live rather than tiled from a
+   bitmap: a repeated noise image shows its seams at exactly the sizes this
+   would be used at, and shows them worst on the large flat areas it exists to
+   break up. Rendered once, it also stays sharp on a retina display, which a
+   fixed-resolution tile cannot.
+--------------------------------------------------------------------------- */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+}
+
+[data-theme='light'] .grain {
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+}
+
+/* The kill switch. Not a degradation: with motion off this is a complete,
+   legible, fully navigable site. Every pin, scrub and transport stops. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   WHAT IS ON THE SCREEN
+
+   Sized in container query units against the panel, so one composition serves
+   a monitor across a room and a screen filling the viewport. `cqw` is doing the
+   work that a pile of breakpoints would otherwise do badly: the layout never
+   reflows during the walk, it only gets nearer.
+
+   Each pane carries the palette of the site it is showing, read off the running
+   site. The portfolio's own colours stop at the bezel.
+--------------------------------------------------------------------------- */
+.screen-ui {
+  position: absolute;
+  inset: 0;
+  container-type: inherit;
+  font-family: var(--font-display);
+}
+
+.screen-pane {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  opacity: 0;
+  transform: translate3d(0, 1.4cqh, 0);
+  transition:
+    opacity 520ms var(--ease-out),
+    transform 520ms var(--ease-out);
+  background: var(--screen-ground);
+  color: var(--screen-ink);
+}
+
+.screen-pane[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- the site, as the site sets itself --- */
+.screen-site {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  padding-top: 5.6cqh;
+}
+
+.screen-site-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding: 0 4cqw 2.4cqh;
+}
+
+.screen-site-word {
+  font-size: 1.9cqw;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--screen-ink);
+}
+
+.screen-site-links {
+  display: flex;
+  gap: 2.2cqw;
+  font-size: 1.15cqw;
+  letter-spacing: 0.22em;
+  color: var(--screen-muted);
+}
+
+.screen-site-body {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  align-items: center;
+  gap: 3cqw;
+  padding: 0 0 0 4cqw;
+  min-height: 0;
+}
+
+.screen-site-copy {
+  display: grid;
+  gap: 1.8cqh;
+  align-content: center;
+}
+
+/* The serif is the one thing both sites have in common and the thing that makes
+   a preview read as that site rather than as a box with text in it. Georgia is
+   on every machine this will be opened on; nothing is fetched to draw it. */
+.screen-site-headline {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 4.6cqw;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.screen-site-standfirst {
+  margin: 0;
+  font-size: 1.5cqw;
+  line-height: 1.5;
+  color: var(--screen-muted);
+  max-width: 26ch;
+}
+
+.screen-site-cta {
+  justify-self: start;
+  padding: 1.3cqh 2.2cqw;
+  border-radius: 999px;
+  background: var(--screen-ink);
+  color: var(--screen-ground);
+  font-size: 1.1cqw;
+  letter-spacing: 0.2em;
+}
+
+.screen-site-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  mask-image: linear-gradient(90deg, transparent, #000 14%);
+}
+
+/* --- the portfolio's overlay --- */
+.screen-plate {
+  position: relative;
+  display: grid;
+  gap: 1.4cqh;
+  padding: 3cqh 4cqw 3.4cqh;
+  background: linear-gradient(180deg, transparent, var(--screen-ground) 42%);
+  border-top: 1px solid color-mix(in oklab, var(--screen-ink) 12%, transparent);
+}
+
+.screen-plate-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1.6cqw;
+}
+
+.screen-index {
+  font-family: var(--font-mono);
+  font-size: 1.15cqw;
+  color: var(--screen-accent);
+  letter-spacing: 0.1em;
+}
+
+.screen-name {
+  font-size: 2.4cqw;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.screen-category {
+  font-family: var(--font-mono);
+  font-size: 1.05cqw;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--screen-muted);
+}
+
+.screen-description {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 1.35cqw;
+  line-height: 1.55;
+  color: var(--screen-muted);
+}
+
+.screen-cta {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 1cqw;
+  padding: 1.5cqh 2.4cqw;
+  font-family: var(--font-mono);
+  font-size: 1.15cqw;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  color: var(--screen-ground);
+  background: var(--screen-accent);
+  border-radius: 999px;
+  transition:
+    transform 200ms var(--ease-out),
+    filter 200ms var(--ease-out);
+}
+
+.screen-cta-arrow {
+  width: 1.5cqw;
+  height: 1.5cqw;
+  transition: transform 200ms var(--ease-out);
+}
+
+.screen-cta:hover {
+  transform: translate3d(0, -0.3cqh, 0);
+  filter: brightness(1.08);
+}
+
+.screen-cta:hover .screen-cta-arrow {
+  transform: translate3d(0.4cqw, -0.4cqh, 0);
+}
+
+/* --- chrome and switcher --- */
+.screen-chrome {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 1.6cqh 3cqw;
+  background: color-mix(in oklab, var(--screen-ground) 82%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--screen-ink) 10%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.screen-dots {
+  display: flex;
+  gap: 0.7cqw;
+}
+
+.screen-dots i {
+  width: 0.8cqw;
+  height: 0.8cqw;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--screen-ink) 22%, transparent);
+}
+
+.screen-url {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 1.05cqw;
+  letter-spacing: 0.1em;
+  color: var(--screen-muted);
+  padding: 0.7cqh 1.6cqw;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--screen-ink) 7%, transparent);
+  max-width: 30cqw;
+  text-align: center;
+}
+
+.screen-tabs {
+  display: flex;
+  gap: 0.6cqw;
+}
+
+.screen-tab {
+  font-family: var(--font-mono);
+  font-size: 1.05cqw;
+  letter-spacing: 0.14em;
+  padding: 0.8cqh 1.4cqw;
+  border-radius: 999px;
+  color: var(--screen-muted);
+  cursor: pointer;
+  transition:
+    color 200ms var(--ease-out),
+    background-color 200ms var(--ease-out);
+}
+
+.screen-tab:hover {
+  color: var(--screen-ink);
+  background: color-mix(in oklab, var(--screen-ink) 8%, transparent);
+}
+
+.screen-tab[aria-current='true'] {
+  color: var(--screen-ground);
+  background: var(--screen-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   THE FIRST SHOT
+
+   One section carries the first screen and the walk to the monitor, because
+   they are one camera move. The stage inside it is what gets pinned; everything
+   else is layered into that stage in depth order: light, room, copy, interface.
+--------------------------------------------------------------------------- */
+.cinema {
+  position: relative;
+  isolation: isolate;
+}
+
+.cinema-stage {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.cinema-atmos {
+  --atmos-key: var(--project-glow, var(--accent));
+  --atmos-fill: var(--accent-deep);
+  --atmos-x: 68%;
+  --atmos-y: 34%;
+  --atmos-x2: 8%;
+  --atmos-y2: 88%;
+}
+
+/* The copy column. Left, always: the desk sits right of centre at every
+   breakpoint the scene defines, and type set over a monitor is type nobody
+   reads. */
+.cinema-copy {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cinema-copy a,
+.cinema-copy button {
+  pointer-events: auto;
+}
+
+.hero-copy {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  padding: calc(var(--gutter) + 2.5rem) var(--gutter) clamp(2rem, 6vh, 4rem);
+  gap: 2rem;
+}
+
+.hero-slates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hero-name {
+  font-size: clamp(1.05rem, 2.4vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.hero-role {
+  font-size: clamp(0.6rem, 1.05vw, 0.78rem);
+}
+
+.hero-apparatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.hero-statement {
+  align-self: end;
+  display: grid;
+  justify-items: start;
+  gap: clamp(1.5rem, 4vh, 2.5rem);
+  max-width: min(52ch, 62%);
+}
+
+/* The one piece of oversized type on the first screen. It carries a gradient
+   rather than a flat fill so the line has the same falloff as the room behind
+   it — flat white type over a graded ground is the tell that the two were
+   composed separately. */
+.hero-line {
+  margin: 0;
+  font-size: var(--text-h1);
+  background: linear-gradient(
+    168deg,
+    var(--ink) 18%,
+    color-mix(in oklab, var(--ink) 74%, var(--project-glow, var(--accent))) 92%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The interface that takes over from the panel. Full-bleed, because by the time
+   it fades up the panel behind it is the frame. */
+.cinema-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  opacity: 0;
+  container-type: size;
+  container-name: screen;
+}
+
+/* At full zoom the panel is the viewport, which puts its chrome bar underneath
+   the site header — and an interface whose project switcher cannot be clicked
+   because the page's own navigation is sitting on it is not an interface. The
+   band still runs to the top edge, so the panel reads as full bleed; only its
+   contents step down past the bar. */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .cinema-screen .screen-chrome {
+    padding-top: calc(1.6cqh + var(--header-h));
+  }
+}
+
+/* Nothing pinned, nothing scrubbed: the interface is simply on the page, under
+   the copy, at a readable size. Same rule for a phone and for a visitor who has
+   asked for less motion. */
+@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+  .cinema-stage {
+    min-height: auto;
+  }
+
+  /* Back into the flow. Absolute positioning is what lets the copy sit over the
+     room while the room is a fixed-height stage; with nothing pinned there is
+     no stage to sit over, and leaving it out of flow drops the interface at the
+     top of the document underneath the header. */
+  .cinema-copy {
+    position: relative;
+    inset: auto;
+  }
+
+  .hero-copy {
+    min-height: 88svh;
+  }
+
+  .cinema-screen {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    margin: 0 var(--gutter) clamp(3rem, 8vh, 6rem);
+    aspect-ratio: 16 / 10;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE BAR
+
+   Floating, not banded. It has no ground of its own over the first screen —
+   that would put a letterbox across the top of the room — and takes one only
+   once there is content scrolling underneath it to separate from.
+--------------------------------------------------------------------------- */
+.site-header {
+  position: fixed;
+  min-height: var(--header-h);
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(0.9rem, 2.2vh, 1.4rem) var(--gutter);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color var(--f10) var(--ease-out),
+    border-color var(--f10) var(--ease-out),
+    backdrop-filter var(--f10) var(--ease-out);
+}
+
+.site-header[data-lifted='true'] {
+  background: color-mix(in oklab, var(--ground) 72%, transparent);
+  border-bottom-color: var(--rule);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.site-word {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-timecode {
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+  margin-left: auto;
+}
+
+.site-nav-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition:
+    color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+.site-nav-link:hover {
+  color: var(--ink);
+}
+
+/* The active section is the one line on the page. It is a state, not a
+   decoration, which is the whole test for whether a rule belongs. */
+.site-nav-link[data-active='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--mark);
+}
+
+.site-nav-index {
+  font-size: 0.82em;
+  opacity: 0.55;
+}
+
+.site-locales {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.site-locale {
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color var(--f4) var(--ease-out);
+}
+
+.site-locale:hover {
+  color: var(--ink);
+}
+
+.site-locale[aria-current] {
+  color: var(--mark);
+}
+
+/* Below the pin breakpoint the section list goes: four uppercase labels, a
+   timecode and three locales do not fit across a phone, and the one that has to
+   survive is the way to change language. */
+@media (max-width: 767px) {
+  .site-nav,
+  .site-timecode {
+    display: none;
+  }
+
+  .site-locales {
+    margin-left: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE WORK
+
+   Two projects, two compositions, one language. The mirror is done with grid
+   column assignments rather than direction or order, so the reading order in
+   the markup stays picture-then-copy for both and a screen reader gets the same
+   sequence the eye does.
+--------------------------------------------------------------------------- */
+.work {
+  position: relative;
+  isolation: isolate;
+  background: var(--ground);
+  padding: clamp(5rem, 14vh, 9rem) var(--gutter) clamp(4rem, 10vh, 7rem);
+}
+
+.work-atmos {
+  --atmos-key: var(--gold);
+  --atmos-fill: var(--accent-deep);
+  --atmos-x: 84%;
+  --atmos-y: 8%;
+  --atmos-x2: 6%;
+  --atmos-y2: 64%;
+}
+
+.work-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: clamp(0.9rem, 2vh, 1.4rem);
+  max-width: 68ch;
+  padding-bottom: clamp(3rem, 8vh, 5rem);
+  border-bottom: 1px solid var(--rule);
+}
+
+.work-heading {
+  margin: 0;
+  font-size: var(--text-h2);
+}
+
+.work-intro {
+  margin: 0;
+  max-width: 54ch;
+}
+
+.work-item {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 4vh, 2.5rem);
+  padding: clamp(3.5rem, 10vh, 6.5rem) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.work-index {
+  font-family: var(--font-mono);
+  font-size: clamp(3rem, 11vw, 9rem);
+  line-height: 0.8;
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in oklab, var(--ink) 22%, transparent);
+}
+
+.work-figure {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: var(--ground-raised);
+}
+
+/* The project's own colour, thrown under its picture. This is the only place
+   the accent is allowed to be a field rather than a line. */
+.work-figure::after {
+  content: '';
+  position: absolute;
+  inset: auto -10% -40% -10%;
+  height: 60%;
+  background: radial-gradient(
+    50% 60% at 50% 100%,
+    color-mix(in oklab, var(--project-glow) 26%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.work-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform var(--f15) var(--ease-out);
+}
+
+.work-item:hover .work-image {
+  transform: scale(1.018);
+}
+
+.work-copy {
+  display: grid;
+  gap: clamp(1rem, 2.4vh, 1.6rem);
+  align-content: start;
+  max-width: 56ch;
+}
+
+.work-name {
+  margin: 0;
+  font-size: var(--text-h2);
+}
+
+.work-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  margin: 0;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.work-meta dd {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.work-description {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.62;
+  color: var(--ink-muted);
+}
+
+/* The one button style the site has, wherever it goes out to a real address. */
+.work-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.85em 1.5em;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--project-glow) 0%, transparent);
+  transition:
+    background-color var(--f6) var(--ease-out),
+    border-color var(--f6) var(--ease-out),
+    color var(--f6) var(--ease-out);
+}
+
+.work-link-arrow {
+  width: 0.95em;
+  height: 0.95em;
+  transition: transform var(--f6) var(--ease-out);
+}
+
+.work-link:hover {
+  color: var(--mark-ink);
+  border-color: var(--project-glow);
+  background: var(--project-glow);
+}
+
+.work-link:hover .work-link-arrow {
+  transform: translate3d(0.18em, -0.18em, 0);
+}
+
+@media (min-width: 1024px) {
+  .work-item {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    grid-template-areas:
+      'index  copy'
+      'figure copy';
+    align-items: start;
+    column-gap: clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .work-index {
+    grid-area: index;
+  }
+
+  .work-figure {
+    grid-area: figure;
+  }
+
+  .work-copy {
+    grid-area: copy;
+    align-self: center;
+  }
+
+  /* The turn. Columns swap, markup order does not. */
+  .work-item[data-mirrored='true'] {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    grid-template-areas:
+      'copy index'
+      'copy figure';
+  }
+
+  .work-item[data-mirrored='true'] .work-index {
+    justify-self: end;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   ABOUT
+
+   An editorial spread: label, heading, the argument, and the list of what the
+   work actually covers. The statement keeps the scrubbed reveal it always had.
+--------------------------------------------------------------------------- */
+.about {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 100svh;
+  padding: clamp(4rem, 12vh, 9rem) var(--gutter);
+  background: var(--ground);
+}
+
+.about-atmos {
+  --atmos-key: var(--violet);
+  --atmos-fill: var(--accent-deep);
+  --atmos-x: 12%;
+  --atmos-y: 18%;
+  --atmos-x2: 88%;
+  --atmos-y2: 78%;
+}
+
+.about-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  gap: clamp(2.5rem, 7vh, 4.5rem);
+}
+
+.about-head {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.about-heading {
+  margin: 0;
+  font-size: var(--text-h2);
+}
+
+.about-body {
+  display: grid;
+  gap: clamp(1.5rem, 4vh, 2.5rem);
+}
+
+.about-statement {
+  margin: 0;
+  max-width: 20ch;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.about-lede {
+  max-width: 46ch;
+  margin: 0;
+}
+
+.about-capabilities {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: clamp(1.5rem, 4vh, 2.5rem);
+  border-top: 1px solid var(--rule);
+}
+
+.about-capability-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.85rem clamp(1.5rem, 4vw, 3rem);
+}
+
+.about-capability {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.about-capability-index {
+  font-size: 0.5em;
+  letter-spacing: 0.1em;
+  color: var(--mark);
+}
+
+@media (min-width: 1024px) {
+  .about-body {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: end;
+    gap: clamp(2.5rem, 6vw, 5rem);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   CONTACT
+
+   The last thing on the page, and the largest type on it. A portfolio that ends
+   in a small boxed card ends by apologising.
+--------------------------------------------------------------------------- */
+.contact {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid var(--rule);
+  background: var(--ground);
+  padding: clamp(5rem, 14vh, 10rem) var(--gutter) clamp(4rem, 10vh, 7rem);
+}
+
+.contact-atmos {
+  --atmos-key: var(--coral);
+  --atmos-fill: var(--accent);
+  --atmos-x: 74%;
+  --atmos-y: 12%;
+  --atmos-x2: 18%;
+  --atmos-y2: 92%;
+}
+
+.contact-heading {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 14ch;
+  font-size: var(--text-mega);
+}
+
+.contact-intro {
+  position: relative;
+  z-index: 1;
+  margin: clamp(1.25rem, 3vh, 2rem) 0 0;
+  max-width: 46ch;
+}
+
+.contact-form-slot {
+  position: relative;
+  z-index: 1;
+  margin-top: clamp(2.5rem, 7vh, 4.5rem);
+  max-width: 46rem;
+}
