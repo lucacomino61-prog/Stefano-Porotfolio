@@ -1015,6 +1015,38 @@ body {
 }
 
 /*
+ * The glass, on the DOM half of the screen.
+ *
+ * The texture carries its own tube (see WorkstationScene), but once the walk
+ * lands you are reading real HTML painted over that panel, and without this the
+ * interface stops being a screen at exactly the moment you are closest to it.
+ * Same two effects, in CSS this time.
+ *
+ * Sits above the chrome as well as the panes, because the glass is in front of
+ * everything the monitor is showing. z-index is safe to scope here: the
+ * container-type: size above implies contain: layout, so this element is
+ * already its own stacking context.
+ *
+ * Both depths are held low on purpose, and the vignette was set by the number
+ * rather than by eye. Worst case is a scanline row at the darkest point of the
+ * vignette, where the two composite to 1-(1-0.05)(1-v) over both the type and
+ * its ground. At v=0.22 the quietest tone on the screen came out at 4.54:1,
+ * which clears AA by four hundredths at the exact corner the pager sits in. At
+ * 0.16 it is 5.14:1. A tube that costs a contrast ratio is a costume, not a
+ * material, and one that clears by a rounding error is the same thing.
+ */
+.cinema-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 5%) 0 1px, transparent 1px 3px),
+    radial-gradient(125% 105% at 50% 50%, transparent 58%, rgb(0 0 0 / 16%));
+}
+
+/*
  * Every type size on the screen is clamped, and that is not belt and braces.
  *
  * These were authored in bare cqw against a monitor drawn inside a desktop
@@ -1695,21 +1727,54 @@ body {
   color: var(--mark);
 }
 
-/* One rule, and it is the only one on the screen: it is reporting a real
-   measurement, which is the whole test for whether a line belongs. */
-.loader-rule {
-  position: relative;
-  height: 2px;
-  background: var(--rule);
-  overflow: hidden;
+/* The boot readout, which replaced a rule.
+   Same measurement, told better: the rule could say how far along the room was,
+   this says which part of it has landed. Six lines, six real arrivals. */
+.loader-boot {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.loader-rule-fill {
-  position: absolute;
-  inset: 0;
-  transform-origin: left center;
-  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
-  transition: transform var(--f10) var(--ease-out);
+.loader-boot-line {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  transition: color var(--f6) var(--ease-out);
+}
+
+.loader-boot-line[data-here='true'] {
+  color: var(--ink);
+}
+
+/* The leader. A readout lines its two ends up and leaves the middle to the
+   dots, which is the one job this element has. */
+.loader-boot-fill {
+  align-self: center;
+  height: 1px;
+  opacity: 0.4;
+  background-image: linear-gradient(to right, currentColor 0 2px, transparent 2px 6px);
+  background-size: 6px 1px;
+  background-repeat: repeat-x;
+}
+
+/* --confirm, whose stated single job is a confirmed state. A file that has
+   landed is exactly that, so the token is used for what it is for rather than
+   because green reads as done. */
+.loader-boot-state {
+  font-variant-numeric: tabular-nums;
+  transition: color var(--f6) var(--ease-out);
+}
+
+.loader-boot-line[data-here='true'] .loader-boot-state {
+  color: var(--confirm);
 }
 
 /* ---------------------------------------------------------------------------

@@ -18,3 +18,25 @@ export const SCENE_ASSETS = [
   '/models/workstation/desk.glb',
   '/models/workstation/poly-haven-studio-1k.hdr',
 ] as const
+
+/**
+ * What to call each one while it is arriving.
+ *
+ * The loading screen prints these as a boot readout, one line per file, and a
+ * line turns over only when that file has actually landed. So these are the
+ * names of real things being fetched, not set dressing: if a device were added
+ * to the scene and not here, its line would simply not exist rather than sit
+ * there claiming to load something.
+ *
+ * Not in the dictionary, and not translated. A device name on a boot readout is
+ * an identifier in the register of the machine, the same as the timecode, and
+ * the overlay is aria-hidden and inert so nothing announces them.
+ */
+export const SCENE_ASSET_LABEL: Record<string, string> = {
+  '/models/pc-anatomy/monitor-hero.glb': 'MONITOR',
+  '/models/pc-anatomy/pc-case-hero.glb': 'TOWER',
+  '/models/pc-anatomy/mouse-hero.glb': 'MOUSE',
+  '/models/pc-anatomy/keyboard-hero.glb': 'KEYBOARD',
+  '/models/workstation/desk.glb': 'DESK',
+  '/models/workstation/poly-haven-studio-1k.hdr': 'ROOM LIGHT',
+}

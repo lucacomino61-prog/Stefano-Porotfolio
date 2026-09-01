@@ -189,6 +189,57 @@ const SCREEN_H = 1152
 const SCREEN_GAIN = 1.85
 const SCREEN_DRIVE = new Color().setScalar(SCREEN_GAIN)
 
+/**
+ * The tube.
+ *
+ * Painted into the texture rather than run as a shader, for two reasons. The
+ * texture is already a 2D canvas repainted only when the project or the view
+ * changes, so this costs nothing per frame on the integrated GPU this has to
+ * run on. And a raw ShaderMaterial would have taken the sRGB decode off three's
+ * shoulders and onto mine, which is a colour-space bug waiting to happen for a
+ * pair of dark lines.
+ *
+ * Scanlines belong to the screen, not to the viewer, so baking them at texture
+ * resolution is also the physically honest place for them: they do not get
+ * coarser as you walk up to it.
+ *
+ * Depth is deliberately low. These sit under type that has to stay readable at
+ * both distances, and a CRT that costs a contrast ratio is a costume.
+ */
+const SCAN_PERIOD = 4
+const SCAN_THICKNESS = 2
+const SCAN_DEPTH = 0.055
+const VIGNETTE_DEPTH = 0.34
+
+function tube(context: CanvasRenderingContext2D): void {
+  context.save()
+
+  context.fillStyle = '#000'
+  context.globalAlpha = SCAN_DEPTH
+  for (let y = 0; y < SCREEN_H; y += SCAN_PERIOD) {
+    context.fillRect(0, y, SCREEN_W, SCAN_THICKNESS)
+  }
+
+  // The glass falling away at the edges. Elliptical rather than round, because
+  // the panel is wider than it is tall and a circular falloff would darken the
+  // long sides while leaving the corners lit.
+  context.globalAlpha = 1
+  const vignette = context.createRadialGradient(
+    SCREEN_W / 2,
+    SCREEN_H / 2,
+    SCREEN_H * 0.18,
+    SCREEN_W / 2,
+    SCREEN_H / 2,
+    SCREEN_W * 0.72,
+  )
+  vignette.addColorStop(0, 'rgba(0,0,0,0)')
+  vignette.addColorStop(1, `rgba(0,0,0,${VIGNETTE_DEPTH})`)
+  context.fillStyle = vignette
+  context.fillRect(0, 0, SCREEN_W, SCREEN_H)
+
+  context.restore()
+}
+
 function MonitorScreen({
   project,
   panel,
@@ -242,6 +293,7 @@ function MonitorScreen({
         context.font = '600 34px ui-monospace, monospace'
         context.fillText('VIEW MY WORK', 150, SCREEN_H * 0.63 + 56)
 
+        tube(context)
         // eslint-disable-next-line react-hooks/immutability
         texture.needsUpdate = true
         return
@@ -298,6 +350,8 @@ function MonitorScreen({
 
       context.fillStyle = project.screen.accent
       context.fillRect(96, SCREEN_H * 0.83, 300, 8)
+
+      tube(context)
 
       // The canvas is GPU memory, not React state: the texture object must stay
       // the same object while its pixels are re-uploaded. This is an upload, not
