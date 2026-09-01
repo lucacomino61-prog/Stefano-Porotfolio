@@ -9,6 +9,7 @@ import {
   Color,
   Group,
   Mesh,
+  MeshBasicMaterial,
   type MeshStandardMaterial,
   Object3D,
   type PerspectiveCamera,
@@ -1009,17 +1010,30 @@ function RoomModel() {
   const { scene } = useGLTF(ROOM)
   const room = useMemo(() => {
     const clone = scene.clone(true)
+
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return
-      child.castShadow = false
-      child.receiveShadow = true
 
-      // Nothing is retinted here any more. The shell arrived near black and had
-      // to be overridden to be visible at all, which meant floor, wall and trim
-      // were forced to one colour and the room read as a box. It is authored in
-      // navy now, four values apart, so the materials it ships with are the
-      // ones that should show. See scripts/room.py.
+      // Nothing here casts or receives at runtime. The shadows are already in
+      // the texture: Cycles traced them once, offline, with bounce light the
+      // real-time renderer cannot afford. Asking the shadow map to draw them a
+      // second time would cost a full scene pass to produce a worse version of
+      // an image the mesh is already wearing.
+      child.castShadow = false
+      child.receiveShadow = false
+
+      const source = child.material as MeshStandardMaterial | MeshStandardMaterial[]
+      const first = Array.isArray(source) ? source[0] : source
+      const baked = first?.emissiveMap ?? first?.map ?? null
+      if (!baked) return
+
+      // Unlit, deliberately. The light is in the pixels; a lit material would
+      // multiply it by whatever the lamps happen to be doing and the room would
+      // drift every time the lighting changed for the objects standing in it.
+      const flat = new MeshBasicMaterial({ map: baked, toneMapped: false })
+      child.material = flat
     })
+
     return clone
   }, [scene])
 
