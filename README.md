@@ -84,6 +84,20 @@ in `lib/i18n/config.ts` rather than the URL segment.
 but nothing claims a client, an outcome, a metric or a date it cannot support.
 `npm run db:seed` still refuses to run on invented data.
 
+## Loading
+
+The first screen is a room that has to arrive over the network, so
+[components/ui/Loader.tsx](components/ui/Loader.tsx) covers the wait. The number
+on it is real: files arrived out of files expected, counted off resource timing,
+which does not care that R3F loads through its own manager rather than three's
+default one. Dismissal is separate from the count and comes from `SceneReady`
+inside the scene's Suspense boundary — a component that cannot mount until its
+siblings' resources exist cannot be wrong about whether they exist.
+
+Three ways out, and all of them are covered: the room finishes, the room says it
+is not coming (reduced motion), or a nine second deadline passes. A loading
+screen is the one component where a bug means nobody ever sees the site.
+
 ## The monitor
 
 The first screen and the walk toward the workstation are one pinned section,
@@ -96,8 +110,11 @@ ordinary HTML.
 
 Project data lives in one place, [lib/projects.ts](lib/projects.ts); the
 translated copy for each project sits under `work.projects` in the dictionary.
-The 3D room and its 38MB of models are desktop-only and are never fetched below
-1024px or under reduced motion.
+The room loads 4.1MB across five models and an environment map — the 38MB in
+`public/models` is mostly unreferenced source files. It loads everywhere except
+under reduced motion; the pinned walk toward the monitor is still desktop only,
+but the workstation itself is the first thing this site has to say and a phone
+gets to see it.
 
 ## Day and night
 

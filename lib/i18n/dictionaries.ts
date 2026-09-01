@@ -17,6 +17,7 @@ export type Dictionary = {
   nav: {
     skipToContent: string
     languageLabel: string
+    loadingLabel: string
     sections: string
     /** Short rail labels. Long enough to be unambiguous, short enough to fit. */
     items: { manifesto: string; work: string; process: string; contact: string }
@@ -117,6 +118,7 @@ const en: Dictionary = {
   },
   nav: {
     skipToContent: 'Skip to content',
+    loadingLabel: 'Loading the room',
     languageLabel: 'Language',
     sections: 'Sections',
     items: { manifesto: 'Approach', work: 'Work', process: 'Process', contact: 'Contact' },
@@ -252,6 +254,7 @@ const it: Dictionary = {
   },
   nav: {
     skipToContent: 'Vai al contenuto',
+    loadingLabel: 'Carico la stanza',
     languageLabel: 'Lingua',
     sections: 'Sezioni',
     items: { manifesto: 'Approccio', work: 'Lavori', process: 'Processo', contact: 'Contatti' },
@@ -387,6 +390,7 @@ const al: Dictionary = {
   },
   nav: {
     skipToContent: 'Kalo te përmbajtja',
+    loadingLabel: 'Po ngarkoj dhomën',
     languageLabel: 'Gjuha',
     sections: 'Seksionet',
     items: { manifesto: 'Qasja', work: 'Punët', process: 'Procesi', contact: 'Kontakt' },

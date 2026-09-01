@@ -9,6 +9,7 @@ import { Cursor } from '@/components/motion/Cursor'
 import { SmoothScroll } from '@/components/motion/SmoothScroll'
 import { SiteFooter } from '@/components/ui/SiteFooter'
 import { Grain } from '@/components/ui/Grain'
+import { Loader } from '@/components/ui/Loader'
 import { SiteHeader } from '@/components/ui/SiteHeader'
 import { LANG_TAG, LOCALES, OG_LOCALE, isLocale } from '@/lib/i18n/config'
 import { getDictionary } from '@/lib/i18n/dictionaries'
@@ -154,6 +155,7 @@ export default async function RootLayout(props: {
 
         <SmoothScroll />
         <Cursor />
+        <Loader dict={dict.nav} name={dict.hero.name} />
         <Grain />
         <SiteHeader
           nav={dict.nav}

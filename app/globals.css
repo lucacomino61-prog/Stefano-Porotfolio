@@ -797,6 +797,43 @@ body {
   pointer-events: auto;
 }
 
+/* The copy layer is set on the room, not on the page, so it reads from the
+   room's roles rather than the sheet's.
+
+   Without this the day sheet turns --ink near-black and lays it over a lit
+   interior that does not turn over with the hour, and the first screen becomes
+   dark type on a dark desk. The slates were already right, because .plate has
+   always used --slate-*; rebinding the roles here extends the same rule to the
+   headline and the button without either of them having to know they are on a
+   different ground. */
+.cinema-copy {
+  --ink: var(--slate-ink);
+  --ink-muted: var(--slate-ink-muted);
+  --warm: var(--slate-ink-muted);
+  --mark: var(--slate-mark);
+  --mark-ink: var(--slate);
+}
+
+/* Something for the copy to sit on where it crosses the desk. Anchored to the
+   bottom of the room, strongest where the type is, gone by mid-frame.
+
+   Mixed from --slate, not --gate: the room is a dark interior under either
+   sheet, and --gate turns pale on the day one, which put a milky wash over the
+   desk instead of a shadow under the type. */
+.cinema-room::after {
+  content: '';
+  position: absolute;
+  inset: 30% 0 0 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--slate) 52%, transparent) 62%,
+    color-mix(in oklab, var(--slate) 76%, transparent)
+  );
+}
+
 .hero-copy {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -846,8 +883,8 @@ body {
   font-size: var(--text-h1);
   background: linear-gradient(
     168deg,
-    var(--ink) 18%,
-    color-mix(in oklab, var(--ink) 74%, var(--project-glow, var(--accent))) 92%
+    var(--slate-ink) 18%,
+    color-mix(in oklab, var(--slate-ink) 74%, var(--project-glow, var(--accent))) 92%
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -1382,4 +1419,115 @@ body {
   z-index: 1;
   margin-top: clamp(2.5rem, 7vh, 4.5rem);
   max-width: 46rem;
+}
+
+/* ---------------------------------------------------------------------------
+   THE LOADER
+
+   Covers the wait for the room and nothing else. It is painted from the same
+   tokens as the page, so the moment it lifts there is no change of world — a
+   loading screen in a different palette to the site behind it announces itself
+   as a separate thing bolted on the front.
+
+   Both sheets, both sizes, one composition. The only thing that changes with
+   the viewport is the scale of the name.
+--------------------------------------------------------------------------- */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: var(--ground);
+  transition:
+    opacity var(--f15) var(--ease-out),
+    visibility var(--f15) step-end;
+}
+
+/* Light in the room, arriving before the room does. */
+.loader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    58% 50% at 50% 42%,
+    color-mix(in oklab, var(--accent) 12%, transparent),
+    transparent 74%
+  );
+}
+
+.loader[data-complete='true'] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-inner {
+  position: relative;
+  display: grid;
+  gap: clamp(0.9rem, 2.4vh, 1.5rem);
+  width: min(28rem, calc(100vw - var(--gutter) * 2));
+}
+
+.loader-name {
+  justify-self: start;
+  margin: 0;
+  font-size: clamp(1.05rem, 3.6vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.loader-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.loader-word {
+  margin: 0;
+}
+
+.loader-count {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  color: var(--mark);
+}
+
+/* One rule, and it is the only one on the screen: it is reporting a real
+   measurement, which is the whole test for whether a line belongs. */
+.loader-rule {
+  position: relative;
+  height: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.loader-rule-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+  transition: transform var(--f10) var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------------
+   THE ROOM AS A BLOCK
+
+   Desktop: it fills the pinned stage and the copy sits over it. Narrow: it is
+   the first screen's own box, so the canvas stops where the copy stops instead
+   of running behind everything below.
+--------------------------------------------------------------------------- */
+.cinema-room {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+  .cinema-room {
+    position: relative;
+    inset: auto;
+  }
 }

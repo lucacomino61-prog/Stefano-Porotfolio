@@ -16,6 +16,8 @@ import {
 } from 'three'
 
 import { cinema } from '@/lib/motion/cinema'
+import { setSceneProgress } from '@/lib/motion/loading'
+import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
 import type { Project } from '@/lib/projects'
 
@@ -40,12 +42,7 @@ type ModelProps = {
   metalness?: number
 }
 
-const MONITOR = '/models/pc-anatomy/monitor-hero.glb'
-const PC_CASE = '/models/pc-anatomy/pc-case-hero.glb'
-const MOUSE = '/models/pc-anatomy/mouse-hero.glb'
-const KEYBOARD = '/models/pc-anatomy/keyboard-hero.glb'
-const DESK = '/models/workstation/desk.glb'
-const STUDIO = '/models/workstation/poly-haven-studio-1k.hdr'
+const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO] = SCENE_ASSETS
 
 function prepareModel(source: Object3D): { model: Object3D; sourceSize: Vector3 } {
   const model = source.clone(true)
@@ -448,6 +445,22 @@ function RoomShell({ accent }: { accent: string }) {
   )
 }
 
+/**
+ * Mounts only once the Suspense boundary around it has resolved, which is the
+ * one moment the room is genuinely ready to draw.
+ *
+ * This is the authoritative signal, not a progress reading. drei's useProgress
+ * watches three's DefaultLoadingManager, and R3F's useLoader does not register
+ * with it — it reports a total of zero here and never fires, which left the
+ * loading screen waiting for its deadline while the assets had been on disk for
+ * eight seconds. A component that cannot mount until its siblings' resources
+ * exist cannot be wrong about whether they exist.
+ */
+function SceneReady() {
+  useEffect(() => setSceneProgress(1), [])
+  return null
+}
+
 /** A complete room-lit workstation, still driven by the application's GSAP ticker. */
 export function WorkstationScene({ project }: { project: Project }) {
   const panel = useRef<Mesh>(null)
@@ -482,6 +495,7 @@ export function WorkstationScene({ project }: { project: Project }) {
       <pointLight color={project.glow} intensity={2.2} distance={6} position={[0.6, 1.5, -1.2]} />
 
       <Suspense fallback={null}>
+        <SceneReady />
         <Environment files={STUDIO} environmentIntensity={0.55} />
         <RoomShell accent={project.screen.accent} />
         <Workstation project={project} panel={panel} />

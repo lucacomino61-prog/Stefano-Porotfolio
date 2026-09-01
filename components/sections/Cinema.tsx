@@ -123,10 +123,16 @@ export function Cinema({
             frame does not end at the canvas edge. */}
         <div className="cinema-atmos atmos" aria-hidden="true" />
 
-        <GateMount project={project} />
+        {/* Room and copy are one block so the canvas can be scoped to the
+            first screen. On desktop that block fills the pinned stage; on a
+            phone nothing pins, and without this the canvas would stretch down
+            behind the project panel underneath. */}
+        <div className="cinema-room">
+          <GateMount project={project} />
 
-        <div data-hero-copy className="cinema-copy">
-          <Hero dict={hero} calendar={calendar} />
+          <div data-hero-copy className="cinema-copy">
+            <Hero dict={hero} calendar={calendar} />
+          </div>
         </div>
 
         <div data-screen-ui className="cinema-screen">
