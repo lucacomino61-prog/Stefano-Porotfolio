@@ -183,17 +183,17 @@ const DRIFT_RATE_Z = 0.11
 
 /** What is outside the room: the background and the fog, which must be one value. */
 /**
- * The room, in pastel blue.
+ * The room, in navy.
  *
- * It used to be near black on the theory that a dark room makes a bright screen
- * — which is true, and which also meant there was nothing to look at but the
- * screen: the desk, the walls and the window were all the same void. A pale
- * cool shell reads as a room, gives the monitor's own light something to fall
- * on, and still leaves the panel the brightest thing in frame because the panel
- * is unlit geometry and everything else is being lit.
+ * It started near black, on the theory that a dark room makes a bright screen.
+ * True, and it also meant there was nothing to look at but the screen. Navy is
+ * the middle of that argument: dark enough that the panel is still the
+ * brightest thing in frame, light enough to have a shape — the ambient is held
+ * up so the walls, the reveal and the floor separate instead of merging into
+ * one void. A colour needs light on it to read as a colour.
  */
-const ROOM_VOID = '#1d2735'
-const ROOM_SHELL = '#9db4d0'
+const ROOM_VOID = '#0d1730'
+const ROOM_SHELL = '#31456f'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -857,7 +857,7 @@ function Workstation({
         url={DESK}
         size={[3.25, 0.96, 1.48]}
         position={[-0.2, -1.18, 0.12]}
-        tint="#6f6a63"
+        tint="#8b8378"
         roughness={0.78}
         metalness={0.04}
       />
@@ -1150,7 +1150,7 @@ export function WorkstationScene({
       */}
       <color attach="background" args={[ROOM_VOID]} />
       <fog attach="fog" args={[ROOM_VOID, 8.5, 17]} />
-      <ambientLight intensity={0.85} />
+      <ambientLight intensity={1.05} />
       {/* Key light, low and cool, from the window side. Cut back hard from what
           a product shot would use: this is a room in the evening with a screen
           on in it, and the screen has to be the brightest thing in the frame. */}
