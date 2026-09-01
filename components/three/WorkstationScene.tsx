@@ -164,8 +164,8 @@ const SCREEN_H = 1152
  * The panel is unlit on purpose: a screen makes its own light, so it takes a
  * meshBasicMaterial and no lamp in the room can touch it. The consequence is
  * that it shows the texture's literal colours, and the projects it shows are
- * dark sites. Elixir's ground is #0b0a09, which is very nearly black, so a
- * faithful panel read as a switched-off monitor.
+ * dark sites: one of them grounds at #0b0a09, very nearly black, so a faithful
+ * panel read as a switched-off monitor.
  *
  * A material colour above 1 multiplies the map in linear space, which lifts the
  * midtones without washing the blacks to grey the way adding a constant would.
