@@ -53,7 +53,7 @@ type ModelProps = {
   metalness?: number
 }
 
-const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO] = SCENE_ASSETS
+const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO, ROOM] = SCENE_ASSETS
 
 function prepareModel(source: Object3D): { model: Object3D; sourceSize: Vector3 } {
   const model = source.clone(true)
@@ -797,6 +797,27 @@ function Workstation({
  * "click the sky", and clicking the floor two inches from the desk would do
  * nothing at all.
  */
+/**
+ * The shell has nothing to cast onto anything: it IS the thing being cast
+ * onto. Turning casting off for it drops every wall out of the shadow pass,
+ * which is a full scene re-render into a square target, and the desk objects
+ * that actually need to cast still do.
+ */
+function RoomModel() {
+  const { scene } = useGLTF(ROOM)
+  const room = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      child.castShadow = false
+      child.receiveShadow = true
+    })
+    return clone
+  }, [scene])
+
+  return <primitive object={room} />
+}
+
 function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void }) {
   return (
     <group
@@ -809,20 +830,26 @@ function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void })
         onEnter()
       }}
     >
-      <mesh position={[0, -1.22, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[14, 12]} />
-        <meshStandardMaterial color="#19191b" roughness={0.9} />
-      </mesh>
+      {/*
+        The shell, modelled rather than assembled from primitives.
 
-      <mesh position={[0, 1.65, -3.15]} receiveShadow>
-        <boxGeometry args={[11, 5.8, 0.12]} />
-        <meshStandardMaterial color="#111113" roughness={0.96} />
-      </mesh>
+        It replaces a floor plane and two wall boxes. One mesh, but four
+        primitives, one per material, so it is one draw call more than the
+        three it supersedes and not fewer — and it carries fourteen boxes of
+        geometry that as primitives would have been fourteen. 168 triangles and
+        15KB, against the 1.5MB the tower already costs.
 
-      <mesh position={[-5.3, 1.2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <boxGeometry args={[8, 5, 0.12]} />
-        <meshStandardMaterial color="#151517" roughness={0.94} />
-      </mesh>
+        What it buys is what primitives could not carry without becoming a list
+        of coordinates to keep in sync: skirting where the wall meets the
+        floor, a window opening with real depth instead of a lit rectangle
+        stuck on a flat wall, and a right-hand wall, which this room never had.
+        That absence is what let you see out of it.
+
+        Authored at these exact coordinates, so it is a drop-in for the
+        geometry it replaces rather than a re-measure of the room. The source
+        is scripts/room.py; the GLB is a build artefact of it.
+      */}
+      <RoomModel />
 
       {/* A large architectural window gives the room depth without adding a
           heavyweight architectural model to the hero bundle. */}
@@ -978,3 +1005,4 @@ useGLTF.preload(PC_CASE)
 useGLTF.preload(MOUSE)
 useGLTF.preload(KEYBOARD)
 useGLTF.preload(DESK)
+useGLTF.preload(ROOM)

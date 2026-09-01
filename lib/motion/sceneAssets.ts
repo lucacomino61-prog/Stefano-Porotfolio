@@ -17,6 +17,7 @@ export const SCENE_ASSETS = [
   '/models/pc-anatomy/keyboard-hero.glb',
   '/models/workstation/desk.glb',
   '/models/workstation/poly-haven-studio-1k.hdr',
+  '/models/workstation/room.glb',
 ] as const
 
 /**
@@ -39,4 +40,5 @@ export const SCENE_ASSET_LABEL: Record<string, string> = {
   '/models/pc-anatomy/keyboard-hero.glb': 'KEYBOARD',
   '/models/workstation/desk.glb': 'DESK',
   '/models/workstation/poly-haven-studio-1k.hdr': 'ROOM LIGHT',
+  '/models/workstation/room.glb': 'ROOM',
 }
