@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react'
 import { gsap } from '@/lib/motion/gsap'
 import { onFrame } from '@/lib/motion/ticker'
 
-import type { ScreenView } from '@/components/ui/ProjectScreen'
+import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
 import { HeroGate } from './HeroGate'

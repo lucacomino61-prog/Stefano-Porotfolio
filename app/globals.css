@@ -542,7 +542,7 @@ body {
 }
 
 .screen-site-word {
-  font-size: 1.9cqw;
+  font-size: clamp(0.95rem, 1.9cqw, 1.65rem);
   letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--screen-ink);
@@ -551,7 +551,7 @@ body {
 .screen-site-links {
   display: flex;
   gap: 2.2cqw;
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   letter-spacing: 0.22em;
   color: var(--screen-muted);
 }
@@ -576,7 +576,7 @@ body {
    on every machine this will be opened on; nothing is fetched to draw it. */
 .screen-site-headline {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 4.6cqw;
+  font-size: clamp(1.7rem, 4.6cqw, 4rem);
   line-height: 1.02;
   letter-spacing: -0.015em;
   margin: 0;
@@ -585,7 +585,7 @@ body {
 
 .screen-site-standfirst {
   margin: 0;
-  font-size: 1.5cqw;
+  font-size: clamp(0.85rem, 1.5cqw, 1.3rem);
   line-height: 1.5;
   color: var(--screen-muted);
   max-width: 26ch;
@@ -597,7 +597,7 @@ body {
   border-radius: 999px;
   background: var(--screen-ink);
   color: var(--screen-ground);
-  font-size: 1.1cqw;
+  font-size: clamp(0.7rem, 1.1cqw, 0.96rem);
   letter-spacing: 0.2em;
 }
 
@@ -628,20 +628,20 @@ body {
 
 .screen-index {
   font-family: var(--font-mono);
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   color: var(--screen-accent);
   letter-spacing: 0.1em;
 }
 
 .screen-name {
-  font-size: 2.4cqw;
+  font-size: clamp(1.05rem, 2.4cqw, 2.1rem);
   letter-spacing: -0.02em;
   font-weight: 600;
 }
 
 .screen-category {
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--screen-muted);
@@ -650,7 +650,7 @@ body {
 .screen-description {
   margin: 0;
   max-width: 52ch;
-  font-size: 1.35cqw;
+  font-size: clamp(0.78rem, 1.35cqw, 1.18rem);
   line-height: 1.55;
   color: var(--screen-muted);
 }
@@ -662,7 +662,7 @@ body {
   gap: 1cqw;
   padding: 1.5cqh 2.4cqw;
   font-family: var(--font-mono);
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   letter-spacing: 0.16em;
   text-decoration: none;
   color: var(--screen-ground);
@@ -689,6 +689,18 @@ body {
 }
 
 /* --- chrome and switcher --- */
+/*
+ * The chrome runs over any view, so it cannot assume a project's palette.
+ *
+ * --screen-ground, --screen-ink and --screen-muted are set on .screen-pane and
+ * nowhere else, because they were a project's own colours read off its live
+ * site. Once the machine grew sections that are not projects, this bar started
+ * rendering over them with none of those defined, and an unresolved var() is
+ * not an error: color-mix() with one becomes invalid and the whole declaration
+ * is dropped. The bar silently lost its background and its dots disappeared
+ * altogether. The fallbacks are the slate, which is what the screen is when no
+ * project is painting it.
+ */
 .screen-chrome {
   position: absolute;
   inset: 0 0 auto 0;
@@ -697,8 +709,9 @@ body {
   align-items: center;
   gap: 2cqw;
   padding: 1.6cqh 3cqw;
-  background: color-mix(in oklab, var(--screen-ground) 82%, transparent);
-  border-bottom: 1px solid color-mix(in oklab, var(--screen-ink) 10%, transparent);
+  background: color-mix(in oklab, var(--screen-ground, var(--slate)) 82%, transparent);
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 10%, transparent);
   backdrop-filter: blur(6px);
 }
 
@@ -711,18 +724,18 @@ body {
   width: 0.8cqw;
   height: 0.8cqw;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--screen-ink) 22%, transparent);
+  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 22%, transparent);
 }
 
 .screen-url {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.1em;
-  color: var(--screen-muted);
+  color: var(--screen-muted, var(--slate-ink-muted));
   padding: 0.7cqh 1.6cqw;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--screen-ink) 7%, transparent);
+  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 7%, transparent);
   max-width: 30cqw;
   text-align: center;
 }
@@ -734,7 +747,7 @@ body {
 
 .screen-tab {
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.14em;
   padding: 0.8cqh 1.4cqw;
   border-radius: 999px;
@@ -1001,21 +1014,37 @@ body {
   container-name: screen;
 }
 
+/*
+ * Every type size on the screen is clamped, and that is not belt and braces.
+ *
+ * These were authored in bare cqw against a monitor drawn inside a desktop
+ * viewport, where the container runs about 1200px. The container is now the
+ * viewport itself on a phone, so the same values collapsed: the home kicker
+ * computed to 4.7px and the preview's own labels to 4.3px, which is not small
+ * type, it is noise. The floors are what a phone needs, the ceilings are the
+ * value at about 1400px so the desktop composition is unchanged, and the
+ * middle term still does the work everywhere in between.
+ */
+
 /* At full zoom the panel is the viewport, which puts its chrome bar underneath
    the site header — and an interface whose project switcher cannot be clicked
    because the page's own navigation is sitting on it is not an interface. The
    band still runs to the top edge, so the panel reads as full bleed; only its
    contents step down past the bar. */
-@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) {
   .cinema-screen .screen-chrome {
     padding-top: calc(1.6cqh + var(--header-h));
   }
 }
 
 /* Nothing pinned, nothing scrubbed: the interface is simply on the page, under
-   the copy, at a readable size. Same rule for a phone and for a visitor who has
-   asked for less motion. */
-@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+   the copy, at a readable size.
+
+   Reduced motion ONLY now. This used to fire below 1024 as well, which is what
+   gave a phone a static panel in the page instead of the machine: the walk was
+   gated at the pin breakpoint and the layout followed it down. The walk is no
+   longer a width (see MEDIA.walk), so neither is this. */
+@media (prefers-reduced-motion: reduce) {
   .cinema-stage {
     min-height: auto;
   }
@@ -1057,6 +1086,11 @@ body {
    * In flow they follow the copy they used to sit on, still right-aligned so
    * they stay on the room's side of the column. Below 760 they are gone
    * entirely — see the rule above. */
+}
+
+/* The desk controls are a width question, not a motion one: below the pin
+   breakpoint there is no stage for them to hang off, walk or no walk. */
+@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
   .cinema-desk {
     position: static;
     margin: clamp(1.5rem, 4vh, 2.5rem) var(--gutter) 0 auto;
@@ -1691,7 +1725,17 @@ body {
   z-index: 1;
 }
 
-@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+/*
+ * Reduced motion only, and it has to match .cinema-copy above exactly.
+ *
+ * This still said `max-width: 1023px` after the copy stopped doing so, and the
+ * mismatch collapsed the room: .cinema-copy is the room's only in-flow child,
+ * so once the copy went absolute on a phone the room had no content to take
+ * height from and measured zero. The canvas inside it then never sized, and
+ * three left it at the 300x150 default drawing buffer painting nothing at all.
+ * A blank room, no error, and no hit target on the monitor.
+ */
+@media (prefers-reduced-motion: reduce) {
   .cinema-room {
     position: relative;
     inset: auto;
@@ -1714,21 +1758,32 @@ body {
 
 .screen-home-inner {
   display: grid;
+  /* start, not stretch: the name and the kicker are set left and must not be
+     pulled to the full width of a monitor. The menu below opts back out,
+     because a list of four presses that is 180px wide inside a 390px screen is
+     a list nobody can hit. */
   justify-items: start;
   gap: 2.6cqh;
+  width: 100%;
+  max-width: min(46rem, 88cqw);
   padding: 0 6cqw;
+}
+
+.screen-home-inner nav {
+  justify-self: stretch;
+  width: 100%;
 }
 
 .screen-home-kicker {
   margin: 0;
-  font-size: 1.2cqw;
+  font-size: clamp(0.72rem, 1.2cqw, 1.05rem);
   color: var(--slate-ink-muted);
 }
 
 .screen-home-name {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 4.2cqw;
+  font-size: clamp(1.6rem, 4.2cqw, 3.6rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -1743,7 +1798,7 @@ body {
   padding: 1.9cqh 2.8cqw;
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 1.35cqw;
+  font-size: clamp(0.78rem, 1.35cqw, 1.18rem);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--slate);
@@ -1771,7 +1826,7 @@ body {
   padding: 0.8cqh 1.4cqw;
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.14em;
   color: var(--screen-muted, var(--slate-ink-muted));
   cursor: pointer;
@@ -1823,4 +1878,201 @@ body {
 [data-hot='true'] .cursor-ring {
   --ring-w: 44px;
   --ring-h: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+   THE MACHINE
+
+   Once the walk lands, the monitor is not a picture of a computer, it is the
+   computer: every section of the site is behind a press here, and the page
+   underneath has stopped being a page.
+
+   Nothing in here scrolls. Sections are a fixed run of screens you page
+   through, which is why the copy is written as discrete units in the
+   dictionary. Paging means every screen is composed at a size the monitor
+   actually has, instead of a column running off the bottom of a bezel.
+--------------------------------------------------------------------------- */
+
+/* Lenis is stopped by enter(), and on a mouse that is the whole lock. It is not
+   on a phone: Lenis is built with syncTouch false so touch stays native, and a
+   finger scrolls the document straight past a stopped scroller. This is what
+   actually holds the page still, and it has to sit on the elements that scroll. */
+html[data-machine='open'],
+html[data-machine='open'] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The home menu. Four sections, numbered like takes, opened by a press. */
+.screen-menu {
+  display: grid;
+  gap: 1.2cqh;
+  margin: 4cqh 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.screen-menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 2.2cqw;
+  width: 100%;
+  padding: 1.6cqh 2cqw;
+  border: 1px solid var(--screen-line, color-mix(in oklab, currentColor 22%, transparent));
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 3.1cqw, 1.6rem);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+.screen-menu-item:hover,
+.screen-menu-item:focus-visible {
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  border-color: currentColor;
+}
+
+.screen-menu-index {
+  font-size: 0.62em;
+  letter-spacing: 0.14em;
+  opacity: 0.75;
+}
+
+.screen-menu-label {
+  flex: 1;
+  letter-spacing: -0.01em;
+}
+
+/* One screen of a paged section. The pager is pinned to the foot so the count
+   does not move between screens of different lengths. */
+.screen-paged {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  /*
+   * Clears the chrome bar, which is absolutely positioned over this and so
+   * takes no space of its own. Measured at 116px on a phone against 108px of
+   * padding: the section title was losing its top 8px to the bar.
+   *
+   * The floor is what makes it hold. In pure cqh this clears on a tall phone
+   * and fails in landscape, where the container is short but the bar is not:
+   * the bar carries --header-h plus its own type, neither of which shrinks
+   * with the viewport. Same failure the type sizes had.
+   */
+  padding: calc(var(--header-h) + max(4rem, 8cqh)) 6cqw 3cqh;
+
+  /*
+   * A screen is a screen under any light.
+   *
+   * Without this the paged sections inherited the page's own roles and printed
+   * black on bone inside a monitor standing in a dark room, on the day sheet.
+   * The same reasoning as .cinema-copy and the slates: a lit panel does not
+   * turn over with the hour outside it. Rebinding the roles rather than setting
+   * colours means the contact form, which is built from --ink and --rule like
+   * everything else, comes along without knowing it is on a screen.
+   */
+  background: var(--slate);
+  color: var(--slate-ink);
+
+  --ink: var(--slate-ink);
+  --ink-muted: var(--slate-ink-muted);
+  --warm: var(--slate-ink-muted);
+  --mark: var(--slate-mark);
+  --mark-ink: var(--slate);
+  --rule: color-mix(in oklab, var(--slate-ink) 20%, transparent);
+}
+
+.screen-page {
+  display: grid;
+  /* start, not centre. Centred, a two-line step floated in the middle of a
+     tall phone with 700px of empty slate above and below it. */
+  align-content: start;
+  gap: 2.2cqh;
+  max-width: 46ch;
+  outline: none;
+}
+
+.screen-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 4.2cqw, 2.4rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.screen-page-kicker {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.screen-statement,
+.screen-step-body {
+  margin: 0;
+  font-size: clamp(0.85rem, 2.4cqw, 1.15rem);
+  line-height: 1.55;
+}
+
+.screen-capabilities {
+  display: grid;
+  gap: 0.9cqh;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(0.8rem, 2.2cqw, 1.05rem);
+}
+
+.screen-capabilities li {
+  padding-bottom: 0.9cqh;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+}
+
+.screen-form {
+  display: grid;
+  gap: 2cqh;
+}
+
+.screen-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2cqw;
+}
+
+.screen-pager-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px is the floor for a touch target, and this is the control a phone uses
+     most. cqw alone shrank it under that on a narrow screen. */
+  min-width: max(44px, 5cqw);
+  min-height: max(44px, 5cqw);
+  border: 1px solid color-mix(in oklab, currentColor 26%, transparent);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    opacity var(--f4) var(--ease-out);
+}
+
+.screen-pager-step:hover:not(:disabled),
+.screen-pager-step:focus-visible:not(:disabled) {
+  background: color-mix(in oklab, currentColor 12%, transparent);
+}
+
+/* Spent, not gone. A control that disappears at the end of a run moves the two
+   beside it, and the visitor loses the place they were pressing. */
+.screen-pager-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.screen-pager-count {
+  font-size: clamp(0.6rem, 1.8cqw, 0.85rem);
+  letter-spacing: 0.12em;
 }

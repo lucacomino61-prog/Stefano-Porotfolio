@@ -24,6 +24,11 @@ export default async function Page(props: { params: Promise<{ locale: string }> 
         hero={dict.hero}
         calendar={dict.calendar}
         deskIndex={dict.deskIndex}
+        nav={dict.nav}
+        about={dict.about}
+        process={dict.process}
+        contact={dict.contact}
+        locale={locale}
       />
       <Work dict={dict.work} label={dict.nav.items.work} />
       <Manifesto dict={dict.manifesto} about={dict.about} label={dict.nav.items.manifesto} />

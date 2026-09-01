@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 
-import type { ScreenView } from '@/components/ui/ProjectScreen'
+import type { ScreenView } from '@/lib/screen'
 import { expectScene } from '@/lib/motion/loading'
 import type { Project } from '@/lib/projects'
 

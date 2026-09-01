@@ -29,7 +29,7 @@ import {
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
 import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
-import type { ScreenView } from '@/components/ui/ProjectScreen'
+import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
 type Vec3 = [number, number, number]
@@ -154,6 +154,21 @@ const PANEL_H = 0.64
  */
 const ENTER_BACK = 1.1
 const ENTER_LIFT = 0.32
+
+/**
+ * The drone shot at the wide end, in metres and hertz.
+ *
+ * Deliberately small. The desk has to stay composed in frame for as long as
+ * nobody presses anything, so this is the amount of movement that reads as a
+ * held camera rather than a shot going somewhere. The three rates are
+ * mutually indivisible so the path does not visibly loop.
+ */
+const DRIFT_SWAY = 0.5
+const DRIFT_RISE = 0.16
+const DRIFT_PUSH = 0.22
+const DRIFT_RATE_X = 0.17
+const DRIFT_RATE_Y = 0.13
+const DRIFT_RATE_Z = 0.11
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -411,6 +426,8 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
    * competes, the same way the object focus below does.
    */
   const arrival = useRef(0)
+  /** Seconds of drone drift accumulated at the wide shot. */
+  const drift = useRef(0)
   const enterPos = useMemo(() => new Vector3(), [])
   const objectPos = useMemo(() => new Vector3(), [])
   const objectLook = useMemo(() => new Vector3(), [])
@@ -425,9 +442,42 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
     const step = Math.min(delta, 1 / 20) * 1000
 
     const { progress, live } = cinema()
+
+    // Accumulated once, used by both paths. See DRIFT_* above.
+    drift.current += Math.min(delta, 1 / 20)
+    const driftT = drift.current
+    const sway = Math.sin(driftT * DRIFT_RATE_X)
+    const rise = Math.sin(driftT * DRIFT_RATE_Y + 1.1)
+    const push = Math.cos(driftT * DRIFT_RATE_Z)
+
     if (!live) {
-      camera.position.copy(home.current)
-      camera.lookAt(0, 0.35, 0)
+      /**
+       * The drone shot.
+       *
+       * Standing still, the wide shot is a photograph of a room, and a
+       * photograph does not read as a place you can walk into. A slow drift
+       * says the camera is present before anything has been pressed, which is
+       * the whole invitation on a phone, where there is no hover to discover
+       * with and the desk is the only thing on screen.
+       *
+       * Three periods that do not divide into each other (0.17, 0.13, 0.11 Hz),
+       * so the path never visibly repeats and never returns to the same frame
+       * on a loop the eye can learn. Amplitudes are small and in metres: this
+       * is a held shot breathing, not an orbit.
+       *
+       * Time is accumulated here rather than read off the clock. With
+       * frameloop="never" the scene is advanced from gsap.ticker, and the delta
+       * is already clamped above for exactly the frame-starvation case this
+       * would otherwise turn into a lurch.
+       */
+      camera.position.set(
+        home.current.x + sway * DRIFT_SWAY,
+        home.current.y + rise * DRIFT_RISE,
+        home.current.z + push * DRIFT_PUSH,
+      )
+      // The look target drifts a fraction of the camera, so the desk stays
+      // composed instead of sliding across the frame with the move.
+      camera.lookAt(sway * 0.06, 0.35 + rise * 0.03, 0)
       camera.updateProjectionMatrix()
       return
     }
@@ -458,10 +508,17 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
       arrival.current = damp(arrival.current, 1, 1.5, step)
     }
     const entering = 1 - arrival.current
+    /**
+     * The drone is a wide-shot flourish, exactly like the pointer parallax on
+     * the rig above. Held on at close range it would swing the panel out of
+     * frame at the moment the panel has become the interface, so it fades on
+     * the same curve as the approach and is gone on arrival.
+     */
+    const held = 1 - eased
     enterPos.set(
-      scrollPos.x,
-      scrollPos.y + ENTER_LIFT * entering,
-      scrollPos.z + ENTER_BACK * entering,
+      scrollPos.x + sway * DRIFT_SWAY * held,
+      scrollPos.y + rise * DRIFT_RISE * held + ENTER_LIFT * entering,
+      scrollPos.z + push * DRIFT_PUSH * held + ENTER_BACK * entering,
     )
 
     const focused = desk().focused

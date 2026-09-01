@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { Hero } from '@/components/sections/Hero'
 import { GateMount } from '@/components/three/GateMount'
 import { DeskIndex } from '@/components/ui/DeskIndex'
-import { ProjectScreen, type ScreenView } from '@/components/ui/ProjectScreen'
+import { ScreenOS } from '@/components/ui/ScreenOS'
+import type { ScreenView } from '@/lib/screen'
+import type { Locale } from '@/lib/i18n/config'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
@@ -42,13 +44,13 @@ import { PROJECTS, type ProjectId } from '@/lib/projects'
  * preference change instead of being decided once at mount.
  */
 function subscribeMotionMedia(onChange: () => void): () => void {
-  const query = window.matchMedia(MEDIA.motion)
+  const query = window.matchMedia(MEDIA.walk)
   query.addEventListener('change', onChange)
   return () => query.removeEventListener('change', onChange)
 }
 
 function readMotionMedia(): boolean {
-  return window.matchMedia(MEDIA.motion).matches
+  return window.matchMedia(MEDIA.walk).matches
 }
 
 /** The server has no viewport and no preference, so it never has a walk. */
@@ -61,11 +63,21 @@ export function Cinema({
   hero,
   calendar,
   deskIndex,
+  nav,
+  about,
+  process,
+  contact,
+  locale,
 }: {
   dict: Dictionary['work']
   hero: Dictionary['hero']
   calendar: Dictionary['calendar']
   deskIndex: Dictionary['deskIndex']
+  nav: Dictionary['nav']
+  about: Dictionary['about']
+  process: Dictionary['process']
+  contact: Dictionary['contact']
+  locale: Locale
 }) {
   const root = useRef<HTMLElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -183,6 +195,24 @@ export function Cinema({
     if (previous?.isConnected && document.activeElement === document.body) previous.focus()
   }, [zoomed])
 
+  /**
+   * The page stops being a page while you are inside the machine.
+   *
+   * `enter()` stops Lenis, and on a mouse that is enough. Lenis does not own
+   * touch: it is constructed with `syncTouch: false` so a phone keeps native
+   * scrolling, which means a finger scrolls the document straight past a
+   * stopped scroller and drags the room out from under the camera. This is what
+   * actually holds it, and it has to be on the element that scrolls rather than
+   * on the stage.
+   */
+  useEffect(() => {
+    if (!zoomed) return
+    document.documentElement.dataset.machine = 'open'
+    return () => {
+      delete document.documentElement.dataset.machine
+    }
+  }, [zoomed])
+
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -190,7 +220,7 @@ export function Cinema({
     const ctx = gsap.context(() => {
       const media = gsap.matchMedia()
 
-      media.add(MEDIA.motion, () => {
+      media.add(MEDIA.walk, () => {
         setCinemaLive(true)
 
         // Nothing pins and nothing scrubs. The stage is an ordinary screenful
@@ -247,10 +277,10 @@ export function Cinema({
         }
       })
 
-      // Still branches: nothing pins, nothing scrubs, and the interface is
-      // simply on the page. Not a degradation — every project, the switcher and
-      // both links are present and reachable.
-      media.add(MEDIA.compact, () => setCinemaLive(false))
+      // The one still branch. Reduced motion is the exact complement of the
+      // walk query above, so between them every visitor is covered once and
+      // only once. Not a degradation: the interface is simply on the page,
+      // with every section, both links and the form present and reachable.
       media.add(MEDIA.reduced, () => setCinemaLive(false))
 
       return () => media.revert()
@@ -323,10 +353,19 @@ export function Cinema({
           </div>
         </div>
 
-        {/* Escape is not discoverable on its own, and a visitor who has just
-            been moved somewhere by a click needs the way back to be visible
-            rather than remembered. */}
-        {zoomed ? (
+        {/*
+          Escape is not discoverable on its own, and a visitor who has just been
+          moved somewhere by a click needs the way back to be visible rather
+          than remembered.
+
+          Only from the menu, though. Inside a section the screen has its own
+          "Back", which returns to the menu, and the two sat on top of each
+          other in the same corner: two controls with the same word, one
+          leaving the machine and one going up a level. One at a time, and the
+          hierarchy reads: section, menu, room. Escape still leaves outright
+          from anywhere, for anyone who wants the short way.
+        */}
+        {zoomed && view === 'home' ? (
           <button ref={exitControl} type="button" onClick={exit} className="cinema-exit">
             {dict.back}
           </button>
@@ -349,14 +388,18 @@ export function Cinema({
           real interface and must stay live.
         */}
         <div data-screen-ui className="cinema-screen" inert={hasWalk && !zoomed}>
-          <ProjectScreen
-            dict={dict}
+          <ScreenOS
+            work={dict}
+            about={about}
+            process={process}
+            contact={contact}
+            nav={nav}
+            hero={hero}
+            locale={locale}
             active={active}
             onSelect={select}
             view={view}
             onView={setView}
-            name={hero.name}
-            role={hero.role}
           />
         </div>
       </div>
