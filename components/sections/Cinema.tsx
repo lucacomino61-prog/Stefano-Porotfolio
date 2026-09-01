@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Hero } from '@/components/sections/Hero'
 import { GateMount } from '@/components/three/GateMount'
-import { ProjectScreen } from '@/components/ui/ProjectScreen'
+import { ProjectScreen, type ScreenView } from '@/components/ui/ProjectScreen'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
+import { scrollToOffset, scrollToTarget } from '@/lib/motion/scroller'
 import { PROJECTS, type ProjectId } from '@/lib/projects'
 
 /**
@@ -42,8 +43,29 @@ export function Cinema({
   const root = useRef<HTMLElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<ProjectId>(PROJECTS[0]!.id)
+  const [view, setView] = useState<ScreenView>('home')
+  const trigger = useRef<ScrollTrigger | null>(null)
 
   const select = useCallback((id: ProjectId) => setActive(id), [])
+
+  /**
+   * Walking up to the desk.
+   *
+   * The click does not move the camera. It moves the scroll, and the camera
+   * follows the scroll as it always has — one source of truth, so a click and a
+   * wheel can never disagree about where you are standing, and the visitor can
+   * scroll straight back out without fighting an animation that thinks it owns
+   * the viewport. Below the pin breakpoint there is no walk to take, so the same
+   * control jumps to the screen where it sits in the page.
+   */
+  const enter = useCallback(() => {
+    const instance = trigger.current
+    if (instance) {
+      scrollToOffset(instance.end)
+      return
+    }
+    scrollToTarget('[data-screen-ui]')
+  }, [])
 
   useEffect(() => {
     const el = root.current
@@ -68,7 +90,10 @@ export function Cinema({
             // The camera is not a tween. It is read off this value inside the
             // frame loop, so the scene never re-renders to move.
             onUpdate: (self) => setCinemaProgress(self.progress),
-            onRefresh: (self) => setCinemaProgress(self.progress),
+            onRefresh: (self) => {
+              setCinemaProgress(self.progress)
+              trigger.current = self
+            },
           },
         })
 
@@ -85,7 +110,10 @@ export function Cinema({
           0.8,
         )
 
+        trigger.current = timeline.scrollTrigger ?? null
+
         return () => {
+          trigger.current = null
           setCinemaLive(false)
           setCinemaProgress(0)
         }
@@ -128,15 +156,23 @@ export function Cinema({
             phone nothing pins, and without this the canvas would stretch down
             behind the project panel underneath. */}
         <div className="cinema-room">
-          <GateMount project={project} />
+          <GateMount project={project} view={view} hint={dict.homeHint} onEnter={enter} />
 
           <div data-hero-copy className="cinema-copy">
-            <Hero dict={hero} calendar={calendar} />
+            <Hero dict={hero} calendar={calendar} enterLabel={dict.enter} onEnter={enter} />
           </div>
         </div>
 
         <div data-screen-ui className="cinema-screen">
-          <ProjectScreen dict={dict} active={active} onSelect={select} />
+          <ProjectScreen
+            dict={dict}
+            active={active}
+            onSelect={select}
+            view={view}
+            onView={setView}
+            name={hero.name}
+            role={hero.role}
+          />
         </div>
       </div>
     </section>

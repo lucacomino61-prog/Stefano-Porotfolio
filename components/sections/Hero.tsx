@@ -24,9 +24,13 @@ import type { Dictionary } from '@/lib/i18n/dictionaries'
 export function Hero({
   dict,
   calendar,
+  enterLabel,
+  onEnter,
 }: {
   dict: Dictionary['hero']
   calendar: Dictionary['calendar']
+  enterLabel: string
+  onEnter: () => void
 }) {
   return (
     <div className="hero-copy">
@@ -47,9 +51,21 @@ export function Hero({
       <div className="hero-statement">
         <p className="display hero-line">{dict.based}</p>
 
-        <Magnetic>
-          <CircledTake href="#contact">{dict.cta}</CircledTake>
-        </Magnetic>
+        <div className="hero-actions">
+          {/* The monitor in the room is clickable, but a click target that only
+              exists inside WebGL cannot be tabbed to, cannot be announced and
+              does not exist at all for anyone not using a mouse. This is the
+              same action as a real control. */}
+          <Magnetic>
+            <CircledTake onClick={onEnter}>
+              {enterLabel}
+            </CircledTake>
+          </Magnetic>
+
+          <a href="#contact" className="hero-secondary">
+            {dict.cta}
+          </a>
+        </div>
       </div>
     </div>
   )

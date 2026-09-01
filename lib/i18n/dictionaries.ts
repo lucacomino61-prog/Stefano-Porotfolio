@@ -63,6 +63,11 @@ export type Dictionary = {
     approach: string
     categoryLabel: string
     yearLabel: string
+    /** The workstation as something you operate rather than look at. */
+    enter: string
+    viewWork: string
+    back: string
+    homeHint: string
     /** Per project, keyed by the ids in lib/projects.ts. */
     projects: Record<
       'elixir' | 'bar-martiri',
@@ -154,6 +159,10 @@ const en: Dictionary = {
     approach: 'Design and build, end to end',
     categoryLabel: 'Discipline',
     yearLabel: 'Shipped',
+    enter: 'Open the workstation',
+    viewWork: 'View my work',
+    back: 'Back',
+    homeHint: 'Click the monitor',
     projects: {
       elixir: {
         category: 'Luxury perfume e-commerce',
@@ -290,6 +299,10 @@ const it: Dictionary = {
     approach: 'Progetto e costruisco, dall’inizio alla fine',
     categoryLabel: 'Disciplina',
     yearLabel: 'Online dal',
+    enter: 'Apri la postazione',
+    viewWork: 'Guarda i miei lavori',
+    back: 'Indietro',
+    homeHint: 'Clicca il monitor',
     projects: {
       elixir: {
         category: 'E-commerce di profumeria di lusso',
@@ -426,6 +439,10 @@ const al: Dictionary = {
     approach: 'Projektoj dhe ndërtoj, nga fillimi në fund',
     categoryLabel: 'Disiplina',
     yearLabel: 'Online nga',
+    enter: 'Hap postin e punës',
+    viewWork: 'Shiko punët e mia',
+    back: 'Kthehu',
+    homeHint: 'Klikoni monitorin',
     projects: {
       elixir: {
         category: 'Tregti online parfumesh luksoze',

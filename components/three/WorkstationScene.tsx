@@ -19,6 +19,7 @@ import { cinema } from '@/lib/motion/cinema'
 import { setSceneProgress } from '@/lib/motion/loading'
 import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
+import type { ScreenView } from '@/components/ui/ProjectScreen'
 import type { Project } from '@/lib/projects'
 
 type Vec3 = [number, number, number]
@@ -132,9 +133,15 @@ const SCREEN_H = 1152
 function MonitorScreen({
   project,
   panel,
+  view,
+  hint,
+  onEnter,
 }: {
   project: Project
   panel: RefObject<Mesh | null>
+  view: ScreenView
+  hint: string
+  onEnter: () => void
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
@@ -157,6 +164,29 @@ function MonitorScreen({
 
       context.fillStyle = project.screen.ground
       context.fillRect(0, 0, SCREEN_W, SCREEN_H)
+
+      // At rest the panel is not a poster of the work, it is a machine waiting
+      // to be used. Painting the same invitation the DOM shows once you are
+      // close means the screen says one thing from both distances.
+      if (view === 'home') {
+        context.fillStyle = project.screen.ink
+        context.font = '600 96px system-ui, sans-serif'
+        context.fillText('STEFANO DOKO', 110, SCREEN_H * 0.42)
+
+        context.fillStyle = project.screen.muted
+        context.font = '400 40px ui-monospace, monospace'
+        context.fillText(hint.toUpperCase(), 112, SCREEN_H * 0.53)
+
+        context.fillStyle = project.screen.accent
+        context.fillRect(110, SCREEN_H * 0.63, 430, 88)
+        context.fillStyle = project.screen.ground
+        context.font = '600 34px ui-monospace, monospace'
+        context.fillText('VIEW MY WORK', 150, SCREEN_H * 0.63 + 56)
+
+        // eslint-disable-next-line react-hooks/immutability
+        texture.needsUpdate = true
+        return
+      }
 
       // The photograph fills the right half, bled off the edge and faded into
       // the ground rather than boxed, the way both sites set their own heroes.
@@ -213,7 +243,6 @@ function MonitorScreen({
       // The canvas is GPU memory, not React state: the texture object must stay
       // the same object while its pixels are re-uploaded. This is an upload, not
       // a mutation of anything React is tracking.
-      // eslint-disable-next-line react-hooks/immutability
       texture.needsUpdate = true
     }
 
@@ -230,12 +259,30 @@ function MonitorScreen({
     return () => {
       cancelled = true
     }
-  }, [project, texture])
+  }, [project, texture, view, hint])
 
   useEffect(() => () => texture.dispose(), [texture])
 
   return (
-    <mesh ref={panel} position={[0, 0.7, -0.273]} rotation={[0, Math.PI, 0]}>
+    <mesh
+      ref={panel}
+      position={[0, 0.7, -0.273]}
+      rotation={[0, Math.PI, 0]}
+      onClick={(event) => {
+        event.stopPropagation()
+        onEnter()
+      }}
+      // The custom cursor reads this attribute, so the ring opens over the
+      // panel exactly as it does over a link. Without it the one genuinely
+      // clickable object in the room gives no sign that it is clickable.
+      onPointerOver={(event) => {
+        event.stopPropagation()
+        document.documentElement.dataset.hot = 'true'
+      }}
+      onPointerOut={() => {
+        delete document.documentElement.dataset.hot
+      }}
+    >
       <planeGeometry args={[PANEL_W, PANEL_H]} />
       <meshBasicMaterial map={texture} toneMapped={false} />
     </mesh>
@@ -327,15 +374,30 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
 function Workstation({
   project,
   panel,
+  view,
+  hint,
+  onEnter,
 }: {
   project: Project
   panel: RefObject<Mesh | null>
+  view: ScreenView
+  hint: string
+  onEnter: () => void
 }) {
   const rig = useRef<Group>(null)
   const rotation = useRef({ x: 0, y: 0 })
   const { size } = useThree()
 
-  useEffect(() => trackPointer(), [])
+  useEffect(() => {
+    const stop = trackPointer()
+    return () => {
+      stop()
+      // The room can unmount mid-hover — a resize across the breakpoint, a
+      // route change — and a stranded flag would leave the cursor open over
+      // nothing for the rest of the session.
+      delete document.documentElement.dataset.hot
+    }
+  }, [])
 
   useFrame((_, delta) => {
     if (!rig.current) return
@@ -370,7 +432,7 @@ function Workstation({
 
       <group position={[-0.34, -0.22, -0.03]} rotation={[0, Math.PI, 0]}>
         <Model url={MONITOR} size={[1.48, 1.12, 0.52]} />
-        <MonitorScreen project={project} panel={panel} />
+        <MonitorScreen project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
       </group>
 
       <Model
@@ -462,7 +524,17 @@ function SceneReady() {
 }
 
 /** A complete room-lit workstation, still driven by the application's GSAP ticker. */
-export function WorkstationScene({ project }: { project: Project }) {
+export function WorkstationScene({
+  project,
+  view,
+  hint,
+  onEnter,
+}: {
+  project: Project
+  view: ScreenView
+  hint: string
+  onEnter: () => void
+}) {
   const panel = useRef<Mesh>(null)
 
   return (
@@ -498,7 +570,7 @@ export function WorkstationScene({ project }: { project: Project }) {
         <SceneReady />
         <Environment files={STUDIO} environmentIntensity={0.55} />
         <RoomShell accent={project.screen.accent} />
-        <Workstation project={project} panel={panel} />
+        <Workstation project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
         <ContactShadows
           position={[0.65, -1.205, 0.1]}
           opacity={0.58}

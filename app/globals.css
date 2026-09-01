@@ -1531,3 +1531,130 @@ body {
     inset: auto;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   THE MACHINE AT REST
+
+   The screen's first state. Everything here is in container query units like
+   the rest of the panel, so the same composition serves the monitor across the
+   room, the monitor you are standing at, and the still panel on a phone.
+--------------------------------------------------------------------------- */
+.screen-home {
+  display: grid;
+  place-items: center;
+  background: var(--slate);
+  color: var(--slate-ink);
+}
+
+.screen-home-inner {
+  display: grid;
+  justify-items: start;
+  gap: 2.6cqh;
+  padding: 0 6cqw;
+}
+
+.screen-home-kicker {
+  margin: 0;
+  font-size: 1.2cqw;
+  color: var(--slate-ink-muted);
+}
+
+.screen-home-name {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 4.2cqw;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* The one press on the screen. Deliberately the brightest thing on it. */
+.screen-enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1cqw;
+  margin-top: 1.4cqh;
+  padding: 1.9cqh 2.8cqw;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 1.35cqw;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--slate);
+  background: var(--slate-mark);
+  cursor: pointer;
+  transition:
+    transform var(--f6) var(--ease-out),
+    filter var(--f6) var(--ease-out);
+}
+
+.screen-enter:hover {
+  transform: translate3d(0, -0.4cqh, 0);
+  filter: brightness(1.1);
+}
+
+.screen-enter:hover .screen-cta-arrow {
+  transform: translate3d(0.5cqw, 0, 0);
+}
+
+/* The way back out of the work, in the chrome bar with the switcher. */
+.screen-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7cqw;
+  padding: 0.8cqh 1.4cqw;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 1.05cqw;
+  letter-spacing: 0.14em;
+  color: var(--screen-muted, var(--slate-ink-muted));
+  cursor: pointer;
+  transition:
+    color var(--f4) var(--ease-out),
+    background-color var(--f4) var(--ease-out);
+}
+
+.screen-back:hover {
+  color: var(--screen-ink, var(--slate-ink));
+  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   THE HERO'S TWO ACTIONS
+
+   One opens the workstation, one starts a conversation. They are weighted, not
+   matched: the circled mark is the take worth printing and there is only ever
+   one of those on a screen.
+--------------------------------------------------------------------------- */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+}
+
+.hero-secondary {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition:
+    color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+.hero-secondary:hover {
+  color: var(--ink);
+  border-bottom-color: currentColor;
+}
+
+/* The follower opens over the monitor the same way it opens over a link. The
+   room is WebGL, so it cannot match a selector; it sets this instead. */
+[data-hot='true'] .cursor-ring {
+  --ring-w: 44px;
+  --ring-h: 44px;
+}

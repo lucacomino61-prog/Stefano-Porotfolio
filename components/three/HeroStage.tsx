@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import { gsap } from '@/lib/motion/gsap'
 import { onFrame } from '@/lib/motion/ticker'
 
+import type { ScreenView } from '@/components/ui/ProjectScreen'
 import type { Project } from '@/lib/projects'
 
 import { HeroGate } from './HeroGate'
@@ -24,7 +25,17 @@ import { WorkstationScene } from './WorkstationScene'
  * the integrated GPUs this has to run on, that is the difference between a
  * quiet laptop and a warm one.
  */
-export function HeroStage({ project }: { project: Project }) {
+export function HeroStage({
+  project,
+  view,
+  hint,
+  onEnter,
+}: {
+  project: Project
+  view: ScreenView
+  hint: string
+  onEnter: () => void
+}) {
   const wrapper = useRef<HTMLDivElement>(null)
   const state = useRef<RootState | null>(null)
 
@@ -74,6 +85,10 @@ export function HeroStage({ project }: { project: Project }) {
   }, [])
 
   return (
+    // Not aria-hidden any more in the sense that matters: the canvas carries a
+    // real click target now. It stays out of the accessibility tree because the
+    // same action is on a real button in the copy, but it must still receive
+    // pointer events, which it does by default.
     <div ref={wrapper} aria-hidden="true" className="absolute inset-0 z-[1]">
       <Canvas
         frameloop="never"
@@ -94,7 +109,7 @@ export function HeroStage({ project }: { project: Project }) {
         }}
       >
         <HeroGate />
-        <WorkstationScene project={project} />
+        <WorkstationScene project={project} view={view} hint={hint} onEnter={onEnter} />
       </Canvas>
     </div>
   )

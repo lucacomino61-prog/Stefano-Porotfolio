@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 
+import type { ScreenView } from '@/components/ui/ProjectScreen'
 import { expectScene } from '@/lib/motion/loading'
 import type { Project } from '@/lib/projects'
 
@@ -18,7 +19,17 @@ const HeroStage = dynamic(() => import('./HeroStage').then((m) => m.HeroStage), 
   ssr: false,
 })
 
-export function GateMount({ project }: { project: Project }) {
+export function GateMount({
+  project,
+  view,
+  hint,
+  onEnter,
+}: {
+  project: Project
+  view: ScreenView
+  hint: string
+  onEnter: () => void
+}) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -53,5 +64,5 @@ export function GateMount({ project }: { project: Project }) {
   }, [])
 
   if (!mounted) return null
-  return <HeroStage project={project} />
+  return <HeroStage project={project} view={view} hint={hint} onEnter={onEnter} />
 }

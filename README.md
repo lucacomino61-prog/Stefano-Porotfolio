@@ -100,6 +100,25 @@ screen is the one component where a bug means nobody ever sees the site.
 
 ## The monitor
 
+The workstation is a control, not a picture of one. The panel is a click target
+in the 3D scene: pressing it walks the camera up to the desk. The screen is a
+two-state machine — at rest it shows an invitation, and the work is behind a
+press, the way it would be on a real machine. Walking up to a monitor that is
+already showing you everything is a picture of a computer.
+
+    click the monitor  ->  camera walks in  ->  VIEW MY WORK  ->  the two sites
+
+The click moves the *scroll*, not the camera. The camera follows scroll as it
+always has, so a click and a wheel can never disagree about where you are
+standing and nobody has to fight an animation to get back out. Below the pin
+breakpoint there is no walk to take, so the same control jumps to the panel
+where it sits in the page.
+
+A click target that exists only inside WebGL cannot be tabbed to, cannot be
+announced, and does not exist for anyone not using a mouse — so *Open the
+workstation* in the hero is the same action on a real button, and every control
+inside the screen is real DOM.
+
 The first screen and the walk toward the workstation are one pinned section,
 [components/sections/Cinema.tsx](components/sections/Cinema.tsx). Scroll drives a
 camera in `WorkstationScene`, not a CSS transform: the position travels through
