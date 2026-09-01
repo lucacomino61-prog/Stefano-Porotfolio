@@ -29,7 +29,7 @@ import {
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
 import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
-import type { ScreenView } from '@/components/ui/ProjectScreen'
+import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
 type Vec3 = [number, number, number]
@@ -53,7 +53,7 @@ type ModelProps = {
   metalness?: number
 }
 
-const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO] = SCENE_ASSETS
+const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO, ROOM] = SCENE_ASSETS
 
 function prepareModel(source: Object3D): { model: Object3D; sourceSize: Vector3 } {
   const model = source.clone(true)
@@ -155,6 +155,24 @@ const PANEL_H = 0.64
 const ENTER_BACK = 1.1
 const ENTER_LIFT = 0.32
 
+/**
+ * The drone shot at the wide end, in metres and hertz.
+ *
+ * Deliberately small. The desk has to stay composed in frame for as long as
+ * nobody presses anything, so this is the amount of movement that reads as a
+ * held camera rather than a shot going somewhere. The three rates are
+ * mutually indivisible so the path does not visibly loop.
+ */
+const DRIFT_SWAY = 0.5
+const DRIFT_RISE = 0.16
+const DRIFT_PUSH = 0.22
+const DRIFT_RATE_X = 0.17
+const DRIFT_RATE_Y = 0.13
+const DRIFT_RATE_Z = 0.11
+
+/** What is outside the room: the background and the fog, which must be one value. */
+const ROOM_VOID = '#07090b'
+
 const SCREEN_W = 2048
 const SCREEN_H = 1152
 
@@ -173,6 +191,57 @@ const SCREEN_H = 1152
  */
 const SCREEN_GAIN = 1.85
 const SCREEN_DRIVE = new Color().setScalar(SCREEN_GAIN)
+
+/**
+ * The tube.
+ *
+ * Painted into the texture rather than run as a shader, for two reasons. The
+ * texture is already a 2D canvas repainted only when the project or the view
+ * changes, so this costs nothing per frame on the integrated GPU this has to
+ * run on. And a raw ShaderMaterial would have taken the sRGB decode off three's
+ * shoulders and onto mine, which is a colour-space bug waiting to happen for a
+ * pair of dark lines.
+ *
+ * Scanlines belong to the screen, not to the viewer, so baking them at texture
+ * resolution is also the physically honest place for them: they do not get
+ * coarser as you walk up to it.
+ *
+ * Depth is deliberately low. These sit under type that has to stay readable at
+ * both distances, and a CRT that costs a contrast ratio is a costume.
+ */
+const SCAN_PERIOD = 4
+const SCAN_THICKNESS = 2
+const SCAN_DEPTH = 0.055
+const VIGNETTE_DEPTH = 0.34
+
+function tube(context: CanvasRenderingContext2D): void {
+  context.save()
+
+  context.fillStyle = '#000'
+  context.globalAlpha = SCAN_DEPTH
+  for (let y = 0; y < SCREEN_H; y += SCAN_PERIOD) {
+    context.fillRect(0, y, SCREEN_W, SCAN_THICKNESS)
+  }
+
+  // The glass falling away at the edges. Elliptical rather than round, because
+  // the panel is wider than it is tall and a circular falloff would darken the
+  // long sides while leaving the corners lit.
+  context.globalAlpha = 1
+  const vignette = context.createRadialGradient(
+    SCREEN_W / 2,
+    SCREEN_H / 2,
+    SCREEN_H * 0.18,
+    SCREEN_W / 2,
+    SCREEN_H / 2,
+    SCREEN_W * 0.72,
+  )
+  vignette.addColorStop(0, 'rgba(0,0,0,0)')
+  vignette.addColorStop(1, `rgba(0,0,0,${VIGNETTE_DEPTH})`)
+  context.fillStyle = vignette
+  context.fillRect(0, 0, SCREEN_W, SCREEN_H)
+
+  context.restore()
+}
 
 function MonitorScreen({
   project,
@@ -227,6 +296,7 @@ function MonitorScreen({
         context.font = '600 34px ui-monospace, monospace'
         context.fillText('VIEW MY WORK', 150, SCREEN_H * 0.63 + 56)
 
+        tube(context)
         // eslint-disable-next-line react-hooks/immutability
         texture.needsUpdate = true
         return
@@ -283,6 +353,8 @@ function MonitorScreen({
 
       context.fillStyle = project.screen.accent
       context.fillRect(96, SCREEN_H * 0.83, 300, 8)
+
+      tube(context)
 
       // The canvas is GPU memory, not React state: the texture object must stay
       // the same object while its pixels are re-uploaded. This is an upload, not
@@ -411,6 +483,8 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
    * competes, the same way the object focus below does.
    */
   const arrival = useRef(0)
+  /** Seconds of drone drift accumulated at the wide shot. */
+  const drift = useRef(0)
   const enterPos = useMemo(() => new Vector3(), [])
   const objectPos = useMemo(() => new Vector3(), [])
   const objectLook = useMemo(() => new Vector3(), [])
@@ -425,9 +499,42 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
     const step = Math.min(delta, 1 / 20) * 1000
 
     const { progress, live } = cinema()
+
+    // Accumulated once, used by both paths. See DRIFT_* above.
+    drift.current += Math.min(delta, 1 / 20)
+    const driftT = drift.current
+    const sway = Math.sin(driftT * DRIFT_RATE_X)
+    const rise = Math.sin(driftT * DRIFT_RATE_Y + 1.1)
+    const push = Math.cos(driftT * DRIFT_RATE_Z)
+
     if (!live) {
-      camera.position.copy(home.current)
-      camera.lookAt(0, 0.35, 0)
+      /**
+       * The drone shot.
+       *
+       * Standing still, the wide shot is a photograph of a room, and a
+       * photograph does not read as a place you can walk into. A slow drift
+       * says the camera is present before anything has been pressed, which is
+       * the whole invitation on a phone, where there is no hover to discover
+       * with and the desk is the only thing on screen.
+       *
+       * Three periods that do not divide into each other (0.17, 0.13, 0.11 Hz),
+       * so the path never visibly repeats and never returns to the same frame
+       * on a loop the eye can learn. Amplitudes are small and in metres: this
+       * is a held shot breathing, not an orbit.
+       *
+       * Time is accumulated here rather than read off the clock. With
+       * frameloop="never" the scene is advanced from gsap.ticker, and the delta
+       * is already clamped above for exactly the frame-starvation case this
+       * would otherwise turn into a lurch.
+       */
+      camera.position.set(
+        home.current.x + sway * DRIFT_SWAY,
+        home.current.y + rise * DRIFT_RISE,
+        home.current.z + push * DRIFT_PUSH,
+      )
+      // The look target drifts a fraction of the camera, so the desk stays
+      // composed instead of sliding across the frame with the move.
+      camera.lookAt(sway * 0.06, 0.35 + rise * 0.03, 0)
       camera.updateProjectionMatrix()
       return
     }
@@ -458,10 +565,17 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
       arrival.current = damp(arrival.current, 1, 1.5, step)
     }
     const entering = 1 - arrival.current
+    /**
+     * The drone is a wide-shot flourish, exactly like the pointer parallax on
+     * the rig above. Held on at close range it would swing the panel out of
+     * frame at the moment the panel has become the interface, so it fades on
+     * the same curve as the approach and is gone on arrival.
+     */
+    const held = 1 - eased
     enterPos.set(
-      scrollPos.x,
-      scrollPos.y + ENTER_LIFT * entering,
-      scrollPos.z + ENTER_BACK * entering,
+      scrollPos.x + sway * DRIFT_SWAY * held,
+      scrollPos.y + rise * DRIFT_RISE * held + ENTER_LIFT * entering,
+      scrollPos.z + push * DRIFT_PUSH * held + ENTER_BACK * entering,
     )
 
     const focused = desk().focused
@@ -615,14 +729,21 @@ function Workstation({
   const sceneX = compact ? 0.12 : medium ? 0.45 : 0.95
 
   /**
-   * The devices are inspectable only where the walk exists.
+   * Inspectable at every size now.
    *
-   * Below the breakpoint nothing pins and the room is a small picture at the
-   * top of a scrolling page. Moving the camera to a mouse there would take over
-   * a viewport the visitor is in the middle of scrolling, to show them a mouse.
-   * The monitor keeps its action at every size, because that one goes somewhere.
+   * This used to be desktop only, and the reason was sound at the time: below
+   * the breakpoint nothing pinned, the room was a small picture at the top of a
+   * scrolling page, and moving the camera to a mouse would have taken over a
+   * viewport the visitor was in the middle of scrolling.
+   *
+   * None of that is true any more. The walk exists at every width, so on a
+   * phone the room is a full screenful you have pressed your way into rather
+   * than something you are scrolling past, and the page underneath is held
+   * still while you are in it. The premise expired; the exclusion should go
+   * with it, or a phone keeps three objects that are visibly there and do
+   * nothing.
    */
-  const interactive = !compact
+  const interactive = true
 
   return (
     <group ref={rig} position={[sceneX, compact ? -0.12 : -0.03, 0]} scale={sceneScale}>
@@ -676,6 +797,27 @@ function Workstation({
  * "click the sky", and clicking the floor two inches from the desk would do
  * nothing at all.
  */
+/**
+ * The shell has nothing to cast onto anything: it IS the thing being cast
+ * onto. Turning casting off for it drops every wall out of the shadow pass,
+ * which is a full scene re-render into a square target, and the desk objects
+ * that actually need to cast still do.
+ */
+function RoomModel() {
+  const { scene } = useGLTF(ROOM)
+  const room = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      child.castShadow = false
+      child.receiveShadow = true
+    })
+    return clone
+  }, [scene])
+
+  return <primitive object={room} />
+}
+
 function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void }) {
   return (
     <group
@@ -688,20 +830,26 @@ function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void })
         onEnter()
       }}
     >
-      <mesh position={[0, -1.22, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[14, 12]} />
-        <meshStandardMaterial color="#19191b" roughness={0.9} />
-      </mesh>
+      {/*
+        The shell, modelled rather than assembled from primitives.
 
-      <mesh position={[0, 1.65, -3.15]} receiveShadow>
-        <boxGeometry args={[11, 5.8, 0.12]} />
-        <meshStandardMaterial color="#111113" roughness={0.96} />
-      </mesh>
+        It replaces a floor plane and two wall boxes. One mesh, but four
+        primitives, one per material, so it is one draw call more than the
+        three it supersedes and not fewer — and it carries fourteen boxes of
+        geometry that as primitives would have been fourteen. 168 triangles and
+        15KB, against the 1.5MB the tower already costs.
 
-      <mesh position={[-5.3, 1.2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <boxGeometry args={[8, 5, 0.12]} />
-        <meshStandardMaterial color="#151517" roughness={0.94} />
-      </mesh>
+        What it buys is what primitives could not carry without becoming a list
+        of coordinates to keep in sync: skirting where the wall meets the
+        floor, a window opening with real depth instead of a lit rectangle
+        stuck on a flat wall, and a right-hand wall, which this room never had.
+        That absence is what let you see out of it.
+
+        Authored at these exact coordinates, so it is a drop-in for the
+        geometry it replaces rather than a re-measure of the room. The source
+        is scripts/room.py; the GLB is a build artefact of it.
+      */}
+      <RoomModel />
 
       {/* A large architectural window gives the room depth without adding a
           heavyweight architectural model to the hero bundle. */}
@@ -764,11 +912,32 @@ export function WorkstationScene({
   onEnter: () => void
 }) {
   const panel = useRef<Mesh>(null)
+  /**
+   * The same threshold the rig uses for its own scale and offset, read here so
+   * the two costs that are decided at this level -- the shadow map and the
+   * contact pass -- agree with it rather than guessing at a second breakpoint.
+   */
+  const { size } = useThree()
+  const compact = size.width < 760
 
   return (
     <>
       <CameraRig panel={panel} />
-      <fog attach="fog" args={['#07090b', 6.2, 13]} />
+      {/*
+        The void behind the room, and the fog that fades into it.
+
+        One constant for both, because they have to agree: fog works by mixing
+        geometry toward a colour, so if the background is a different colour the
+        far wall dissolves into a seam instead of into distance.
+
+        This is also what is now behind the room. The gate used to be, and it
+        was the whole reason the right-hand side was bright: the room has no
+        wall on that side, so past the back wall's edge you saw straight
+        through to a lit shader plane. The gate is gone, so what shows there is
+        this, and it agrees with the fog by construction.
+      */}
+      <color attach="background" args={[ROOM_VOID]} />
+      <fog attach="fog" args={[ROOM_VOID, 6.2, 13]} />
       <ambientLight intensity={0.3} />
       {/* Key light, low and cool, from the window side. Cut back hard from what
           a product shot would use: this is a room in the evening with a screen
@@ -778,8 +947,11 @@ export function WorkstationScene({
         color="#c8d4e8"
         intensity={1.15}
         position={[-3.5, 5.5, 4]}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        /* Halved on a phone. A shadow map is a full scene re-render into a
+           square target every frame, so 1024 to 512 is a quarter of that cost,
+           at a softness nobody reads as wrong on a 390px screen. */
+        shadow-mapSize-width={compact ? 512 : 1024}
+        shadow-mapSize-height={compact ? 512 : 1024}
         shadow-camera-far={16}
       />
       {/* The panel's own light in the room, in the colour of whatever is on it.
@@ -799,13 +971,28 @@ export function WorkstationScene({
         <Environment files={STUDIO} environmentIntensity={0.55} />
         <RoomShell accent={project.screen.accent} onEnter={onEnter} />
         <Workstation project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
+        {/*
+          Rendered a fixed number of times, not forever.
+
+          This is a second render of the scene into its own target, and by
+          default drei repeats it every frame. Nothing under the desk moves:
+          the objects are static, and a contact shadow does not depend on where
+          the camera is standing, so every frame after the first was redrawing
+          the same picture. It sits inside this Suspense boundary, so by the
+          time it mounts the models it is shadowing are already loaded.
+
+          Forty rather than one because the materials are retinted in an effect
+          and the arrival damping is still settling on the first frames; one
+          would bake whatever happened to be there at mount.
+        */}
         <ContactShadows
           position={[0.65, -1.205, 0.1]}
           opacity={0.58}
           scale={5.4}
           blur={2.5}
           far={4}
-          resolution={512}
+          frames={40}
+          resolution={compact ? 256 : 512}
           color="#050506"
         />
       </Suspense>
@@ -818,3 +1005,4 @@ useGLTF.preload(PC_CASE)
 useGLTF.preload(MOUSE)
 useGLTF.preload(KEYBOARD)
 useGLTF.preload(DESK)
+useGLTF.preload(ROOM)

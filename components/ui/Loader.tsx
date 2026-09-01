@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { EMPTY_LOADING, loadingState, subscribeLoading } from '@/lib/motion/loading'
-import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
+import { SCENE_ASSETS, SCENE_ASSET_LABEL } from '@/lib/motion/sceneAssets'
 
 /**
  * The first thing anyone sees.
@@ -42,8 +42,8 @@ const DEADLINE_MS = 9000
  * that is the scene's own ready signal — so an asset list that drifts out of
  * date can only make the count coarse, never strand anybody.
  */
-function useAssetsArrived(): number {
-  const [arrived, setArrived] = useState(0)
+function useAssetsArrived(): ReadonlySet<string> {
+  const [arrived, setArrived] = useState<ReadonlySet<string>>(() => new Set<string>())
 
   useEffect(() => {
     const seen = new Set<string>()
@@ -55,7 +55,10 @@ function useAssetsArrived(): number {
 
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) consider(entry.name)
-      setArrived(seen.size)
+      // A fresh Set each time. React compares snapshots by identity, so handing
+      // back the same one after editing it in place would signal a change and
+      // render nothing — the same trap lib/motion/loading.ts documents.
+      setArrived(new Set(seen))
     })
     // buffered replays entries recorded before this mounted, so a warm cache or
     // a second visit starts part-way along instead of at zero. It also means the
@@ -120,7 +123,7 @@ export function Loader({ dict, name }: { dict: Dictionary['nav']; name: string }
         ? fontsReady
           ? 1
           : 0.5
-        : arrived / SCENE_ASSETS.length
+        : arrived.size / SCENE_ASSETS.length
   const shown = Math.min(100, Math.round(fraction * 100))
 
   useEffect(() => {
@@ -154,13 +157,35 @@ export function Loader({ dict, name }: { dict: Dictionary['nav']; name: string }
       <div className="loader-inner">
         <p className="plate loader-name">{name}</p>
 
+        {/*
+          The room booting, one line per file.
+
+          This replaces a bar, and it is the same measurement told better: a
+          line turns over when that exact file has landed on the network, so
+          six lines are six real arrivals rather than one number interpolating
+          between them. The rule it replaced could only say how far along it
+          was; this says what the machine is doing.
+
+          Withheld when the room has declared it is not coming, because a boot
+          readout listing six devices that will never load is set dressing, and
+          the note at the top of this file is that a fake bar is worse than no
+          bar. There the count falls back to the fonts, as it always did.
+        */}
+        {scene.expecting === false ? null : (
+          <ol className="loader-boot">
+            {SCENE_ASSETS.map((asset) => (
+              <li key={asset} className="loader-boot-line" data-here={arrived.has(asset)}>
+                <span className="loader-boot-label">{SCENE_ASSET_LABEL[asset] ?? asset}</span>
+                <span className="loader-boot-fill" aria-hidden="true" />
+                <span className="loader-boot-state">{arrived.has(asset) ? 'OK' : '··'}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
         <div className="loader-foot">
           <p className="label loader-word">{dict.loadingLabel}</p>
           <p className="tabular loader-count">{shown.toString().padStart(3, '0')}</p>
-        </div>
-
-        <div className="loader-rule">
-          <span className="loader-rule-fill" style={{ transform: `scaleX(${shown / 100})` }} />
         </div>
       </div>
     </div>

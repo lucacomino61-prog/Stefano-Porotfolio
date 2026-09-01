@@ -21,6 +21,9 @@ export type Dictionary = {
     sections: string
     /** Short rail labels. Long enough to be unambiguous, short enough to fit. */
     items: { manifesto: string; work: string; process: string; contact: string }
+    /** Pager controls inside the machine. Icon-only buttons, so these ARE the names. */
+    previous: string
+    next: string
   }
   hero: {
     /** The name is not translated. It is here so the reveal has one source. */
@@ -140,6 +143,8 @@ const en: Dictionary = {
     languageLabel: 'Language',
     sections: 'Sections',
     items: { manifesto: 'Approach', work: 'Work', process: 'Process', contact: 'Contact' },
+    previous: 'Previous screen',
+    next: 'Next screen',
   },
   hero: {
     name: 'Stefano Doko',
@@ -290,6 +295,8 @@ const it: Dictionary = {
     languageLabel: 'Lingua',
     sections: 'Sezioni',
     items: { manifesto: 'Approccio', work: 'Lavori', process: 'Processo', contact: 'Contatti' },
+    previous: 'Schermata precedente',
+    next: 'Schermata successiva',
   },
   hero: {
     name: 'Stefano Doko',
@@ -446,6 +453,8 @@ const al: Dictionary = {
     languageLabel: 'Gjuha',
     sections: 'Seksionet',
     items: { manifesto: 'Qasja', work: 'Punët', process: 'Procesi', contact: 'Kontakt' },
+    previous: 'Ekrani i mëparshëm',
+    next: 'Ekrani tjetër',
   },
   hero: {
     name: 'Stefano Doko',

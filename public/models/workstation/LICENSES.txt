@@ -14,5 +14,15 @@ Author: Greg Zaal / Poly Haven
 License: Creative Commons CC0 1.0 Universal
 https://creativecommons.org/publicdomain/zero/1.0/
 
-Both assets may be copied, modified, distributed, and used commercially
-without attribution. Their sources are retained here for provenance.
+Room shell
+Source: authored for this project. Not downloaded.
+Modelled headlessly in Blender 3.6 from scripts/room.py in this repository,
+which is the whole model: every wall, the skirting and the window reveal are
+boxes placed by coordinate, so the file can be regenerated from source rather
+than being a binary nobody can edit.
+License: same as the rest of this repository.
+
+The two assets above may be copied, modified, distributed, and used
+commercially without attribution. Their sources are retained here for
+provenance. The room shell is original work and is listed so the difference
+between what was made here and what was brought in stays legible.

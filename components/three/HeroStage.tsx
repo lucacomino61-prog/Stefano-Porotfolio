@@ -1,15 +1,14 @@
 'use client'
 
 import { Canvas, type RootState } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { gsap } from '@/lib/motion/gsap'
 import { onFrame } from '@/lib/motion/ticker'
 
-import type { ScreenView } from '@/components/ui/ProjectScreen'
+import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
-import { HeroGate } from './HeroGate'
 import { deskFocusSnapshot, setDeskFocused } from '@/lib/motion/desk'
 
 import { WorkstationScene } from './WorkstationScene'
@@ -23,7 +22,7 @@ import { WorkstationScene } from './WorkstationScene'
  * because "pause" here means "stop calling advance", not "hope the loop
  * notices".
  *
- * Advancing stops when the gate scrolls out of view or the tab is hidden. On
+ * Advancing stops when the room scrolls out of view or the tab is hidden. On
  * the integrated GPUs this has to run on, that is the difference between a
  * quiet laptop and a warm one.
  */
@@ -40,6 +39,28 @@ export function HeroStage({
 }) {
   const wrapper = useRef<HTMLDivElement>(null)
   const state = useRef<RootState | null>(null)
+
+  /**
+   * What this device should be asked to rasterise.
+   *
+   * Read once, on mount, because it decides the drawing buffer and changing it
+   * mid-life reallocates every render target. HeroStage is imported with
+   * ssr:false and mounted on idle, so `window` is there.
+   *
+   * The cap was 2 everywhere, and on a phone that is backwards. A 390x844
+   * screen at device ratio 3, clamped to 2, is 780x1688: 1.32 megapixels,
+   * against 1.04 on a 1273x818 desktop at ratio 1. The weakest GPU in the
+   * range was being asked for 27% MORE fill than the strongest. At 1.5 it is
+   * 0.74Mpx, a 44% cut, and still half again sharper than the desktop buffer.
+   *
+   * Antialiasing goes with it. At 1.5x on a phone the sampling is already
+   * denser than the panel can resolve, so MSAA is paying a resolve on every
+   * frame for an edge nobody can see.
+   */
+  const [profile] = useState<{ dpr: [number, number]; antialias: boolean }>(() => {
+    const compact = window.innerWidth < 760
+    return compact ? { dpr: [1, 1.5], antialias: false } : { dpr: [1, 2], antialias: true }
+  })
 
   useEffect(() => {
     const el = wrapper.current
@@ -73,8 +94,8 @@ export function HeroStage({
     // derives its delta by subtracting the previous timestamp it was handed,
     // and gsap.ticker counts from when the ticker started while performance.now
     // counts from navigation. Mixing them hands the next frame a large negative
-    // delta, which runs straight into the damping in HeroGate and blows every
-    // damped value up.
+    // delta, which runs straight into the damping in the camera rig and the
+    // desk objects and blows every damped value up.
     const handleResize = () => state.current?.advance(gsap.ticker.time)
     window.addEventListener('resize', handleResize)
 
@@ -114,11 +135,10 @@ export function HeroStage({
           onEnter()
         }}
         frameloop="never"
-        // Capped at 2 by the brief. Beyond that the grain is invisible and the
-        // fill cost is four times higher.
-        dpr={[1, 2]}
+        // See `profile` above: the phone was rasterising more than the desktop.
+        dpr={profile.dpr}
         shadows
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        gl={{ antialias: profile.antialias, alpha: false, powerPreference: 'high-performance' }}
         camera={{ position: [0, 1.15, 6.4], fov: 44, near: 0.1, far: 30 }}
         onCreated={(created) => {
           state.current = created
@@ -130,7 +150,6 @@ export function HeroStage({
           created.advance(gsap.ticker.time)
         }}
       >
-        <HeroGate />
         <WorkstationScene project={project} view={view} hint={hint} onEnter={onEnter} />
       </Canvas>
     </div>

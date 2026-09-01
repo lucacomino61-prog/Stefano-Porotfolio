@@ -1,28 +1,19 @@
 'use client'
 
 import { PROJECTS, type Project, type ProjectId } from '@/lib/projects'
-
-/**
- * What the machine is showing.
- *
- * The screen is a two-state device, not a poster. From across the room it is at
- * rest with an invitation on it; the work is behind a press, the way it would be
- * on a real machine. Walking up to a monitor that is already showing you
- * everything is a picture of a computer, not a computer.
- */
-export type ScreenView = 'home' | 'work'
-
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 
 /**
- * What is on the screen.
+ * The work, as the machine shows it.
  *
- * One component, mounted once, and shown at two sizes: inside the monitor while
- * it is still a physical object in a room, and again at the end of the zoom when
- * the screen has become the page. Everything below is measured in container
- * query units, so the composition is identical at both sizes and at every frame
- * between them — the layout does not reflow as the monitor grows, it is simply
- * further away or closer.
+ * This used to own the whole screen: the home view, the chrome bar and the
+ * switcher as well as the panes. Those moved to ScreenOS when the monitor
+ * became the whole site rather than a project viewer, and what is left here is
+ * the one thing that was always specific to a project: the preview.
+ *
+ * Everything below is measured in container query units, so the composition is
+ * identical at every size the monitor passes through on the way in and does not
+ * reflow as it grows. It is simply further away or closer.
  *
  * That is also why nothing here is an iframe. Both sites set frame-ancestors,
  * and a preview that depends on another origin's permission to render is a
@@ -30,97 +21,20 @@ import type { Dictionary } from '@/lib/i18n/dictionaries'
  * section. This is built from the real hero image, the real headline, the real
  * navigation and the real palette, read off each site.
  */
-export function ProjectScreen({
+export function ProjectPanes({
   dict,
   active,
-  onSelect,
-  view,
-  onView,
-  name,
-  role,
 }: {
   dict: Dictionary['work']
   active: ProjectId
-  onSelect: (id: ProjectId) => void
-  /** What the machine is currently showing. */
-  view: ScreenView
-  onView: (view: ScreenView) => void
-  name: string
-  role: string
 }) {
-  if (view === 'home') {
-    return (
-      <div className="screen-ui screen-home">
-        <div className="screen-home-inner">
-          <p className="label screen-home-kicker">{role}</p>
-          <h3 className="screen-home-name">{name}</h3>
-
-          <button type="button" onClick={() => onView('work')} className="screen-enter">
-            <span>{dict.viewWork}</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true" className="screen-cta-arrow">
-              <path
-                d="M3 8h10M9 4l4 4-4 4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="screen-ui">
+    <>
       {PROJECTS.map((project) => (
         <Pane key={project.id} project={project} dict={dict} shown={project.id === active} />
       ))}
-
-      {/* The chrome sits above the panes so the switcher survives the crossfade. */}
-      <div className="screen-chrome">
-        <span className="screen-dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span className="screen-url">{projectFor(active).host}</span>
-        <button type="button" onClick={() => onView('home')} className="screen-back">
-          <svg viewBox="0 0 16 16" aria-hidden="true" className="screen-cta-arrow">
-            <path
-              d="M13 8H3M7 4L3 8l4 4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>{dict.back}</span>
-        </button>
-
-        <nav className="screen-tabs" aria-label={dict.selector}>
-          {PROJECTS.map((project) => (
-            <button
-              key={project.id}
-              type="button"
-              onClick={() => onSelect(project.id)}
-              aria-current={project.id === active ? 'true' : undefined}
-              className="screen-tab"
-            >
-              <span aria-hidden="true">{project.index}</span> {project.name}
-            </button>
-          ))}
-        </nav>
-      </div>
-    </div>
+    </>
   )
-}
-
-function projectFor(id: ProjectId): Project {
-  return PROJECTS.find((project) => project.id === id) ?? PROJECTS[0]!
 }
 
 function Pane({
@@ -173,7 +87,7 @@ function Pane({
 
           {/* eslint-disable-next-line @next/next/no-img-element -- The preview is
               sized in container query units against a screen whose own size is
-              driven by scroll, so there is no layout width for next/image to
+              driven by the walk, so there is no layout width for next/image to
               generate a srcset against. The two files are already the size they
               are served at and are the only raster assets on the page. */}
           <img

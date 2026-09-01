@@ -505,6 +505,158 @@ body {
   font-family: var(--font-display);
 }
 
+/*
+ * The desktop is the screen's own surface, so the ground lives here rather than
+ * on each view. It used to be set twice, on the home view and again on the
+ * paged one, which is how the paged sections ended up printing black on bone
+ * the first time a section that was neither of those two appeared.
+ *
+ * A screen is a screen under any light: the roles are rebound to the slate, the
+ * same rule .cinema-copy and the bar follow, so a lit panel does not turn over
+ * with the hour outside it. Rebinding rather than setting colours means the
+ * contact form, built from --ink and --rule like everything else, comes along
+ * without knowing it is on a screen.
+ */
+.screen-desktop {
+  background: var(--slate);
+  color: var(--slate-ink);
+
+  --ink: var(--slate-ink);
+  --ink-muted: var(--slate-ink-muted);
+  --warm: var(--slate-ink-muted);
+  --mark: var(--slate-mark);
+  --mark-ink: var(--slate);
+  --rule: color-mix(in oklab, var(--slate-ink) 20%, transparent);
+}
+
+/* The desktop's own content: who this is, and the four things you can open. */
+.screen-desk {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 2.6cqh;
+  height: 100%;
+  width: 100%;
+  max-width: min(46rem, 88cqw);
+  padding: calc(var(--header-h) + max(4rem, 8cqh)) 6cqw 3cqh;
+}
+
+.screen-desk nav {
+  justify-self: stretch;
+  width: 100%;
+}
+
+/*
+ * A window, over the desktop rather than instead of it.
+ *
+ * Inset so the desktop is still visible around it, which is the whole reason it
+ * reads as a window and not as another full screen. Below a narrow container it
+ * goes full bleed: a window inside a 390px screen is a stamp, and the frame
+ * would cost more room than the border is worth.
+ *
+ * No radius, per the shape lock in DESIGN.md.
+ */
+.screen-window {
+  position: absolute;
+  /* Generous on purpose. At 7cqw the desktop showed as an 89px sliver and the
+     thing read as a bordered full screen rather than a window standing on
+     something. The margin IS the metaphor. */
+  inset: max(11cqh, calc(var(--header-h) + 1.5rem)) 13cqw 11cqh;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  border: 1px solid color-mix(in oklab, var(--slate-ink) 26%, transparent);
+  background: color-mix(in oklab, var(--slate-ink) 5%, var(--slate));
+  box-shadow: 0 2cqh 6cqh color-mix(in oklab, #000 55%, transparent);
+  outline: none;
+}
+
+@container screen (max-width: 620px) {
+  .screen-window {
+    inset: calc(var(--header-h) + 0.5rem) 0 0;
+    border-width: 1px 0 0;
+  }
+}
+
+/* The bar is the title and the handle, which is the convention every windowing
+   system has agreed on, so it needs no affordance beyond the cursor. */
+.screen-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding: 1.4cqh 2cqw 1.4cqh 3cqw;
+  border-bottom: 1px solid color-mix(in oklab, var(--slate-ink) 18%, transparent);
+  background: color-mix(in oklab, var(--slate-ink) 7%, transparent);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.screen-window-bar:active {
+  cursor: grabbing;
+}
+
+.screen-window-title {
+  font-family: var(--font-mono);
+  font-size: clamp(0.7rem, 1.1cqw, 0.95rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate-ink-muted);
+}
+
+.screen-window-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px is the touch floor, and this is the only way out of the window. */
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--slate-ink);
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+/* A fixed size, not a percentage.
+   The svg carries only a viewBox, so with no width it takes the replaced
+   element default of 300x150 — and a percentage width resolves against a button
+   whose own width is being decided by that svg, which is circular. The result
+   was a close control 340px wide with an X the height of the title bar. */
+.screen-window-close svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+}
+
+.screen-window-close:hover,
+.screen-window-close:focus-visible {
+  background: color-mix(in oklab, var(--slate-ink) 12%, transparent);
+  border-color: color-mix(in oklab, var(--slate-ink) 30%, transparent);
+}
+
+.screen-window-body {
+  position: relative;
+  min-height: 0;
+}
+
+/* The work window: the panes fill it, the switcher sits on them. */
+.screen-work {
+  position: relative;
+  height: 100%;
+}
+
+.screen-work .screen-tabs {
+  position: absolute;
+  right: 2cqw;
+  bottom: 2cqh;
+  z-index: 2;
+}
+
 .screen-pane {
   position: absolute;
   inset: 0;
@@ -542,7 +694,7 @@ body {
 }
 
 .screen-site-word {
-  font-size: 1.9cqw;
+  font-size: clamp(0.95rem, 1.9cqw, 1.65rem);
   letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--screen-ink);
@@ -551,7 +703,7 @@ body {
 .screen-site-links {
   display: flex;
   gap: 2.2cqw;
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   letter-spacing: 0.22em;
   color: var(--screen-muted);
 }
@@ -576,7 +728,7 @@ body {
    on every machine this will be opened on; nothing is fetched to draw it. */
 .screen-site-headline {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 4.6cqw;
+  font-size: clamp(1.7rem, 4.6cqw, 4rem);
   line-height: 1.02;
   letter-spacing: -0.015em;
   margin: 0;
@@ -585,7 +737,7 @@ body {
 
 .screen-site-standfirst {
   margin: 0;
-  font-size: 1.5cqw;
+  font-size: clamp(0.85rem, 1.5cqw, 1.3rem);
   line-height: 1.5;
   color: var(--screen-muted);
   max-width: 26ch;
@@ -597,7 +749,7 @@ body {
   border-radius: 999px;
   background: var(--screen-ink);
   color: var(--screen-ground);
-  font-size: 1.1cqw;
+  font-size: clamp(0.7rem, 1.1cqw, 0.96rem);
   letter-spacing: 0.2em;
 }
 
@@ -628,20 +780,20 @@ body {
 
 .screen-index {
   font-family: var(--font-mono);
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   color: var(--screen-accent);
   letter-spacing: 0.1em;
 }
 
 .screen-name {
-  font-size: 2.4cqw;
+  font-size: clamp(1.05rem, 2.4cqw, 2.1rem);
   letter-spacing: -0.02em;
   font-weight: 600;
 }
 
 .screen-category {
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--screen-muted);
@@ -650,7 +802,7 @@ body {
 .screen-description {
   margin: 0;
   max-width: 52ch;
-  font-size: 1.35cqw;
+  font-size: clamp(0.78rem, 1.35cqw, 1.18rem);
   line-height: 1.55;
   color: var(--screen-muted);
 }
@@ -662,7 +814,7 @@ body {
   gap: 1cqw;
   padding: 1.5cqh 2.4cqw;
   font-family: var(--font-mono);
-  font-size: 1.15cqw;
+  font-size: clamp(0.72rem, 1.15cqw, 1rem);
   letter-spacing: 0.16em;
   text-decoration: none;
   color: var(--screen-ground);
@@ -689,6 +841,18 @@ body {
 }
 
 /* --- chrome and switcher --- */
+/*
+ * The chrome runs over any view, so it cannot assume a project's palette.
+ *
+ * --screen-ground, --screen-ink and --screen-muted are set on .screen-pane and
+ * nowhere else, because they were a project's own colours read off its live
+ * site. Once the machine grew sections that are not projects, this bar started
+ * rendering over them with none of those defined, and an unresolved var() is
+ * not an error: color-mix() with one becomes invalid and the whole declaration
+ * is dropped. The bar silently lost its background and its dots disappeared
+ * altogether. The fallbacks are the slate, which is what the screen is when no
+ * project is painting it.
+ */
 .screen-chrome {
   position: absolute;
   inset: 0 0 auto 0;
@@ -697,8 +861,9 @@ body {
   align-items: center;
   gap: 2cqw;
   padding: 1.6cqh 3cqw;
-  background: color-mix(in oklab, var(--screen-ground) 82%, transparent);
-  border-bottom: 1px solid color-mix(in oklab, var(--screen-ink) 10%, transparent);
+  background: color-mix(in oklab, var(--screen-ground, var(--slate)) 82%, transparent);
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 10%, transparent);
   backdrop-filter: blur(6px);
 }
 
@@ -711,18 +876,18 @@ body {
   width: 0.8cqw;
   height: 0.8cqw;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--screen-ink) 22%, transparent);
+  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 22%, transparent);
 }
 
 .screen-url {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.1em;
-  color: var(--screen-muted);
+  color: var(--screen-muted, var(--slate-ink-muted));
   padding: 0.7cqh 1.6cqw;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--screen-ink) 7%, transparent);
+  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 7%, transparent);
   max-width: 30cqw;
   text-align: center;
 }
@@ -734,7 +899,7 @@ body {
 
 .screen-tab {
   font-family: var(--font-mono);
-  font-size: 1.05cqw;
+  font-size: clamp(0.7rem, 1.05cqw, 0.92rem);
   letter-spacing: 0.14em;
   padding: 0.8cqh 1.4cqw;
   border-radius: 999px;
@@ -907,11 +1072,29 @@ body {
   text-align: left;
 }
 
-@media (max-width: 759px) {
-  .cinema-desk {
-    display: none;
-  }
+/*
+ * The device names draw as plain text and have to be pressable as buttons.
+ *
+ * Measured at 390px they were 23px tall, against the 44px a finger needs, and
+ * they are now the only route to three objects the scene made tappable. The
+ * target is expanded rather than the type, so the row still reads as a line of
+ * names rather than a strip of chrome: 23 + 22 clears 44 and the horizontal
+ * padding stays inside the 20px gap, so two names never share a target.
+ */
+.cinema-desk ul button {
+  position: relative;
 }
+
+.cinema-desk ul button::after {
+  content: '';
+  position: absolute;
+  inset: -11px -8px;
+}
+
+/* Shown at every size again. They were hidden here because the three devices
+   were not interactive below 760 either, so the controls had nothing to drive.
+   Now that they do, hiding these would leave a phone with objects it can touch
+   and a screen reader with no way to reach them at all. */
 
 /* Something for the copy to sit on where it crosses the desk. Anchored to the
    bottom of the room, strongest where the type is, gone by mid-frame.
@@ -1001,21 +1184,69 @@ body {
   container-name: screen;
 }
 
+/*
+ * The glass, on the DOM half of the screen.
+ *
+ * The texture carries its own tube (see WorkstationScene), but once the walk
+ * lands you are reading real HTML painted over that panel, and without this the
+ * interface stops being a screen at exactly the moment you are closest to it.
+ * Same two effects, in CSS this time.
+ *
+ * Sits above the chrome as well as the panes, because the glass is in front of
+ * everything the monitor is showing. z-index is safe to scope here: the
+ * container-type: size above implies contain: layout, so this element is
+ * already its own stacking context.
+ *
+ * Both depths are held low on purpose, and the vignette was set by the number
+ * rather than by eye. Worst case is a scanline row at the darkest point of the
+ * vignette, where the two composite to 1-(1-0.05)(1-v) over both the type and
+ * its ground. At v=0.22 the quietest tone on the screen came out at 4.54:1,
+ * which clears AA by four hundredths at the exact corner the pager sits in. At
+ * 0.16 it is 5.14:1. A tube that costs a contrast ratio is a costume, not a
+ * material, and one that clears by a rounding error is the same thing.
+ */
+.cinema-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 5%) 0 1px, transparent 1px 3px),
+    radial-gradient(125% 105% at 50% 50%, transparent 58%, rgb(0 0 0 / 16%));
+}
+
+/*
+ * Every type size on the screen is clamped, and that is not belt and braces.
+ *
+ * These were authored in bare cqw against a monitor drawn inside a desktop
+ * viewport, where the container runs about 1200px. The container is now the
+ * viewport itself on a phone, so the same values collapsed: the home kicker
+ * computed to 4.7px and the preview's own labels to 4.3px, which is not small
+ * type, it is noise. The floors are what a phone needs, the ceilings are the
+ * value at about 1400px so the desktop composition is unchanged, and the
+ * middle term still does the work everywhere in between.
+ */
+
 /* At full zoom the panel is the viewport, which puts its chrome bar underneath
    the site header — and an interface whose project switcher cannot be clicked
    because the page's own navigation is sitting on it is not an interface. The
    band still runs to the top edge, so the panel reads as full bleed; only its
    contents step down past the bar. */
-@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) {
   .cinema-screen .screen-chrome {
     padding-top: calc(1.6cqh + var(--header-h));
   }
 }
 
 /* Nothing pinned, nothing scrubbed: the interface is simply on the page, under
-   the copy, at a readable size. Same rule for a phone and for a visitor who has
-   asked for less motion. */
-@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+   the copy, at a readable size.
+
+   Reduced motion ONLY now. This used to fire below 1024 as well, which is what
+   gave a phone a static panel in the page instead of the machine: the walk was
+   gated at the pin breakpoint and the layout followed it down. The walk is no
+   longer a width (see MEDIA.walk), so neither is this. */
+@media (prefers-reduced-motion: reduce) {
   .cinema-stage {
     min-height: auto;
   }
@@ -1057,9 +1288,30 @@ body {
    * In flow they follow the copy they used to sit on, still right-aligned so
    * they stay on the room's side of the column. Below 760 they are gone
    * entirely — see the rule above. */
+}
+
+/*
+ * Below the pin breakpoint the copy and the desk controls share the stage as
+ * two rows rather than both anchoring to the bottom of it.
+ *
+ * Absolute was right when the copy was in flow and the controls could sit over
+ * the room beside it. The copy is absolute at every width now, filling the
+ * stage, so an absolute control block lands on top of it and a static one falls
+ * out of the bottom and is clipped by the stage's own overflow. Making the
+ * container the grid removes the argument: the copy takes what it needs and
+ * the controls take what is left, with no number to keep in sync.
+ */
+@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+  .cinema-copy {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    align-content: stretch;
+  }
+
   .cinema-desk {
     position: static;
-    margin: clamp(1.5rem, 4vh, 2.5rem) var(--gutter) 0 auto;
+    width: auto;
+    margin: 0 var(--gutter) clamp(1rem, 3.5vh, 2.25rem);
   }
 }
 
@@ -1661,21 +1913,54 @@ body {
   color: var(--mark);
 }
 
-/* One rule, and it is the only one on the screen: it is reporting a real
-   measurement, which is the whole test for whether a line belongs. */
-.loader-rule {
-  position: relative;
-  height: 2px;
-  background: var(--rule);
-  overflow: hidden;
+/* The boot readout, which replaced a rule.
+   Same measurement, told better: the rule could say how far along the room was,
+   this says which part of it has landed. Six lines, six real arrivals. */
+.loader-boot {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.loader-rule-fill {
-  position: absolute;
-  inset: 0;
-  transform-origin: left center;
-  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
-  transition: transform var(--f10) var(--ease-out);
+.loader-boot-line {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  transition: color var(--f6) var(--ease-out);
+}
+
+.loader-boot-line[data-here='true'] {
+  color: var(--ink);
+}
+
+/* The leader. A readout lines its two ends up and leaves the middle to the
+   dots, which is the one job this element has. */
+.loader-boot-fill {
+  align-self: center;
+  height: 1px;
+  opacity: 0.4;
+  background-image: linear-gradient(to right, currentColor 0 2px, transparent 2px 6px);
+  background-size: 6px 1px;
+  background-repeat: repeat-x;
+}
+
+/* --confirm, whose stated single job is a confirmed state. A file that has
+   landed is exactly that, so the token is used for what it is for rather than
+   because green reads as done. */
+.loader-boot-state {
+  font-variant-numeric: tabular-nums;
+  transition: color var(--f6) var(--ease-out);
+}
+
+.loader-boot-line[data-here='true'] .loader-boot-state {
+  color: var(--confirm);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1691,99 +1976,50 @@ body {
   z-index: 1;
 }
 
-@media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+/*
+ * Reduced motion only, and it has to match .cinema-copy above exactly.
+ *
+ * This still said `max-width: 1023px` after the copy stopped doing so, and the
+ * mismatch collapsed the room: .cinema-copy is the room's only in-flow child,
+ * so once the copy went absolute on a phone the room had no content to take
+ * height from and measured zero. The canvas inside it then never sized, and
+ * three left it at the 300x150 default drawing buffer painting nothing at all.
+ * A blank room, no error, and no hit target on the monitor.
+ */
+@media (prefers-reduced-motion: reduce) {
   .cinema-room {
     position: relative;
     inset: auto;
   }
 }
 
-/* ---------------------------------------------------------------------------
-   THE MACHINE AT REST
 
-   The screen's first state. Everything here is in container query units like
-   the rest of the panel, so the same composition serves the monitor across the
-   room, the monitor you are standing at, and the still panel on a phone.
---------------------------------------------------------------------------- */
-.screen-home {
-  display: grid;
-  place-items: center;
-  background: var(--slate);
-  color: var(--slate-ink);
-}
 
-.screen-home-inner {
-  display: grid;
-  justify-items: start;
-  gap: 2.6cqh;
-  padding: 0 6cqw;
-}
+
+
+
 
 .screen-home-kicker {
   margin: 0;
-  font-size: 1.2cqw;
+  font-size: clamp(0.72rem, 1.2cqw, 1.05rem);
   color: var(--slate-ink-muted);
 }
 
 .screen-home-name {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 4.2cqw;
+  font-size: clamp(1.6rem, 4.2cqw, 3.6rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
 }
 
-/* The one press on the screen. Deliberately the brightest thing on it. */
-.screen-enter {
-  display: inline-flex;
-  align-items: center;
-  gap: 1.1cqw;
-  margin-top: 1.4cqh;
-  padding: 1.9cqh 2.8cqw;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 1.35cqw;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--slate);
-  background: var(--slate-mark);
-  cursor: pointer;
-  transition:
-    transform var(--f6) var(--ease-out),
-    filter var(--f6) var(--ease-out);
-}
 
-.screen-enter:hover {
-  transform: translate3d(0, -0.4cqh, 0);
-  filter: brightness(1.1);
-}
 
-.screen-enter:hover .screen-cta-arrow {
-  transform: translate3d(0.5cqw, 0, 0);
-}
 
-/* The way back out of the work, in the chrome bar with the switcher. */
-.screen-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7cqw;
-  padding: 0.8cqh 1.4cqw;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 1.05cqw;
-  letter-spacing: 0.14em;
-  color: var(--screen-muted, var(--slate-ink-muted));
-  cursor: pointer;
-  transition:
-    color var(--f4) var(--ease-out),
-    background-color var(--f4) var(--ease-out);
-}
 
-.screen-back:hover {
-  color: var(--screen-ink, var(--slate-ink));
-  background: color-mix(in oklab, var(--screen-ink, var(--slate-ink)) 8%, transparent);
-}
+
+
 
 /* ---------------------------------------------------------------------------
    THE HERO'S TWO ACTIONS
@@ -1823,4 +2059,174 @@ body {
 [data-hot='true'] .cursor-ring {
   --ring-w: 44px;
   --ring-h: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+   THE MACHINE
+
+   Once the walk lands, the monitor is not a picture of a computer, it is the
+   computer: every section of the site is behind a press here, and the page
+   underneath has stopped being a page.
+
+   Nothing in here scrolls. Sections are a fixed run of screens you page
+   through, which is why the copy is written as discrete units in the
+   dictionary. Paging means every screen is composed at a size the monitor
+   actually has, instead of a column running off the bottom of a bezel.
+--------------------------------------------------------------------------- */
+
+/* Lenis is stopped by enter(), and on a mouse that is the whole lock. It is not
+   on a phone: Lenis is built with syncTouch false so touch stays native, and a
+   finger scrolls the document straight past a stopped scroller. This is what
+   actually holds the page still, and it has to sit on the elements that scroll. */
+html[data-machine='open'],
+html[data-machine='open'] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The home menu. Four sections, numbered like takes, opened by a press. */
+.screen-menu {
+  display: grid;
+  gap: 1.2cqh;
+  margin: 4cqh 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.screen-menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 2.2cqw;
+  width: 100%;
+  padding: 1.6cqh 2cqw;
+  border: 1px solid var(--screen-line, color-mix(in oklab, currentColor 22%, transparent));
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 3.1cqw, 1.6rem);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out);
+}
+
+.screen-menu-item:hover,
+.screen-menu-item:focus-visible {
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  border-color: currentColor;
+}
+
+.screen-menu-index {
+  font-size: 0.62em;
+  letter-spacing: 0.14em;
+  opacity: 0.75;
+}
+
+.screen-menu-label {
+  flex: 1;
+  letter-spacing: -0.01em;
+}
+
+/* One screen of a paged section. The pager is pinned to the foot so the count
+   does not move between screens of different lengths. */
+.screen-paged {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  /* Inside a window now, so this clears the window's own bar rather than the
+     screen's chrome, and the bar is part of the same box. */
+  padding: 3cqh 4cqw 2.5cqh;
+}
+
+
+.screen-page {
+  display: grid;
+  /* start, not centre. Centred, a two-line step floated in the middle of a
+     tall phone with 700px of empty slate above and below it. */
+  align-content: start;
+  gap: 2.2cqh;
+  max-width: 46ch;
+  outline: none;
+}
+
+.screen-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 4.2cqw, 2.4rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.screen-page-kicker {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.screen-statement,
+.screen-step-body {
+  margin: 0;
+  font-size: clamp(0.85rem, 2.4cqw, 1.15rem);
+  line-height: 1.55;
+}
+
+.screen-capabilities {
+  display: grid;
+  gap: 0.9cqh;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(0.8rem, 2.2cqw, 1.05rem);
+}
+
+.screen-capabilities li {
+  padding-bottom: 0.9cqh;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+}
+
+.screen-form {
+  display: grid;
+  gap: 2cqh;
+}
+
+.screen-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2cqw;
+}
+
+.screen-pager-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px is the floor for a touch target, and this is the control a phone uses
+     most. cqw alone shrank it under that on a narrow screen. */
+  min-width: max(44px, 5cqw);
+  min-height: max(44px, 5cqw);
+  border: 1px solid color-mix(in oklab, currentColor 26%, transparent);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    opacity var(--f4) var(--ease-out);
+}
+
+.screen-pager-step:hover:not(:disabled),
+.screen-pager-step:focus-visible:not(:disabled) {
+  background: color-mix(in oklab, currentColor 12%, transparent);
+}
+
+/* Spent, not gone. A control that disappears at the end of a run moves the two
+   beside it, and the visitor loses the place they were pressing. */
+.screen-pager-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.screen-pager-count {
+  font-size: clamp(0.6rem, 1.8cqw, 0.85rem);
+  letter-spacing: 0.12em;
 }

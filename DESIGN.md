@@ -173,12 +173,13 @@ clears AA for text that size.
   object, because in this world they are one object. Scenes come from
   `lib/sections.ts` so the nav renders on the server and cannot link to a
   section that does not exist.
-- **The gate** (`HeroGate`). A fullscreen shader. `uShutter` is the shutter
-  angle driven by scroll velocity: scroll fast and the grain smears, stop and it
-  resolves. Grain steps at 24fps, not per frame. Colours are passed as sRGB
-  floats and written straight out, because `ShaderMaterial` gets no colorspace
-  conversion and `THREE.Color` would linearise them into a visibly different
-  black from the CSS ground behind it.
+- **The gate.** Removed. It was a fullscreen shader from when the first screen
+  was a frame on the page; once the room became the hero it sat behind the room
+  and the room has no wall on its right, so the only thing it ever produced was
+  a lighter band down that edge — measured at 168 against a room at about 10.
+  What is behind the room now is the scene background, which is the same
+  constant as the fog so distant geometry fades into distance rather than into
+  a seam.
 - **Ruled fields** (`ContactForm`). Underline only, no boxes, labels in the
   apparatus register above the line. The form is the report sheet.
 - **The walk** (`Cinema`, `WorkstationScene`). The first screen and the approach
