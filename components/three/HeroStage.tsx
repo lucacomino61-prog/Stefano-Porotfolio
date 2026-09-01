@@ -150,7 +150,12 @@ export function HeroStage({
           created.advance(gsap.ticker.time)
         }}
       >
-        <WorkstationScene project={project} view={view} hint={hint} onEnter={onEnter} />
+        <WorkstationScene
+          project={project}
+          view={view}
+          hint={hint}
+          onEnter={onEnter}
+        />
       </Canvas>
     </div>
   )

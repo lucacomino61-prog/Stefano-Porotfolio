@@ -2230,3 +2230,88 @@ html[data-machine='open'] body {
   font-size: clamp(0.6rem, 1.8cqw, 0.85rem);
   letter-spacing: 0.12em;
 }
+
+/*
+ * The interface when there is no room to draw it in.
+ *
+ * Reduced motion, no WebGL, or simply the moments before the scene commits. It
+ * is the same element the panel receives, laid into the page at a readable size
+ * instead of onto a plane in a scene. Not a fallback in the apologetic sense:
+ * this is the whole site, and everything in it works here.
+ */
+.cinema-screen-flat {
+  position: relative;
+  inset: auto;
+  z-index: 3;
+  opacity: 1;
+  aspect-ratio: 16 / 10;
+  margin: 0 var(--gutter) clamp(3rem, 8vh, 6rem);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--slate);
+}
+
+/*
+ * The interface, pinned to the monitor.
+ *
+ * --panel-* are written by the scene every frame: the panel's world corners
+ * projected through the live camera. Following them means the site is drawn on
+ * the monitor at whatever size and place the monitor happens to be, so the
+ * machine stays visible around its own screen instead of being replaced by it.
+ *
+ * Fixed rather than absolute because the projection is in viewport coordinates,
+ * and the stage it would otherwise be positioned against is pinned and
+ * transformed underneath it.
+ */
+.cinema-screen-panel {
+  position: fixed;
+  inset: auto;
+  left: var(--panel-x, 0px);
+  top: var(--panel-y, 0px);
+  width: var(--panel-w, 100vw);
+  height: var(--panel-h, 100vh);
+  container-type: size;
+  container-name: screen;
+  overflow: hidden;
+}
+
+/*
+ * The screen, when the screen is a panel rather than the viewport.
+ *
+ * The OS layout carries rem floors and rem paddings — a minimum body size, a
+ * top inset that clears the site header. Those are right when this element is
+ * the viewport, which is what it is in the flat fallback: nothing can walk
+ * closer to a phone, so the type has to hold a floor.
+ *
+ * On the panel the opposite is true. The screen is a physical object about
+ * 16:10, and legibility comes from the camera being near it, not from a floor
+ * that cannot scale down. Left alone, a 58px header inset and a 15px body
+ * minimum inside a 170px-tall monitor overflowed the panel and cut the menu in
+ * half. Everything below is the same design expressed purely in container
+ * units, so it fits the panel at any distance.
+ */
+.cinema-screen-panel .screen-desk {
+  padding: 9cqh 7cqw 5cqh;
+  gap: 1.6cqh;
+  max-width: 100%;
+  /* A screen scrolls. This is the safety net for a locale whose labels run
+     longer than English or a panel framed tighter than expected: the content
+     stays reachable rather than being clipped by the bezel. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cinema-screen-panel .screen-menu {
+  margin-top: 1.4cqh;
+  gap: 0.8cqh;
+}
+
+.cinema-screen-panel .screen-menu-item {
+  font-size: 3.2cqw;
+  padding: 1.2cqh 2.4cqw;
+}
+
+.cinema-screen-panel .screen-chrome {
+  padding-top: 1.6cqh;
+}

@@ -10,6 +10,7 @@ import type { ScreenView } from '@/lib/screen'
 import type { Locale } from '@/lib/i18n/config'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
+import { EMPTY_LOADING, loadingState, subscribeLoading } from '@/lib/motion/loading'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
 import { deskFocusSnapshot } from '@/lib/motion/desk'
 import { getScroller, scrollToTarget } from '@/lib/motion/scroller'
@@ -313,6 +314,36 @@ export function Cinema({
 
   const project = PROJECTS.find((entry) => entry.id === active) ?? PROJECTS[0]!
 
+  /**
+   * Whether the room is drawing the interface, or the page has to.
+   *
+   * GateMount decides on mount whether a scene is coming — reduced motion turns
+   * it down — and records that in the loading store. Reading it here rather
+   * than re-deriving the media queries keeps one decision in one place: if the
+   * room is coming, the panel is where the site lives; if it is not, the page
+   * renders the same element itself. Before the decision lands it is undefined
+   * and the flat copy is shown, so the site is complete without JavaScript and
+   * without WebGL, and the room takes over only once it exists.
+   */
+  const scene = useSyncExternalStore(subscribeLoading, loadingState, () => EMPTY_LOADING)
+  const roomMounted = scene.expecting === true
+
+  const screenInterface = (
+    <ScreenOS
+      work={dict}
+      about={about}
+      process={process}
+      contact={contact}
+      nav={nav}
+      hero={hero}
+      locale={locale}
+      active={active}
+      onSelect={select}
+      view={view}
+      onView={setView}
+    />
+  )
+
   return (
     <section
       id="hero"
@@ -330,7 +361,12 @@ export function Cinema({
             phone nothing pins, and without this the canvas would stretch down
             behind the project panel underneath. */}
         <div className="cinema-room">
-          <GateMount project={project} view={view} hint={dict.homeHint} onEnter={enter} />
+          <GateMount
+            project={project}
+            view={view}
+            hint={dict.homeHint}
+            onEnter={enter}
+          />
 
           {/*
             Inert once the camera has left it, for the same reason the screen
@@ -372,35 +408,30 @@ export function Cinema({
         ) : null}
 
         {/*
-          Inert until it is actually the interface.
+          The interface, and where it is drawn.
 
-          `.cinema-screen` is a full-stage overlay at opacity 0 while the room
-          is being looked at, and opacity 0 does not remove an element from hit
-          testing. Sitting at z-index 4 above the canvas and the hero copy, it
-          was swallowing every click in the room: the click-to-enter, the hero's
-          own controls, the desk buttons. It was live as well as invisible, with
-          a focusable button in the accessibility tree that silently changed
-          what the monitor was showing.
+          When the room is drawing, this is pinned to the monitor's own
+          rectangle — the panel's corners, projected through the live camera and
+          published as custom properties every frame. The bezel, the chassis and
+          the room stay around it while the site is being used. It used to be a
+          full-viewport overlay, which meant the workstation vanished at exactly
+          the moment the site became usable: the one thing this section exists
+          to show.
 
-          `inert` fixes all of it at once: no pointer events, no tab stop, out
-          of the accessibility tree. It is applied only where there is a walk to
-          be behind, because on narrow and reduced-motion this element is the
-          real interface and must stay live.
+          Without a room — reduced motion, no WebGL — the same element is laid
+          into the page at a readable size instead, because the interface is the
+          site and it cannot depend on a canvas.
+
+          `inert` while the room is being looked at rather than used: opacity 0
+          does not remove an element from hit testing, and this sits above the
+          canvas.
         */}
-        <div data-screen-ui className="cinema-screen" inert={hasWalk && !zoomed}>
-          <ScreenOS
-            work={dict}
-            about={about}
-            process={process}
-            contact={contact}
-            nav={nav}
-            hero={hero}
-            locale={locale}
-            active={active}
-            onSelect={select}
-            view={view}
-            onView={setView}
-          />
+        <div
+          data-screen-ui
+          className={roomMounted ? 'cinema-screen cinema-screen-panel' : 'cinema-screen cinema-screen-flat'}
+          inert={hasWalk && !zoomed}
+        >
+          {screenInterface}
         </div>
       </div>
     </section>

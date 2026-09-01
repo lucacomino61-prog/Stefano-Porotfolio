@@ -134,8 +134,19 @@ function Model({
  * placeholder; the DOM exists so that the monitor you are standing at works.
  */
 /** The panel's real size in the room, in metres. */
+/**
+ * How much room is left around the panel when the walk ends.
+ *
+ * 1 would put the panel's edges exactly on the frame edges. Above that, the
+ * chassis and some of the desk stay in shot, which is what keeps the site
+ * looking like something running on a machine rather than a page that has
+ * replaced one.
+ */
+const PANEL_FRAMING = 1.34
+
 const PANEL_W = 1.15
 const PANEL_H = 0.64
+
 
 /**
  * Where the camera stands before it walks in, relative to where the scroll
@@ -444,6 +455,70 @@ function wrap(
  * decaying underneath, and any future change to where the desk sits. A hardcoded
  * z would be correct at exactly one viewport.
  */
+/**
+ * Where the panel is on screen, in CSS pixels, republished every frame.
+ *
+ * The site is drawn in ordinary DOM over the canvas rather than inside it, and
+ * this is what tells it where the monitor currently is: the panel's four world
+ * corners projected through the live camera into an axis-aligned box, written
+ * to custom properties on the root so the CSS can follow the monitor without
+ * React re-rendering sixty times a second.
+ *
+ * Axis-aligned rather than a full four-corner homography, on purpose. The walk
+ * ends square on to the panel, which is the only point at which the interface
+ * is meant to be read and operated, and the slight keystone earlier in the
+ * approach falls inside the fade the overlay is already doing. A matrix3d would
+ * be correct at every frame and legible at none of them.
+ */
+const PANEL_CORNERS = [
+  [-0.5, -0.5],
+  [0.5, -0.5],
+  [0.5, 0.5],
+  [-0.5, 0.5],
+] as const
+
+function PanelProjection({ panel }: { panel: RefObject<Mesh | null> }) {
+  const { camera, size } = useThree()
+  const corner = useMemo(() => new Vector3(), [])
+  const last = useRef('')
+
+  useFrame(() => {
+    const mesh = panel.current
+    if (!mesh) return
+
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    for (const [x, y] of PANEL_CORNERS) {
+      corner.set(x * PANEL_W, y * PANEL_H, 0)
+      mesh.localToWorld(corner)
+      corner.project(camera)
+      const px = ((corner.x + 1) / 2) * size.width
+      const py = ((1 - corner.y) / 2) * size.height
+      minX = Math.min(minX, px)
+      maxX = Math.max(maxX, px)
+      minY = Math.min(minY, py)
+      maxY = Math.max(maxY, py)
+    }
+
+    const box = [minX, minY, maxX - minX, maxY - minY].map(Math.round)
+    const next = box.join(',')
+    if (next === last.current) return
+    last.current = next
+
+    const root = document.documentElement.style
+    root.setProperty('--panel-x', `${box[0]}px`)
+    root.setProperty('--panel-y', `${box[1]}px`)
+    root.setProperty('--panel-w', `${box[2]}px`)
+    root.setProperty('--panel-h', `${box[3]}px`)
+  })
+
+  return null
+}
+
+
 function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
   const { camera, size } = useThree()
   const home = useRef<Vector3 | null>(null)
@@ -548,9 +623,20 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
     const halfHeight = (PANEL_H * scale.y) / 2
     const halfWidth = (PANEL_W * scale.x) / 2
 
-    // Distance at which the panel exactly covers the frame, on whichever axis
-    // runs out first. A hair closer, so the last frame has no seam of bezel.
-    const near = Math.min(halfHeight / tangent, halfWidth / (tangent * aspect)) * 0.97
+    /*
+     * Distance at which the panel *fits* the frame, not one at which it covers
+     * it.
+     *
+     * Cover was the old rule: walk in until the screen overflows the viewport
+     * on both axes and the bezel is outside it. That turned arrival into a
+     * full-screen takeover — the monitor, the chassis and the room all gone at
+     * the moment the site became usable, which is the one thing this section
+     * exists to show. Fit stops with the whole panel in frame, and the margin
+     * leaves the chassis and a little of the desk around it, so what you are
+     * reading is visibly on a monitor standing in a room.
+     */
+    const fit = Math.max(halfHeight / tangent, halfWidth / (tangent * aspect))
+    const near = fit * PANEL_FRAMING
 
     // Ease-in on the approach: the last strides change the picture far more
     // than the first ones, which is what walking toward something looks like.
@@ -759,6 +845,7 @@ function Workstation({
       <group position={[-0.34, -0.22, -0.03]} rotation={[0, Math.PI, 0]}>
         <Model url={MONITOR} size={[1.48, 1.12, 0.52]} />
         <MonitorScreen project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
+
       </group>
 
       <DeskObject
@@ -923,6 +1010,7 @@ export function WorkstationScene({
   return (
     <>
       <CameraRig panel={panel} />
+      <PanelProjection panel={panel} />
       {/*
         The void behind the room, and the fog that fades into it.
 
@@ -970,7 +1058,13 @@ export function WorkstationScene({
         <SceneReady />
         <Environment files={STUDIO} environmentIntensity={0.55} />
         <RoomShell accent={project.screen.accent} onEnter={onEnter} />
-        <Workstation project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
+        <Workstation
+          project={project}
+          panel={panel}
+          view={view}
+          hint={hint}
+          onEnter={onEnter}
+        />
         {/*
           Rendered a fixed number of times, not forever.
 
