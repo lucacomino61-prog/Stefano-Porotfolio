@@ -33,6 +33,29 @@ fail gracefully rather than taking the page down:
 | `ADMIN_PASSWORD_HASH` | admin login | `npm run hash-password -- "your password"` |
 | `IP_HASH_SALT` | salted visitor hashing | hashes are skipped |
 
+## Deploying
+
+`vercel.json` pins `framework: nextjs`, and it is not decoration. With the
+preset left at *Other*, Vercel still runs `npm run build` and still reports the
+deployment green, but it publishes `public/` — the default output directory for
+a project with no framework — so every asset under `public/` serves correctly
+while every page, route handler and `_next/static` asset returns a platform 404.
+A deployment that is broken in exactly that way looks healthy from the build log,
+so the setting lives in the repository where it can be read.
+
+Settings in `vercel.json` take precedence over the dashboard. If pages still 404
+after a deploy, check that **Output Directory** is not separately overridden in
+project settings.
+
+The site renders with no environment variables at all, but two are needed before
+the contact form works in production:
+
+| Variable | Without it |
+| --- | --- |
+| `ADMIN_SESSION_SECRET` | the form's time-trap token cannot be signed, so every submission is rejected |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | `/api/contact` throws on the first request: production must never run unmetered |
+| `DATABASE_URL` | submissions have nowhere to be stored |
+
 ## Scripts
 
 ```bash
