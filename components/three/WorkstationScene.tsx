@@ -182,7 +182,18 @@ const DRIFT_RATE_Y = 0.13
 const DRIFT_RATE_Z = 0.11
 
 /** What is outside the room: the background and the fog, which must be one value. */
-const ROOM_VOID = '#07090b'
+/**
+ * The room, in pastel blue.
+ *
+ * It used to be near black on the theory that a dark room makes a bright screen
+ * — which is true, and which also meant there was nothing to look at but the
+ * screen: the desk, the walls and the window were all the same void. A pale
+ * cool shell reads as a room, gives the monitor's own light something to fall
+ * on, and still leaves the panel the brightest thing in frame because the panel
+ * is unlit geometry and everything else is being lit.
+ */
+const ROOM_VOID = '#1d2735'
+const ROOM_SHELL = '#9db4d0'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -837,7 +848,7 @@ function Workstation({
         url={DESK}
         size={[3.25, 0.96, 1.48]}
         position={[-0.2, -1.18, 0.12]}
-        tint="#2b2724"
+        tint="#6f6a63"
         roughness={0.78}
         metalness={0.04}
       />
@@ -898,6 +909,17 @@ function RoomModel() {
       if (!(child instanceof Mesh)) return
       child.castShadow = false
       child.receiveShadow = true
+
+      // Retinted rather than re-exported: the shell arrived near black, and one
+      // colour across it lets the lighting do the separating between floor,
+      // wall and ceiling instead of three baked values fighting the lamps.
+      const material = child.material as MeshStandardMaterial | MeshStandardMaterial[]
+      for (const entry of Array.isArray(material) ? material : [material]) {
+        if (!entry || !('color' in entry)) continue
+        entry.color.set(ROOM_SHELL)
+        entry.roughness = 0.92
+        entry.metalness = 0
+      }
     })
     return clone
   }, [scene])
@@ -960,7 +982,7 @@ function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void })
 
       <mesh position={[2.8, 1.35, -3.02]}>
         <boxGeometry args={[2.4, 1.62, 0.08]} />
-        <meshStandardMaterial color="#0b0b0c" roughness={0.82} />
+        <meshStandardMaterial color="#2c3a4d" roughness={0.82} />
       </mesh>
       <mesh position={[2.8, 1.35, -2.96]}>
         <boxGeometry args={[2.15, 0.025, 0.025]} />
@@ -1025,8 +1047,8 @@ export function WorkstationScene({
         this, and it agrees with the fog by construction.
       */}
       <color attach="background" args={[ROOM_VOID]} />
-      <fog attach="fog" args={[ROOM_VOID, 6.2, 13]} />
-      <ambientLight intensity={0.3} />
+      <fog attach="fog" args={[ROOM_VOID, 8.5, 17]} />
+      <ambientLight intensity={0.85} />
       {/* Key light, low and cool, from the window side. Cut back hard from what
           a product shot would use: this is a room in the evening with a screen
           on in it, and the screen has to be the brightest thing in the frame. */}

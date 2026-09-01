@@ -69,12 +69,26 @@ export type Dictionary = {
     /** The workstation as something you operate rather than look at. */
     enter: string
     viewWork: string
+    /** The desktop: what the icons are, and the heading over the detail list. */
+    apps: string
+    details: string
+    openSite: string
     back: string
     homeHint: string
     /** Per project, keyed by the ids in lib/projects.ts. */
     projects: Record<
       'elixir' | 'bar-martiri',
-      { category: string; description: string; alt: string }
+      {
+        category: string
+        description: string
+        alt: string
+        /**
+         * Short factual lines shown beside the project. Read off the running
+         * sites, not written from imagination: what the thing actually does,
+         * who it serves, what it ships.
+         */
+        facts: readonly string[]
+      }
     >
   }
   /**
@@ -179,6 +193,9 @@ const en: Dictionary = {
     yearLabel: 'Shipped',
     enter: 'Open the workstation',
     viewWork: 'View my work',
+    apps: 'Applications',
+    details: 'Details',
+    openSite: 'Open the live site',
     back: 'Back',
     homeHint: 'Click the monitor',
     projects: {
@@ -187,12 +204,14 @@ const en: Dictionary = {
         description:
           'An online perfume house. Designer, Arabic and niche bottles, catalogued and sold across Albania, on a warm near-black ground built to make a bottle worth looking at.',
         alt: 'The Elixir storefront: a perfume bottle lit against a warm dark ground.',
+        facts: ['Catalogue and cart', 'Designer, Arabic and niche', 'Ships across Albania'],
       },
       'bar-martiri': {
         category: 'Hospitality / bar experience',
         description:
           'A bar on the sand at Spille. The menu, the sunbeds and the walk down to the sea, in three languages, for people deciding where to spend the afternoon.',
         alt: 'Bar Martiri: the beach at Spille, sunbeds and the sea behind them.',
+        facts: ['Menu and sunbeds', 'Three languages', 'Spille, on the coast'],
       },
     },
   },
@@ -331,6 +350,9 @@ const it: Dictionary = {
     yearLabel: 'Online dal',
     enter: 'Apri la postazione',
     viewWork: 'Guarda i miei lavori',
+    apps: 'Applicazioni',
+    details: 'Dettagli',
+    openSite: 'Apri il sito online',
     back: 'Indietro',
     homeHint: 'Clicca il monitor',
     projects: {
@@ -339,12 +361,14 @@ const it: Dictionary = {
         description:
           'Una profumeria online. Designer, arabi e di nicchia, a catalogo e in vendita in tutta l’Albania, su un fondo caldo quasi nero costruito perché valga la pena guardare una boccetta.',
         alt: 'La vetrina di Elixir: una boccetta illuminata su un fondo scuro e caldo.',
+        facts: ['Catalogo e carrello', 'Designer, arabi e di nicchia', 'Spedizione in tutta l’Albania'],
       },
       'bar-martiri': {
         category: 'Ospitalità / esperienza bar',
         description:
           'Un bar sulla sabbia di Spille. Il menu, i lettini e la discesa al mare, in tre lingue, per chi sta decidendo dove passare il pomeriggio.',
         alt: 'Bar Martiri: la spiaggia di Spille, i lettini e il mare dietro.',
+        facts: ['Menu e lettini', 'Tre lingue', 'Spille, sulla costa'],
       },
     },
   },
@@ -489,6 +513,9 @@ const al: Dictionary = {
     yearLabel: 'Online nga',
     enter: 'Hap postin e punës',
     viewWork: 'Shiko punët e mia',
+    apps: 'Aplikacione',
+    details: 'Detaje',
+    openSite: 'Hap faqen online',
     back: 'Kthehu',
     homeHint: 'Klikoni monitorin',
     projects: {
@@ -497,12 +524,14 @@ const al: Dictionary = {
         description:
           'Një shtëpi parfumesh online. Designer, arabe dhe nishe, në katalog dhe në shitje në gjithë Shqipërinë, mbi një sfond të ngrohtë thuajse të zi, ndërtuar që një shishe të ketë vlerë të shihet.',
         alt: 'Vitrina e Elixir: një shishe parfumi e ndriçuar mbi sfond të errët e të ngrohtë.',
+        facts: ['Katalog dhe shportë', 'Designer, arabe dhe nishe', 'Dërgim në gjithë Shqipërinë'],
       },
       'bar-martiri': {
         category: 'Mikpritje / përvojë bari',
         description:
           'Një bar mbi rërën në Spille. Menuja, shezlonet dhe rruga deri te deti, në tri gjuhë, për ata që po vendosin ku ta kalojnë pasditen.',
         alt: 'Bar Martiri: plazhi i Spilles, shezlonet dhe deti pas tyre.',
+        facts: ['Menu dhe shezlone', 'Tri gjuhë', 'Spille, në bregdet'],
       },
     },
   },

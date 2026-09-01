@@ -99,34 +99,56 @@ export function ScreenOS({
         still there to look at and still exactly where they left it.
       */}
       <div className="screen-desk" inert={windowed}>
-        <p className="label screen-home-kicker">{hero.role}</p>
-        <h3 className="screen-home-name">{hero.name}</h3>
-
+        {/*
+          Applications, not a list of links.
+          
+          A desktop earns the metaphor by behaving like one: things on it are
+          objects you open, laid out in a grid, each with a mark you can learn
+          to recognise. The four sections are the installed applications; the
+          two shipped sites are shortcuts to somewhere else, which is why they
+          are drawn as links and carry the outward arrow.
+        */}
         <nav aria-label={nav.sections}>
-          <ul className="screen-menu">
-            {SCREEN_SECTIONS.map((section, index) => (
+          <h4 className="label screen-apps-label">{work.apps}</h4>
+          <ul className="screen-apps">
+            {SCREEN_SECTIONS.map((section) => (
               <li key={section}>
                 <button
                   type="button"
                   onClick={(event) => open(section, event.currentTarget)}
                   aria-current={view === section ? 'true' : undefined}
-                  className="screen-menu-item"
+                  className="screen-app"
                 >
-                  <span className="tabular screen-menu-index" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
+                  <span className="screen-app-glyph" aria-hidden="true">
+                    <AppGlyph section={section} />
                   </span>
-                  <span className="screen-menu-label">{label[section]}</span>
-                  <svg viewBox="0 0 16 16" aria-hidden="true" className="screen-cta-arrow">
-                    <path
-                      d="M3 8h10M9 4l4 4-4 4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <span className="screen-app-label">{label[section]}</span>
                 </button>
+              </li>
+            ))}
+
+            {PROJECTS.map((project) => (
+              <li key={project.id}>
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="screen-app screen-app-shortcut"
+                  title={`${work.openSite}: ${project.host}`}
+                >
+                  <span
+                    className="screen-app-glyph"
+                    aria-hidden="true"
+                    style={{ '--app-accent': project.screen.accent } as React.CSSProperties}
+                  >
+                    <SiteGlyph />
+                  </span>
+                  <span className="screen-app-label">{project.name}</span>
+                  {/* A shortcut leaves the machine, and saying so is the whole
+                      job of the second line: the icon's arrow is a convention,
+                      the host is the fact. */}
+                  <span className="screen-app-host">{project.host} ↗</span>
+                </a>
               </li>
             ))}
           </ul>
@@ -174,6 +196,84 @@ export function ScreenOS({
         <span className="screen-url">{hero.name}</span>
       </div>
     </div>
+  )
+}
+
+/**
+ * One mark per application.
+ *
+ * Drawn rather than lettered, and geometric rather than pictorial: an icon on
+ * this desktop has to survive being a few pixels across on a monitor seen from
+ * the other side of a room, which rules out anything with detail in it.
+ */
+function AppGlyph({ section }: { section: ScreenSection }) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.5,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  }
+
+  if (section === 'work') {
+    return (
+      <svg viewBox="0 0 24 24">
+        <path d="M3 7.5h7l1.6 2H21v9.5H3z" {...common} />
+        <path d="M3 7.5V5h6l1.6 2.5" {...common} />
+      </svg>
+    )
+  }
+
+  if (section === 'about') {
+    return (
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8.5" r="3.4" {...common} />
+        <path d="M4.8 19.5a7.2 7.2 0 0 1 14.4 0" {...common} />
+      </svg>
+    )
+  }
+
+  if (section === 'process') {
+    return (
+      <svg viewBox="0 0 24 24">
+        <path d="M4 6.5h4M4 12h4M4 17.5h4" {...common} />
+        <path d="M12 6.5h8M12 12h8M12 17.5h8" {...common} opacity={0.55} />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect x="3.2" y="5.5" width="17.6" height="13" {...common} />
+      <path d="m3.6 6.5 8.4 6.4 8.4-6.4" {...common} />
+    </svg>
+  )
+}
+
+/** A shortcut leaves the machine, so it is drawn as a window with a way out. */
+function SiteGlyph() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect
+        x="3.2"
+        y="4.6"
+        width="17.6"
+        height="14.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <path d="M3.2 8.6h17.6" stroke="currentColor" strokeWidth={1.5} />
+      <path
+        d="M10 15.4 15 10.4M15 10.4h-3.4M15 10.4v3.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 

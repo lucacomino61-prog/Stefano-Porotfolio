@@ -1110,9 +1110,9 @@ body {
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    transparent,
-    color-mix(in oklab, var(--slate) 52%, transparent) 62%,
-    color-mix(in oklab, var(--slate) 76%, transparent)
+    color-mix(in oklab, var(--slate) 18%, transparent),
+    color-mix(in oklab, var(--slate) 72%, transparent) 55%,
+    color-mix(in oklab, var(--slate) 92%, transparent)
   );
 }
 
@@ -2314,4 +2314,310 @@ html[data-machine='open'] body {
 
 .cinema-screen-panel .screen-chrome {
   padding-top: 1.6cqh;
+}
+
+/* ---------------------------------------------------------------------------
+   THE DESKTOP
+
+   What is actually on the machine: a wallpaper, a row of applications, and the
+   two shipped sites as shortcuts off it. The metaphor only pays if it behaves
+   like one — objects laid in a grid, each with a mark, opened rather than
+   followed — so the section list is drawn as icons rather than as a menu.
+--------------------------------------------------------------------------- */
+
+/*
+ * The wallpaper.
+ *
+ * Made of gradients rather than a photograph, for the same reason the grain is
+ * a filter: this is drawn at every size from a monitor across a room to a panel
+ * filling a phone, and one bitmap cannot be sharp at both ends of that. The
+ * light picks up whichever project is currently loaded, so the machine's own
+ * desktop is tinted by the work sitting on it.
+ */
+.screen-desktop {
+  background:
+    radial-gradient(
+      120% 90% at 12% 0%,
+      color-mix(in oklab, var(--project-glow, var(--accent)) 22%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 70% at 100% 100%,
+      color-mix(in oklab, var(--accent-deep) 45%, transparent),
+      transparent 66%
+    ),
+    linear-gradient(160deg, #10131a 0%, #070910 55%, #05070c 100%);
+}
+
+.screen-desk-head {
+  display: grid;
+  gap: 0.6cqh;
+}
+
+.screen-apps-label {
+  margin: 0 0 1.4cqh;
+  opacity: 0.62;
+}
+
+.screen-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16cqw, 1fr));
+  gap: 1.6cqh 2cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One icon. A tile, not a button with a border: a desktop icon is a mark with a
+   name under it, and the hit area is the whole thing. */
+.screen-app {
+  display: grid;
+  justify-items: center;
+  gap: 0.9cqh;
+  width: 100%;
+  padding: 1.4cqh 0.6cqw;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 1.5cqw;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    border-color var(--f4) var(--ease-out),
+    transform var(--f4) var(--ease-out);
+}
+
+.screen-app:hover,
+.screen-app:focus-visible {
+  background: color-mix(in oklab, currentColor 9%, transparent);
+  border-color: color-mix(in oklab, currentColor 24%, transparent);
+  transform: translate3d(0, -0.4cqh, 0);
+}
+
+.screen-app[aria-current='true'] {
+  border-color: var(--slate-mark);
+}
+
+.screen-app-glyph {
+  display: grid;
+  place-items: center;
+  width: 6.4cqw;
+  height: 6.4cqw;
+  border-radius: 18%;
+  color: var(--app-accent, var(--slate-mark));
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in oklab, var(--app-accent, var(--slate-mark)) 26%, transparent),
+      transparent 62%
+    ),
+    color-mix(in oklab, #ffffff 8%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--app-accent, var(--slate-mark)) 34%, transparent) inset,
+    0 1cqh 2cqh rgba(0, 0, 0, 0.35);
+}
+
+.screen-app-glyph svg {
+  width: 62%;
+  height: 62%;
+}
+
+.screen-app-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A shortcut leaves the machine. The arrow in the mark says so; this keeps the
+   label quieter than the applications, which are the site itself. */
+.screen-app-shortcut .screen-app-label {
+  color: var(--slate-ink-muted);
+}
+
+/* --- the detail list inside a section --- */
+.screen-facts {
+  display: grid;
+  gap: 0.8cqh;
+  margin: 1.6cqh 0 0;
+  padding: 1.6cqh 0 0;
+  border-top: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+  list-style: none;
+}
+
+.screen-facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2cqw;
+  font-family: var(--font-mono);
+  font-size: 1.35cqw;
+  letter-spacing: 0.06em;
+  color: var(--slate-ink-muted);
+}
+
+.screen-facts li::before {
+  content: '';
+  flex: none;
+  width: 0.9cqw;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/*
+ * The machine's title bar, at panel size.
+ *
+ * The name was wrapping to two lines inside a 290px-wide screen, which turned a
+ * chrome bar into a quarter of the whole display and pushed the desktop into
+ * what was left. A title bar is one line by definition: it truncates rather
+ * than growing, exactly as every windowing system's does.
+ */
+.cinema-screen-panel .screen-url {
+  max-width: 46cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The name is the wallpaper's, not a page heading: it sets the desktop rather
+   than opening it, so it steps back to leave the applications the loudest
+   thing on the screen. */
+.cinema-screen-panel .screen-home-name {
+  font-size: 5.2cqw;
+}
+
+.cinema-screen-panel .screen-home-kicker {
+  font-size: 1.3cqw;
+}
+
+/*
+ * The window, at panel size.
+ *
+ * The base inset is `max(11cqh, header + 1.5rem)`, and the rem half of that max
+ * is written for a screen that is the viewport. On a 162px panel it resolved to
+ * 82px — half the display — and left the window a 96px strip with a project
+ * pane crammed into it, text spilling past the frame.
+ *
+ * Same composition in container units: clear of the title bar, desktop still
+ * visible around three sides, and enough of the screen left that what opens in
+ * it is legible.
+ */
+.cinema-screen-panel .screen-window {
+  inset: 17cqh 6cqw 6cqh;
+}
+
+/* The pane inside it is laid out for the whole screen, so at window size it
+   loses the picture and keeps the words. A photograph two centimetres across
+   on a monitor read from a desk away is not showing anybody the work; the
+   name, what it is, the facts and the way to the live site are. */
+.cinema-screen-panel .screen-window .screen-site {
+  display: none;
+}
+
+.cinema-screen-panel .screen-window .screen-plate {
+  position: absolute;
+  inset: 0;
+  background: none;
+  border-top: 0;
+  padding: 2.5cqh 3cqw;
+  gap: 1cqh;
+  overflow-y: auto;
+}
+
+/*
+ * Type inside a window, at panel size.
+ *
+ * Everything in here was scaled for a screen that fills a viewport. In a 256px
+ * window the same values give a project name larger than the window is tall and
+ * a switcher that lands on top of the description. These are the same
+ * proportions taken down to the size of the thing actually holding them.
+ */
+.cinema-screen-panel .screen-window .screen-plate-head {
+  flex-wrap: wrap;
+  gap: 0.6cqw 1.4cqw;
+}
+
+.cinema-screen-panel .screen-window .screen-name {
+  font-size: 3.4cqw;
+}
+
+.cinema-screen-panel .screen-window .screen-index,
+.cinema-screen-panel .screen-window .screen-category {
+  font-size: 1.25cqw;
+}
+
+.cinema-screen-panel .screen-window .screen-description {
+  font-size: 1.5cqw;
+  line-height: 1.45;
+  max-width: none;
+}
+
+.cinema-screen-panel .screen-window .screen-facts li {
+  font-size: 1.25cqw;
+}
+
+.cinema-screen-panel .screen-window .screen-cta {
+  font-size: 1.3cqw;
+  padding: 1.2cqh 2cqw;
+}
+
+/* The switcher belongs to the window, at its foot, in the flow — not floating
+   over whatever the pane happens to be showing. */
+.cinema-screen-panel .screen-window .screen-tabs {
+  position: static;
+  justify-content: flex-start;
+  gap: 1cqw;
+  margin-top: 1.4cqh;
+  padding-top: 1.4cqh;
+  border-top: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+}
+
+.cinema-screen-panel .screen-window .screen-tab {
+  font-size: 1.25cqw;
+  padding: 0.9cqh 1.6cqw;
+}
+
+.cinema-screen-panel .screen-window .screen-work {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+  height: 100%;
+}
+
+/*
+ * A shortcut's second line: the address it goes to.
+ *
+ * The arrow in the mark is a convention and conventions can be missed; the host
+ * is unambiguous. Anyone can see before pressing that this one leaves the site.
+ */
+.screen-app-host {
+  font-size: 1.1cqw;
+  letter-spacing: 0.06em;
+  color: var(--slate-ink-muted);
+  opacity: 0.85;
+  text-transform: none;
+}
+
+/* With the name gone from the desktop the applications start at the top, so the
+   grid takes the room the heading was using. */
+.cinema-screen-panel .screen-apps-label {
+  margin-bottom: 1.8cqh;
+}
+
+/*
+ * The copy over a pale room.
+ *
+ * The scrim above carries most of it, but the first line of the statement sits
+ * high in the frame where the wall is lightest, and bone type on a pastel wall
+ * is the same failure as near-black type on a dark one — just inverted. A soft
+ * shadow costs nothing and holds the line at any wall colour, which matters
+ * because the wall is now light and the project glow tints it further.
+ */
+.cinema-copy .hero-line,
+.cinema-copy .hero-secondary {
+  text-shadow: 0 0.06em 0.5em color-mix(in oklab, var(--slate) 78%, transparent);
 }

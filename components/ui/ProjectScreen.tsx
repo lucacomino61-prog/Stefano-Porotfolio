@@ -115,6 +115,16 @@ function Pane({
 
         <p className="screen-description">{copy.description}</p>
 
+        {/* What the thing actually is, in lines short enough to read off a
+            monitor. Read from the running sites rather than written up: a
+            portfolio that describes work it cannot point at is a brochure. */}
+        <ul className="screen-facts">
+          {copy.facts.map((fact) => (
+            <li key={fact}>{fact}</li>
+          ))}
+          <li>{project.year}</li>
+        </ul>
+
         <a
           href={project.url}
           target="_blank"
