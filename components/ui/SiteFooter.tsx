@@ -22,7 +22,12 @@ export function SiteFooter({ dict }: { dict: Dictionary }) {
               {dict.footer.email}
             </a>
           ) : null}
-          <span className="text-ink-muted/70">
+          {/* No alpha on the muted role. DESIGN.md: --ink-muted is the quietest
+              tone that clears 4.5:1 and nothing may be dimmed below it. At /70
+              and 10px this line measured 3.21:1 on the sheet. It reads quieter
+              than the address beside it by being static rather than a link, not
+              by being fainter. */}
+          <span className="text-ink-muted">
             {year} {dict.footer.rights}
           </span>
         </div>

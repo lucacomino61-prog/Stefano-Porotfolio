@@ -851,6 +851,14 @@ body {
   pointer-events: none;
 }
 
+/* The same statement for the other half of the crossfade. `.cinema-copy` is
+   already pointer-events: none, but its links and buttons opt back in above, so
+   without this the exception would survive the attribute it is meant to obey. */
+.cinema-copy[inert] a,
+.cinema-copy[inert] button {
+  pointer-events: none;
+}
+
 .cinema-exit {
   position: absolute;
   /*
@@ -1035,6 +1043,24 @@ body {
     border-radius: 4px;
     overflow: hidden;
   }
+
+  /* And the desk controls with them.
+   *
+   * They are anchored to the foot of the stage, which is the right answer while
+   * there is a stage: the room sits right of centre and the controls end up
+   * beside the thing they control. With nothing pinned there is no stage, and
+   * the copy is in flow underneath them. Measured at 800px they landed on top
+   * of it: the block's top rule ran through the descenders of "end to end", its
+   * label started at x=388 against copy that ran to x=447, and the hint met
+   * "Send a message" with nothing between them.
+   *
+   * In flow they follow the copy they used to sit on, still right-aligned so
+   * they stay on the room's side of the column. Below 760 they are gone
+   * entirely — see the rule above. */
+  .cinema-desk {
+    position: static;
+    margin: clamp(1.5rem, 4vh, 2.5rem) var(--gutter) 0 auto;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1067,6 +1093,32 @@ body {
   backdrop-filter: blur(14px) saturate(1.1);
 }
 
+/*
+ * Over the room, the bar reads off the room.
+ *
+ * .cinema-copy rebinds the ink roles to the slate ones because the room is a
+ * dark interior under either sheet — see the note there. The bar needed the
+ * same rebinding and never got it: it is position: fixed and outside .cinema,
+ * so it cannot inherit it. On the day sheet it painted near-black over the
+ * room. Measured against the room's own pixels, sampled across the whole band
+ * (rgb(38,35,34)): the wordmark and the active section ran at 1.18:1, the
+ * quietest items at 1.71:1, where AA wants 4.5:1. The same values on the slate
+ * roles measure 13.6:1 and 6.0:1.
+ *
+ * Scoped to the two conditions that actually guarantee a room behind it. The
+ * bar has not taken a ground of its own yet, which it does at 12% of a viewport
+ * and so always inside the first screen; and motion is not reduced, because
+ * under reduced motion the canvas is never mounted at all and the top of the
+ * page is the page's own sheet.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .site-header[data-lifted='false'] {
+    --ink: var(--slate-ink);
+    --ink-muted: var(--slate-ink-muted);
+    --mark: var(--slate-mark);
+  }
+}
+
 .site-word {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1075,13 +1127,21 @@ body {
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
+  /* Matched to the ground's own fade above, so the bar changes sheet as one
+     move rather than snapping its type a beat before its background. */
+  transition: color var(--f10) var(--ease-out);
 }
 
 .site-timecode {
   font-size: var(--text-xs);
   letter-spacing: 0.1em;
+  /* No second dimming on top of the muted role — DESIGN.md is explicit that
+     nothing may be dimmed below --ink-muted with opacity, and this was doing
+     exactly that. Stacked it measured 3.22:1 on the page's own sheet and
+     1.71:1 over the room; the role alone clears 4.5:1 on both. The locales
+     beside it already read the token straight. */
   color: var(--ink-muted);
-  opacity: 0.7;
+  transition: color var(--f10) var(--ease-out);
 }
 
 .site-nav {
@@ -1120,8 +1180,12 @@ body {
 }
 
 .site-nav-index {
+  /* Quieter by size and by face, not by opacity. It already inherits
+     --ink-muted from the link, and DESIGN.md is explicit that nothing may be
+     dimmed below that tone: a second 0.55 on top put the numerals at 3.01:1
+     over the room at 9.97px, under the 4.5:1 the rest of the bar now clears.
+     --ink-muted IS the quiet end, so this is as quiet as the numeral gets. */
   font-size: 0.82em;
-  opacity: 0.55;
 }
 
 .site-locales {
@@ -1146,12 +1210,23 @@ body {
   color: var(--mark);
 }
 
-/* Below the pin breakpoint the section list goes: four uppercase labels, a
-   timecode and three locales do not fit across a phone, and the one that has to
-   survive is the way to change language. */
-@media (max-width: 767px) {
-  .site-nav,
+/* The timecode goes first, at the pin breakpoint rather than at the phone one.
+   It is the only item in the bar that is decoration rather than navigation, and
+   it is the one that made the bar overrun itself: measured at 800px the four
+   section labels, the readout and three locales came to 792px of content in a
+   786px box, which spends the right gutter and pushes the last locale against
+   the window edge. Without it the same row measures 661px. */
+@media (max-width: 1023px) {
   .site-timecode {
+    display: none;
+  }
+}
+
+/* Below the pin breakpoint the section list goes too: four uppercase labels and
+   three locales do not fit across a phone, and the one that has to survive is
+   the way to change language. */
+@media (max-width: 767px) {
+  .site-nav {
     display: none;
   }
 
