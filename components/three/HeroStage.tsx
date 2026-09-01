@@ -10,6 +10,8 @@ import type { ScreenView } from '@/components/ui/ProjectScreen'
 import type { Project } from '@/lib/projects'
 
 import { HeroGate } from './HeroGate'
+import { deskFocusSnapshot, setDeskFocused } from '@/lib/motion/desk'
+
 import { WorkstationScene } from './WorkstationScene'
 
 /**
@@ -91,6 +93,26 @@ export function HeroStage({
     // pointer events, which it does by default.
     <div ref={wrapper} aria-hidden="true" className="absolute inset-0 z-[1]">
       <Canvas
+        /**
+         * Clicking the room goes in, not just the monitor or the button.
+         *
+         * onPointerMissed is the click that hit no geometry at all: the space
+         * above the desk, the empty part of the frame. The devices and the
+         * panel stop propagation on their own clicks, so this cannot fire
+         * underneath them.
+         *
+         * If a device is being looked at, a click on nothing dismisses it
+         * rather than walking in. That is the ordinary meaning of clicking away
+         * from something, and walking the camera somewhere else instead would
+         * be two changes for one press.
+         */
+        onPointerMissed={() => {
+          if (deskFocusSnapshot()) {
+            setDeskFocused(null)
+            return
+          }
+          onEnter()
+        }}
         frameloop="never"
         // Capped at 2 by the brief. Beyond that the grain is invisible and the
         // fill cost is four times higher.

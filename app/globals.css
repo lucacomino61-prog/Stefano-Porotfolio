@@ -814,6 +814,97 @@ body {
   --mark-ink: var(--slate);
 }
 
+/*
+ * The desk controls.
+ *
+ * Pinned to the foot of the stage rather than left to flow after the hero copy.
+ * In flow they measured 943px down a 919px viewport: the controls for the desk
+ * sat just below the fold at exactly the moment the desk was in view, which is
+ * the one position they must never be in.
+ *
+ * Anchored right, not left, for two reasons. The room sits on the right of the
+ * stage at these widths, so the controls end up beside the thing they control.
+ * And the left gutter is the hero column: measured there, this block ran from
+ * 771 to 887 straight through "Open the workstation" at 812 to 864.
+ *
+ * The 760px cut is the same breakpoint WorkstationScene uses to decide the
+ * devices are inspectable at all. Below it nothing pins, the room is a small
+ * picture at the top of a scrolling page, and there is nothing to control.
+ */
+/*
+ * The way back out of the machine.
+ *
+ * Sits above the screen interface rather than inside it, because it leaves the
+ * whole zoom rather than navigating within it, and a control that undoes the
+ * container should not look like one of the container's own controls.
+ */
+/*
+ * Belt and braces on the inert overlay.
+ *
+ * `inert` already stops pointer events, but this element spent its whole life
+ * invisible and clickable and the failure was silent: clicks landed on nothing
+ * and the room simply did not respond. A declarative rule means the same fact
+ * is stated where a reader of the stylesheet will see it, and it holds even if
+ * the attribute is ever dropped from the markup.
+ */
+.cinema-screen[inert] {
+  pointer-events: none;
+}
+
+.cinema-exit {
+  position: absolute;
+  /*
+   * Below the header, not level with it.
+   *
+   * At `top: var(--gutter)` this began at 52px while the fixed .site-header
+   * (z-index 40, in the root stacking context) ended at 61px, so the header
+   * took the top 9px of the control: hit tests at both top corners returned
+   * the header, and only the lower two thirds of Back were actually clickable.
+   * Raising z-index here cannot win, because the stage is its own stacking
+   * context nested below the header's. Clearing it in geometry can.
+   *
+   * Driven off --header-h so it follows the header rather than agreeing with it
+   * by coincidence.
+   */
+  top: calc(var(--header-h) + 0.75rem);
+  left: var(--gutter);
+  z-index: 6;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--mark);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--ground) 72%, transparent);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color var(--f4) var(--ease-out),
+    color var(--f4) var(--ease-out);
+}
+
+.cinema-exit:hover,
+.cinema-exit:focus-visible {
+  background: var(--mark);
+  color: var(--mark-ink);
+}
+
+.cinema-desk {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1rem, 3.5vh, 2.25rem);
+  z-index: 4;
+  width: min(24rem, calc(100% - var(--gutter) * 2));
+  text-align: left;
+}
+
+@media (max-width: 759px) {
+  .cinema-desk {
+    display: none;
+  }
+}
+
 /* Something for the copy to sit on where it crosses the desk. Anchored to the
    bottom of the room, strongest where the type is, gone by mid-frame.
 

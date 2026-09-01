@@ -1,14 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { Hero } from '@/components/sections/Hero'
 import { GateMount } from '@/components/three/GateMount'
+import { DeskIndex } from '@/components/ui/DeskIndex'
 import { ProjectScreen, type ScreenView } from '@/components/ui/ProjectScreen'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
-import { scrollToOffset, scrollToTarget } from '@/lib/motion/scroller'
+import { deskFocusSnapshot } from '@/lib/motion/desk'
+import { getScroller, scrollToTarget } from '@/lib/motion/scroller'
 import { PROJECTS, type ProjectId } from '@/lib/projects'
 
 /**
@@ -31,40 +33,114 @@ import { PROJECTS, type ProjectId } from '@/lib/projects'
  * Three branches, per the project's motion contract. Narrow and reduced-motion
  * never pin: the interface is simply present, at rest, with the projects in it.
  */
+/**
+ * Whether the walk exists at this width and preference.
+ *
+ * Needed in render, not just in the effect, because it decides whether the
+ * screen interface is the page's real interface or a picture waiting behind a
+ * zoom. Read through useSyncExternalStore so the answer follows a resize or a
+ * preference change instead of being decided once at mount.
+ */
+function subscribeMotionMedia(onChange: () => void): () => void {
+  const query = window.matchMedia(MEDIA.motion)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function readMotionMedia(): boolean {
+  return window.matchMedia(MEDIA.motion).matches
+}
+
+/** The server has no viewport and no preference, so it never has a walk. */
+function readMotionMediaOnServer(): boolean {
+  return false
+}
+
 export function Cinema({
   dict,
   hero,
   calendar,
+  deskIndex,
 }: {
   dict: Dictionary['work']
   hero: Dictionary['hero']
   calendar: Dictionary['calendar']
+  deskIndex: Dictionary['deskIndex']
 }) {
   const root = useRef<HTMLElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<ProjectId>(PROJECTS[0]!.id)
   const [view, setView] = useState<ScreenView>('home')
-  const trigger = useRef<ScrollTrigger | null>(null)
+  const [zoomed, setZoomed] = useState(false)
+  const hasWalk = useSyncExternalStore(
+    subscribeMotionMedia,
+    readMotionMedia,
+    readMotionMediaOnServer,
+  )
+  /**
+   * The walk, as a timeline you press rather than a distance you scroll.
+   *
+   * Paused and reversible. Playing it walks in, reversing it walks out, and
+   * because it is one timeline both directions use the same easing and the same
+   * order of events. A second tween for the way back would drift out of step
+   * with this one the first time either was retimed.
+   */
+  const walk = useRef<gsap.core.Timeline | null>(null)
 
   const select = useCallback((id: ProjectId) => setActive(id), [])
 
   /**
    * Walking up to the desk.
    *
-   * The click does not move the camera. It moves the scroll, and the camera
-   * follows the scroll as it always has — one source of truth, so a click and a
-   * wheel can never disagree about where you are standing, and the visitor can
-   * scroll straight back out without fighting an animation that thinks it owns
-   * the viewport. Below the pin breakpoint there is no walk to take, so the same
-   * control jumps to the screen where it sits in the page.
+   * This used to be a scroll distance: a pinned stage 460% tall, scrubbed. It
+   * is now a press. The machine is the subject of this page rather than a thing
+   * you pass on the way down it, and a subject you have to scroll past to
+   * operate is not a subject. One timeline owns the move, so a click in the
+   * room and the Escape key can never disagree about where you are standing.
    */
   const enter = useCallback(() => {
-    const instance = trigger.current
-    if (instance) {
-      scrollToOffset(instance.end)
+    const timeline = walk.current
+    if (!timeline) {
+      // Narrow and reduced-motion have no walk to take. The same control still
+      // has to go somewhere, so it goes to the interface where it sits in the
+      // page.
+      scrollToTarget('[data-screen-ui]')
       return
     }
-    scrollToTarget('[data-screen-ui]')
+    /**
+     * Align the stage to the viewport BEFORE locking, or the lock is a trap.
+     *
+     * Nothing pins any more, so the visitor is not necessarily standing at the
+     * top of the stage when they press. Everything the zoom draws is anchored
+     * to the stage and clipped by its `overflow: hidden`: the Back control sits
+     * at `top: var(--gutter)`, which is 56px at most. Freeze the page a few
+     * hundred pixels down and Back is above the viewport, unreachable in
+     * principle, while the wheel is dead and the header's own links call
+     * preventDefault and then a scrollTo that Lenis refuses while stopped.
+     * Escape would be the only way out of a room with no visible exit.
+     *
+     * The jump is immediate rather than animated because the walk itself starts
+     * on the next frame; an eased scroll would still be travelling while the
+     * camera moved.
+     */
+    const scroller = getScroller()
+    if (scroller) scroller.scrollTo(0, { immediate: true, force: true })
+    else window.scrollTo({ top: 0, behavior: 'auto' })
+
+    // Held while you are inside the machine. Without this the room could be
+    // scrolled out from under the camera while the camera is busy looking at
+    // it, which reads as the site breaking rather than as scrolling.
+    scroller?.stop()
+    setZoomed(true)
+    timeline.play()
+  }, [])
+
+  const exit = useCallback(() => {
+    const timeline = walk.current
+    if (!timeline) return
+    setZoomed(false)
+    timeline.reverse()
+    getScroller()?.start()
   }, [])
 
   useEffect(() => {
@@ -77,45 +153,53 @@ export function Cinema({
       media.add(MEDIA.motion, () => {
         setCinemaLive(true)
 
-        const timeline = gsap.timeline({
-          defaults: { ease: 'none' },
-          scrollTrigger: {
-            trigger: el,
-            start: 'top top',
-            end: '+=460%',
-            scrub: 0.65,
-            pin: stage.current,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-            // The camera is not a tween. It is read off this value inside the
-            // frame loop, so the scene never re-renders to move.
-            onUpdate: (self) => setCinemaProgress(self.progress),
-            onRefresh: (self) => {
-              setCinemaProgress(self.progress)
-              trigger.current = self
-            },
+        // Nothing pins and nothing scrubs. The stage is an ordinary screenful
+        // and the page below it scrolls normally; only the camera has stopped
+        // being a function of the scrollbar.
+        const position = { value: 0 }
+        const timeline = gsap.timeline({ paused: true, defaults: { ease: 'none' } })
+
+        // The camera is not a tween on the camera. It is read off this value
+        // inside the frame loop, so the scene never re-renders to move.
+        timeline.to(
+          position,
+          {
+            value: 1,
+            duration: 1.7,
+            ease: 'power2.inOut',
+            onUpdate: () => setCinemaProgress(position.value),
           },
-        })
+          0,
+        )
 
         // The copy clears the frame early, while there is still a room to look
         // at. Holding it any longer would leave a name floating over a monitor.
-        timeline.to('[data-hero-copy]', { opacity: 0, yPercent: -4, duration: 0.16 }, 0.05)
+        timeline.to(
+          '[data-hero-copy]',
+          { opacity: 0, yPercent: -4, duration: 0.4, ease: 'power2.in' },
+          0.05,
+        )
 
         // The interface arrives only once the panel is nearly the frame, so the
         // crossfade lands on a picture the texture is already showing.
         timeline.fromTo(
           '[data-screen-ui]',
           { opacity: 0, scale: 0.965 },
-          { opacity: 1, scale: 1, duration: 0.16, ease: 'power2.out' },
-          0.8,
+          { opacity: 1, scale: 1, duration: 0.45, ease: 'power2.out' },
+          1.2,
         )
 
-        trigger.current = timeline.scrollTrigger ?? null
+        walk.current = timeline
 
         return () => {
-          trigger.current = null
+          walk.current = null
+          timeline.kill()
           setCinemaLive(false)
           setCinemaProgress(0)
+          // The page is only ever held by this branch, so this branch is the
+          // one that has to give it back. A revert across the breakpoint with
+          // the scroller still stopped would leave the whole site frozen.
+          getScroller()?.start()
         }
       })
 
@@ -131,11 +215,27 @@ export function Cinema({
     const refresh = () => ScrollTrigger.refresh()
     window.addEventListener('load', refresh)
 
+    /**
+     * Escape walks back out.
+     *
+     * It defers to the desk: if a device is being looked at, that is the
+     * innermost thing open and Escape belongs to it. WorkstationScene clears
+     * the device on the same key, so this checks before acting rather than both
+     * firing and the visitor losing two levels for one press.
+     */
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (deskFocusSnapshot()) return
+      exit()
+    }
+    window.addEventListener('keydown', handleKey)
+
     return () => {
       window.removeEventListener('load', refresh)
+      window.removeEventListener('keydown', handleKey)
       ctx.revert()
     }
-  }, [])
+  }, [exit])
 
   const project = PROJECTS.find((entry) => entry.id === active) ?? PROJECTS[0]!
 
@@ -160,10 +260,36 @@ export function Cinema({
 
           <div data-hero-copy className="cinema-copy">
             <Hero dict={hero} calendar={calendar} enterLabel={dict.enter} onEnter={enter} />
+            <DeskIndex dict={deskIndex} />
           </div>
         </div>
 
-        <div data-screen-ui className="cinema-screen">
+        {/* Escape is not discoverable on its own, and a visitor who has just
+            been moved somewhere by a click needs the way back to be visible
+            rather than remembered. */}
+        {zoomed ? (
+          <button type="button" onClick={exit} className="cinema-exit">
+            {dict.back}
+          </button>
+        ) : null}
+
+        {/*
+          Inert until it is actually the interface.
+
+          `.cinema-screen` is a full-stage overlay at opacity 0 while the room
+          is being looked at, and opacity 0 does not remove an element from hit
+          testing. Sitting at z-index 4 above the canvas and the hero copy, it
+          was swallowing every click in the room: the click-to-enter, the hero's
+          own controls, the desk buttons. It was live as well as invisible, with
+          a focusable button in the accessibility tree that silently changed
+          what the monitor was showing.
+
+          `inert` fixes all of it at once: no pointer events, no tab stop, out
+          of the accessibility tree. It is applied only where there is a walk to
+          be behind, because on narrow and reduced-motion this element is the
+          real interface and must stay live.
+        */}
+        <div data-screen-ui className="cinema-screen" inert={hasWalk && !zoomed}>
           <ProjectScreen
             dict={dict}
             active={active}
