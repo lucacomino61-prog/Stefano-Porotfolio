@@ -170,6 +170,9 @@ const DRIFT_RATE_X = 0.17
 const DRIFT_RATE_Y = 0.13
 const DRIFT_RATE_Z = 0.11
 
+/** What is outside the room: the background and the fog, which must be one value. */
+const ROOM_VOID = '#07090b'
+
 const SCREEN_W = 2048
 const SCREEN_H = 1152
 
@@ -879,7 +882,21 @@ export function WorkstationScene({
   return (
     <>
       <CameraRig panel={panel} />
-      <fog attach="fog" args={['#07090b', 6.2, 13]} />
+      {/*
+        The void behind the room, and the fog that fades into it.
+
+        One constant for both, because they have to agree: fog works by mixing
+        geometry toward a colour, so if the background is a different colour the
+        far wall dissolves into a seam instead of into distance.
+
+        This is not what was making the right-hand side bright. That was the
+        gate, whose shader was reading the page's own ground and so turned bone
+        on the day sheet; the fix is in HeroGate. Setting the background is kept
+        because the fog needs something to agree with, not because it repaired
+        anything.
+      */}
+      <color attach="background" args={[ROOM_VOID]} />
+      <fog attach="fog" args={[ROOM_VOID, 6.2, 13]} />
       <ambientLight intensity={0.3} />
       {/* Key light, low and cool, from the window side. Cut back hard from what
           a product shot would use: this is a room in the evening with a screen

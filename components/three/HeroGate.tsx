@@ -22,10 +22,18 @@ function readColour(name: string, fallback: [number, number, number]): Vector3 {
   )
 }
 
-/** +1 on the night ground, -1 on the day one. See the shader. */
+/**
+ * The gate is always on the night side now, so this is always +1.
+ *
+ * It used to follow the sheet, back when the gate was a frame on the page and
+ * the page turned over with the hour. It is behind the room now, and the room
+ * is a dark interior under either sheet — the same rule the slates and
+ * .cinema-copy follow. Kept as a function rather than inlined because the
+ * shader's uniform is still a polarity and the day case may come back if the
+ * gate is ever put in front of anything again.
+ */
 function readPolarity(): number {
-  if (typeof document === 'undefined') return 1
-  return document.documentElement.getAttribute('data-theme') === 'light' ? -1 : 1
+  return 1
 }
 
 /**
@@ -49,7 +57,21 @@ function createMaterial(): ShaderMaterial {
       uProgress: { value: 0 },
       uResolution: { value: new Vector2(1, 1) },
       uPointer: { value: new Vector2(0, 0) },
-      uGround: { value: readColour('--ground', [0.043, 0.043, 0.047]) },
+      /*
+       * --slate, not --ground.
+       *
+       * This plane sits behind the room at about 14 units, and the room's
+       * geometry does not cover the whole frame: past the back wall's right
+       * edge you see straight through to it. Reading --ground meant that on the
+       * day sheet the gate was bone, so a dark interior in the evening had a
+       * bright sheet leaking down its right-hand side. Measured off the
+       * backbuffer at 1309px: a hard edge at x=1150 and about rgb(209,206,200)
+       * beyond it, grain and all.
+       *
+       * --slate is the one ink that is documented never to turn over with the
+       * hour, which is exactly the property this needs.
+       */
+      uGround: { value: readColour('--slate', [0.02, 0.027, 0.039]) },
       uMark: { value: readColour('--mark', [0.91, 0.827, 0.294]) },
       uPolarity: { value: readPolarity() },
     },
@@ -113,7 +135,11 @@ export function HeroGate() {
     const step = Math.min(delta, 1 / 20)
 
     if (themeDirty.current) {
-      u.uGround.value = readColour('--ground', [0.043, 0.043, 0.047])
+      // --slate here too, and for the same reason as the constructor: this sync
+      // is what actually decides the colour, because it runs on every
+      // data-theme change and overwrites whatever the material was built with.
+      // Changing only the constructor looked like a fix and did nothing.
+      u.uGround.value = readColour('--slate', [0.02, 0.027, 0.039])
       u.uMark.value = readColour('--mark', [0.91, 0.827, 0.294])
       u.uPolarity.value = readPolarity()
       themeDirty.current = false
