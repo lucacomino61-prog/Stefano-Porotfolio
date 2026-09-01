@@ -889,11 +889,11 @@ export function WorkstationScene({
         geometry toward a colour, so if the background is a different colour the
         far wall dissolves into a seam instead of into distance.
 
-        This is not what was making the right-hand side bright. That was the
-        gate, whose shader was reading the page's own ground and so turned bone
-        on the day sheet; the fix is in HeroGate. Setting the background is kept
-        because the fog needs something to agree with, not because it repaired
-        anything.
+        This is also what is now behind the room. The gate used to be, and it
+        was the whole reason the right-hand side was bright: the room has no
+        wall on that side, so past the back wall's edge you saw straight
+        through to a lit shader plane. The gate is gone, so what shows there is
+        this, and it agrees with the fog by construction.
       */}
       <color attach="background" args={[ROOM_VOID]} />
       <fog attach="fog" args={[ROOM_VOID, 6.2, 13]} />

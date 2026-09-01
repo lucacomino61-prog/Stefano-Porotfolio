@@ -9,7 +9,6 @@ import { onFrame } from '@/lib/motion/ticker'
 import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
-import { HeroGate } from './HeroGate'
 import { deskFocusSnapshot, setDeskFocused } from '@/lib/motion/desk'
 
 import { WorkstationScene } from './WorkstationScene'
@@ -23,7 +22,7 @@ import { WorkstationScene } from './WorkstationScene'
  * because "pause" here means "stop calling advance", not "hope the loop
  * notices".
  *
- * Advancing stops when the gate scrolls out of view or the tab is hidden. On
+ * Advancing stops when the room scrolls out of view or the tab is hidden. On
  * the integrated GPUs this has to run on, that is the difference between a
  * quiet laptop and a warm one.
  */
@@ -73,8 +72,8 @@ export function HeroStage({
     // derives its delta by subtracting the previous timestamp it was handed,
     // and gsap.ticker counts from when the ticker started while performance.now
     // counts from navigation. Mixing them hands the next frame a large negative
-    // delta, which runs straight into the damping in HeroGate and blows every
-    // damped value up.
+    // delta, which runs straight into the damping in the camera rig and the
+    // desk objects and blows every damped value up.
     const handleResize = () => state.current?.advance(gsap.ticker.time)
     window.addEventListener('resize', handleResize)
 
@@ -130,7 +129,6 @@ export function HeroStage({
           created.advance(gsap.ticker.time)
         }}
       >
-        <HeroGate />
         <WorkstationScene project={project} view={view} hint={hint} onEnter={onEnter} />
       </Canvas>
     </div>
