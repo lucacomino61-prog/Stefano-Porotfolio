@@ -193,7 +193,6 @@ const DRIFT_RATE_Z = 0.11
  * one void. A colour needs light on it to read as a colour.
  */
 const ROOM_VOID = '#0d1730'
-const ROOM_SHELL = '#31456f'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -1015,16 +1014,11 @@ function RoomModel() {
       child.castShadow = false
       child.receiveShadow = true
 
-      // Retinted rather than re-exported: the shell arrived near black, and one
-      // colour across it lets the lighting do the separating between floor,
-      // wall and ceiling instead of three baked values fighting the lamps.
-      const material = child.material as MeshStandardMaterial | MeshStandardMaterial[]
-      for (const entry of Array.isArray(material) ? material : [material]) {
-        if (!entry || !('color' in entry)) continue
-        entry.color.set(ROOM_SHELL)
-        entry.roughness = 0.92
-        entry.metalness = 0
-      }
+      // Nothing is retinted here any more. The shell arrived near black and had
+      // to be overridden to be visible at all, which meant floor, wall and trim
+      // were forced to one colour and the room read as a box. It is authored in
+      // navy now, four values apart, so the materials it ships with are the
+      // ones that should show. See scripts/room.py.
     })
     return clone
   }, [scene])

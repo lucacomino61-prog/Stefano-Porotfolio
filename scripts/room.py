@@ -29,10 +29,20 @@ def mat(name, hex_rgb, rough):
     b.inputs["Metallic"].default_value = 0
     return m
 
-FLOOR = mat("room.floor", "19191b", 0.90)
-WALL  = mat("room.wall",  "111113", 0.96)
-SIDE  = mat("room.side",  "151517", 0.94)
-TRIM  = mat("room.trim",  "1b1b1e", 0.85)
+# Navy, authored here rather than retinted at runtime.
+#
+# The shell used to be four near-blacks, which meant the scene had to override
+# every material with one colour just to make the room visible — and one colour
+# across floor, wall and trim is what made it read as a box rather than a room.
+# Four values that differ by where the light falls do that work instead: a floor
+# takes light from above, a side wall takes it at a glancing angle and goes
+# darker, trim catches an edge and goes lighter.
+FLOOR = mat("room.floor", "2f4066", 0.88)
+WALL  = mat("room.wall",  "31456f", 0.94)
+SIDE  = mat("room.side",  "27375c", 0.94)
+TRIM  = mat("room.trim",  "47608f", 0.72)
+BOARD = mat("room.board", "293a60", 0.86)
+RUG   = mat("room.rug",   "3d5280", 0.98)
 
 parts = []
 
@@ -76,6 +86,16 @@ box("trim.reveal.head", (-2.55, 2.800, -3.06), (2.70, 0.06, 0.18), TRIM)
 box("trim.reveal.sill", (-2.55, -0.040, -3.04), (2.70, 0.06, 0.22), TRIM)
 box("trim.reveal.l",    (-3.870, 1.38, -3.06), (0.06, 2.90, 0.18), TRIM)
 box("trim.reveal.r",    (-1.230, 1.38, -3.06), (0.06, 2.90, 0.18), TRIM)
+
+# --- floorboards: shallow grooves rather than planks, so the floor has a
+#     direction and a scale to read against. Six strips, twelve triangles each,
+#     against a floor that was one flat quad. ----------------------------------
+for i in range(-3, 4):
+    box("floor.board.%d" % (i + 3), (0, -1.219, i * 1.55), (14, 0.012, 0.05), BOARD)
+
+# --- a rug under the desk. It is the one soft thing in the room and it stops
+#     the workstation floating on an unbroken plane. ---------------------------
+box("floor.rug", (1.15, -1.214, -0.55), (4.60, 0.014, 3.20), RUG)
 
 # --- one mesh, so this is fewer draw calls than the primitives it replaces ---
 for o in parts:
