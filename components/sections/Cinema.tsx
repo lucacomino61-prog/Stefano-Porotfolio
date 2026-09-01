@@ -69,6 +69,9 @@ export function Cinema({
 }) {
   const root = useRef<HTMLElement>(null)
   const stage = useRef<HTMLDivElement>(null)
+  const exitControl = useRef<HTMLButtonElement>(null)
+  /** Whatever pressed the way in, so the way out can hand focus back to it. */
+  const opener = useRef<HTMLElement | null>(null)
   const [active, setActive] = useState<ProjectId>(PROJECTS[0]!.id)
   const [view, setView] = useState<ScreenView>('home')
   const [zoomed, setZoomed] = useState(false)
@@ -131,17 +134,54 @@ export function Cinema({
     // scrolled out from under the camera while the camera is busy looking at
     // it, which reads as the site breaking rather than as scrolling.
     scroller?.stop()
+    // Remembered before the copy goes inert, because going inert is what blurs
+    // whatever pressed the control in the first place.
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setZoomed(true)
     timeline.play()
   }, [])
 
+  /**
+   * Walking back out.
+   *
+   * State first, timeline second, and never conditional on the timeline. An
+   * earlier revision returned early when there was no walk to reverse, which
+   * made this a no-op in the one case that needed it most: cross the breakpoint
+   * while zoomed and the matchMedia cleanup nulls the timeline, leaving `zoomed`
+   * true, a Back control still painted over the name, and both it and Escape
+   * refusing to do anything for the rest of the session.
+   *
+   * Restarting the scroller unconditionally is safe because this component is
+   * the only thing on the site that ever stops it.
+   */
   const exit = useCallback(() => {
-    const timeline = walk.current
-    if (!timeline) return
     setZoomed(false)
-    timeline.reverse()
     getScroller()?.start()
+    walk.current?.reverse()
   }, [])
+
+  /**
+   * Focus follows the camera.
+   *
+   * Making the copy inert is what makes the room safe, and it is also what
+   * drops focus: the browser blurs anything inside an element that becomes
+   * inert, which would leave a keyboard visitor on `<body>` and send their next
+   * Tab back to the skip link. So focus moves to the way out, which is the one
+   * control the visitor needs and the only one drawn over the interface.
+   *
+   * Coming back it is handed to whatever pressed the way in, but only if the
+   * browser has genuinely lost it. Exiting with Escape from somewhere else on
+   * the page must not yank the page back to the hero.
+   */
+  useEffect(() => {
+    if (zoomed) {
+      exitControl.current?.focus()
+      return
+    }
+    const previous = opener.current
+    opener.current = null
+    if (previous?.isConnected && document.activeElement === document.body) previous.focus()
+  }, [zoomed])
 
   useEffect(() => {
     const el = root.current
@@ -200,6 +240,10 @@ export function Cinema({
           // one that has to give it back. A revert across the breakpoint with
           // the scroller still stopped would leave the whole site frozen.
           getScroller()?.start()
+          // And you cannot still be inside a machine this branch has just
+          // taken away. Without this the Back control outlived the walk that
+          // gave it meaning: still painted, over the name, doing nothing.
+          setZoomed(false)
         }
       })
 
@@ -258,7 +302,22 @@ export function Cinema({
         <div className="cinema-room">
           <GateMount project={project} view={view} hint={dict.homeHint} onEnter={enter} />
 
-          <div data-hero-copy className="cinema-copy">
+          {/*
+            Inert once the camera has left it, for the same reason the screen
+            interface is inert before the camera arrives.
+
+            The walk fades this block to opacity 0, and opacity 0 does not
+            remove an element from the tab order or the accessibility tree.
+            Measured from inside the machine: seven controls — both switches,
+            "Open the workstation", "Send a message" and the three devices —
+            still took focus while invisible, and a screen reader still read
+            them. A mouse was only ever protected by the screen overlay
+            happening to be painted on top; a keyboard had nothing.
+
+            The exact mirror of `inert` on `.cinema-screen` below: one is live
+            whenever the other is not.
+          */}
+          <div data-hero-copy className="cinema-copy" inert={hasWalk && zoomed}>
             <Hero dict={hero} calendar={calendar} enterLabel={dict.enter} onEnter={enter} />
             <DeskIndex dict={deskIndex} />
           </div>
@@ -268,7 +327,7 @@ export function Cinema({
             been moved somewhere by a click needs the way back to be visible
             rather than remembered. */}
         {zoomed ? (
-          <button type="button" onClick={exit} className="cinema-exit">
+          <button ref={exitControl} type="button" onClick={exit} className="cinema-exit">
             {dict.back}
           </button>
         ) : null}
