@@ -1072,11 +1072,29 @@ body {
   text-align: left;
 }
 
-@media (max-width: 759px) {
-  .cinema-desk {
-    display: none;
-  }
+/*
+ * The device names draw as plain text and have to be pressable as buttons.
+ *
+ * Measured at 390px they were 23px tall, against the 44px a finger needs, and
+ * they are now the only route to three objects the scene made tappable. The
+ * target is expanded rather than the type, so the row still reads as a line of
+ * names rather than a strip of chrome: 23 + 22 clears 44 and the horizontal
+ * padding stays inside the 20px gap, so two names never share a target.
+ */
+.cinema-desk ul button {
+  position: relative;
 }
+
+.cinema-desk ul button::after {
+  content: '';
+  position: absolute;
+  inset: -11px -8px;
+}
+
+/* Shown at every size again. They were hidden here because the three devices
+   were not interactive below 760 either, so the controls had nothing to drive.
+   Now that they do, hiding these would leave a phone with objects it can touch
+   and a screen reader with no way to reach them at all. */
 
 /* Something for the copy to sit on where it crosses the desk. Anchored to the
    bottom of the room, strongest where the type is, gone by mid-frame.
@@ -1272,12 +1290,28 @@ body {
    * entirely — see the rule above. */
 }
 
-/* The desk controls are a width question, not a motion one: below the pin
-   breakpoint there is no stage for them to hang off, walk or no walk. */
+/*
+ * Below the pin breakpoint the copy and the desk controls share the stage as
+ * two rows rather than both anchoring to the bottom of it.
+ *
+ * Absolute was right when the copy was in flow and the controls could sit over
+ * the room beside it. The copy is absolute at every width now, filling the
+ * stage, so an absolute control block lands on top of it and a static one falls
+ * out of the bottom and is clipped by the stage's own overflow. Making the
+ * container the grid removes the argument: the copy takes what it needs and
+ * the controls take what is left, with no number to keep in sync.
+ */
 @media (max-width: 1023px), (prefers-reduced-motion: reduce) {
+  .cinema-copy {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    align-content: stretch;
+  }
+
   .cinema-desk {
     position: static;
-    margin: clamp(1.5rem, 4vh, 2.5rem) var(--gutter) 0 auto;
+    width: auto;
+    margin: 0 var(--gutter) clamp(1rem, 3.5vh, 2.25rem);
   }
 }
 

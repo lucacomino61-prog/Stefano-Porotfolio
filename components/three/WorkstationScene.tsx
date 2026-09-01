@@ -729,14 +729,21 @@ function Workstation({
   const sceneX = compact ? 0.12 : medium ? 0.45 : 0.95
 
   /**
-   * The devices are inspectable only where the walk exists.
+   * Inspectable at every size now.
    *
-   * Below the breakpoint nothing pins and the room is a small picture at the
-   * top of a scrolling page. Moving the camera to a mouse there would take over
-   * a viewport the visitor is in the middle of scrolling, to show them a mouse.
-   * The monitor keeps its action at every size, because that one goes somewhere.
+   * This used to be desktop only, and the reason was sound at the time: below
+   * the breakpoint nothing pinned, the room was a small picture at the top of a
+   * scrolling page, and moving the camera to a mouse would have taken over a
+   * viewport the visitor was in the middle of scrolling.
+   *
+   * None of that is true any more. The walk exists at every width, so on a
+   * phone the room is a full screenful you have pressed your way into rather
+   * than something you are scrolling past, and the page underneath is held
+   * still while you are in it. The premise expired; the exclusion should go
+   * with it, or a phone keeps three objects that are visibly there and do
+   * nothing.
    */
-  const interactive = !compact
+  const interactive = true
 
   return (
     <group ref={rig} position={[sceneX, compact ? -0.12 : -0.03, 0]} scale={sceneScale}>
@@ -878,6 +885,13 @@ export function WorkstationScene({
   onEnter: () => void
 }) {
   const panel = useRef<Mesh>(null)
+  /**
+   * The same threshold the rig uses for its own scale and offset, read here so
+   * the two costs that are decided at this level -- the shadow map and the
+   * contact pass -- agree with it rather than guessing at a second breakpoint.
+   */
+  const { size } = useThree()
+  const compact = size.width < 760
 
   return (
     <>
@@ -906,8 +920,11 @@ export function WorkstationScene({
         color="#c8d4e8"
         intensity={1.15}
         position={[-3.5, 5.5, 4]}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        /* Halved on a phone. A shadow map is a full scene re-render into a
+           square target every frame, so 1024 to 512 is a quarter of that cost,
+           at a softness nobody reads as wrong on a 390px screen. */
+        shadow-mapSize-width={compact ? 512 : 1024}
+        shadow-mapSize-height={compact ? 512 : 1024}
         shadow-camera-far={16}
       />
       {/* The panel's own light in the room, in the colour of whatever is on it.
@@ -927,13 +944,28 @@ export function WorkstationScene({
         <Environment files={STUDIO} environmentIntensity={0.55} />
         <RoomShell accent={project.screen.accent} onEnter={onEnter} />
         <Workstation project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
+        {/*
+          Rendered a fixed number of times, not forever.
+
+          This is a second render of the scene into its own target, and by
+          default drei repeats it every frame. Nothing under the desk moves:
+          the objects are static, and a contact shadow does not depend on where
+          the camera is standing, so every frame after the first was redrawing
+          the same picture. It sits inside this Suspense boundary, so by the
+          time it mounts the models it is shadowing are already loaded.
+
+          Forty rather than one because the materials are retinted in an effect
+          and the arrival damping is still settling on the first frames; one
+          would bake whatever happened to be there at mount.
+        */}
         <ContactShadows
           position={[0.65, -1.205, 0.1]}
           opacity={0.58}
           scale={5.4}
           blur={2.5}
           far={4}
-          resolution={512}
+          frames={40}
+          resolution={compact ? 256 : 512}
           color="#050506"
         />
       </Suspense>
