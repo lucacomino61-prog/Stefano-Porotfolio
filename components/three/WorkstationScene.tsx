@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import {
   Box3,
   CanvasTexture,
+  Color,
   Group,
   Mesh,
   type MeshStandardMaterial,
@@ -16,7 +17,16 @@ import {
 } from 'three'
 
 import { cinema } from '@/lib/motion/cinema'
-import { setSceneProgress } from '@/lib/motion/loading'
+import {
+  type DeskObjectId,
+  desk,
+  deskObject,
+  registerDeskObject,
+  resetDesk,
+  setDeskFocused,
+  setDeskHovered,
+} from '@/lib/motion/desk'
+import { loadingState, setSceneProgress } from '@/lib/motion/loading'
 import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
 import type { ScreenView } from '@/components/ui/ProjectScreen'
@@ -127,8 +137,42 @@ function Model({
 const PANEL_W = 1.15
 const PANEL_H = 0.64
 
+/**
+ * Where the camera stands before it walks in, relative to where the scroll
+ * says it should be. Metres.
+ *
+ * Small on purpose, for two reasons. A dramatic swing from across the room
+ * would fight the scroll walk that follows and would have to be sat through on
+ * every reload; this reads as the last step of arriving rather than as a title
+ * sequence.
+ *
+ * The second reason is a failure mode. The settle is animated in the frame
+ * loop, so a starved loop leaves it at zero and the camera parked here for
+ * good. That has to be a wider shot of the desk, not a shot of the ceiling: at
+ * 2.4 back and 0.85 up the desk left the frame entirely. These values keep the
+ * whole room composed even if the settle never runs at all.
+ */
+const ENTER_BACK = 1.1
+const ENTER_LIFT = 0.32
+
 const SCREEN_W = 2048
 const SCREEN_H = 1152
+
+/**
+ * How hard the screen is driven.
+ *
+ * The panel is unlit on purpose: a screen makes its own light, so it takes a
+ * meshBasicMaterial and no lamp in the room can touch it. The consequence is
+ * that it shows the texture's literal colours, and the projects it shows are
+ * dark sites: one of them grounds at #0b0a09, very nearly black, so a faithful
+ * panel read as a switched-off monitor.
+ *
+ * A material colour above 1 multiplies the map in linear space, which lifts the
+ * midtones without washing the blacks to grey the way adding a constant would.
+ * The texture stays the project's real palette; only the backlight changes.
+ */
+const SCREEN_GAIN = 1.85
+const SCREEN_DRIVE = new Color().setScalar(SCREEN_GAIN)
 
 function MonitorScreen({
   project,
@@ -284,7 +328,7 @@ function MonitorScreen({
       }}
     >
       <planeGeometry args={[PANEL_W, PANEL_H]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
+      <meshBasicMaterial map={texture} toneMapped={false} color={SCREEN_DRIVE} />
     </mesh>
   )
 }
@@ -332,12 +376,53 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
   const { camera, size } = useThree()
   const home = useRef<Vector3 | null>(null)
   const focus = useMemo(() => new Vector3(), [])
-  const goal = useMemo(() => new Vector3(), [])
+  const scale = useMemo(() => new Vector3(), [])
+  const panelGoal = useMemo(() => new Vector3(), [])
+  const scrollPos = useMemo(() => new Vector3(), [])
 
-  useFrame(() => {
+  /**
+   * Looking at one device.
+   *
+   * A press does not take the camera away from the scroll, it leans it. The
+   * scroll position is still solved every frame exactly as before, and the
+   * object framing is a second position blended over the top by a damped
+   * weight. Let go and the weight decays to zero, which lands the camera back
+   * on whatever the scrollbar says without a return animation that could
+   * disagree with a wheel turned meanwhile.
+   *
+   * The last framing is deliberately kept after the focus clears, because it is
+   * the far end of that decay. Zeroing it would blend toward the origin of the
+   * room and swing the camera through the desk on the way out.
+   */
+  const blend = useRef(0)
+  /**
+   * Walking in.
+   *
+   * The first beat of the entrance: the camera holds a step back and a little
+   * above while the room is still loading, then settles onto the scroll
+   * position once the scene reports it can actually draw. Held at 0 until then,
+   * so the settle begins the moment the loading screen clears rather than
+   * playing out behind it and being over before anyone sees it.
+   *
+   * It is an offset on the scroll position, not a second absolute camera. That
+   * matters: wherever the scrollbar says to stand, the entrance still ends
+   * exactly there, and a visitor who scrolls during the settle is not fighting
+   * an animation that thinks it owns the viewport. It composes rather than
+   * competes, the same way the object focus below does.
+   */
+  const arrival = useRef(0)
+  const enterPos = useMemo(() => new Vector3(), [])
+  const objectPos = useMemo(() => new Vector3(), [])
+  const objectLook = useMemo(() => new Vector3(), [])
+  const lookNow = useMemo(() => new Vector3(), [])
+  const bounds = useMemo(() => new Box3(), [])
+  const extent = useMemo(() => new Vector3(), [])
+
+  useFrame((_, delta) => {
     const mesh = panel.current
     if (!mesh) return
     if (!home.current) home.current = camera.position.clone()
+    const step = Math.min(delta, 1 / 20) * 1000
 
     const { progress, live } = cinema()
     if (!live) {
@@ -347,28 +432,126 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
       return
     }
 
+    const perspective = camera as PerspectiveCamera
+    const tangent = Math.tan(((perspective.fov ?? 44) * Math.PI) / 360)
+    const aspect = size.width / Math.max(size.height, 1)
+
     mesh.getWorldPosition(focus)
-    const scale = mesh.getWorldScale(goal)
+    mesh.getWorldScale(scale)
     const halfHeight = (PANEL_H * scale.y) / 2
     const halfWidth = (PANEL_W * scale.x) / 2
 
     // Distance at which the panel exactly covers the frame, on whichever axis
     // runs out first. A hair closer, so the last frame has no seam of bezel.
-    const perspective = camera as PerspectiveCamera
-    const tangent = Math.tan(((perspective.fov ?? 44) * Math.PI) / 360)
-    const aspect = size.width / Math.max(size.height, 1)
     const near = Math.min(halfHeight / tangent, halfWidth / (tangent * aspect)) * 0.97
 
     // Ease-in on the approach: the last strides change the picture far more
     // than the first ones, which is what walking toward something looks like.
     const eased = progress * progress * (3 - 2 * progress) * 0.35 + progress * progress * 0.65
 
-    goal.set(focus.x, focus.y, focus.z + near)
-    camera.position.lerpVectors(home.current, goal, eased)
-    camera.lookAt(focus.x, focus.y, focus.z)
+    panelGoal.set(focus.x, focus.y, focus.z + near)
+    scrollPos.lerpVectors(home.current, panelGoal, eased)
+
+    // Armed by the room's own readiness signal, which arrives on the window
+    // channel, so this works from the lazily imported copy of that module.
+    if (loadingState().progress >= 1) {
+      arrival.current = damp(arrival.current, 1, 1.5, step)
+    }
+    const entering = 1 - arrival.current
+    enterPos.set(
+      scrollPos.x,
+      scrollPos.y + ENTER_LIFT * entering,
+      scrollPos.z + ENTER_BACK * entering,
+    )
+
+    const focused = desk().focused
+    const target = focused ? deskObject(focused) : undefined
+
+    if (target) {
+      // Solved from the object's real world bounds rather than typed per
+      // device, so moving something on the desk or swapping a model for a
+      // better one cannot leave a hardcoded camera pointing at empty air.
+      bounds.setFromObject(target)
+      bounds.getCenter(objectLook)
+      bounds.getSize(extent)
+      const radius = Math.max(extent.x, extent.y, extent.z) / 2
+      const distance = (radius / Math.max(tangent, 0.0001)) * 2.2
+      objectPos.set(objectLook.x, objectLook.y + radius * 0.45, objectLook.z + distance)
+    }
+
+    blend.current = damp(blend.current, target ? 1 : 0, 5, step)
+
+    camera.position.lerpVectors(enterPos, objectPos, blend.current)
+    lookNow.copy(focus).lerp(objectLook, blend.current)
+    camera.lookAt(lookNow)
   })
 
   return null
+}
+
+/**
+ * A device on the desk you can look at.
+ *
+ * Wraps Model in a group that does three things Model has no business knowing
+ * about: it registers itself so the camera can frame it, it raises a few
+ * millimetres under the pointer, and it takes the press.
+ *
+ * The lift is a transform on the wrapper, added to whatever position Model
+ * already has, so an object can be moved on the desk without touching this and
+ * the hover cannot drift the layout. It is damped in the frame loop rather than
+ * tweened on the event, because the pointer can cross three objects faster than
+ * any tween would finish and the last one would win the argument.
+ */
+function DeskObject({
+  id,
+  enabled,
+  ...model
+}: ModelProps & { id: DeskObjectId; enabled: boolean }) {
+  const outer = useRef<Group>(null)
+  const lift = useRef(0)
+
+  useEffect(() => {
+    registerDeskObject(id, enabled ? outer.current : null)
+    return () => registerDeskObject(id, null)
+  }, [id, enabled])
+
+  useFrame((_, delta) => {
+    const group = outer.current
+    if (!group) return
+    const step = Math.min(delta, 1 / 20) * 1000
+    const { hovered, focused } = desk()
+    const raised = enabled && (hovered === id || focused === id)
+    lift.current = damp(lift.current, raised ? 0.05 : 0, 9, step)
+    group.position.y = lift.current
+  })
+
+  const handlers = enabled
+    ? {
+        onPointerOver: (event: { stopPropagation: () => void }) => {
+          event.stopPropagation()
+          setDeskHovered(id)
+          // The same flag the panel sets, read by the custom cursor, so the
+          // ring opens over a device exactly as it does over a link.
+          document.documentElement.dataset.hot = 'true'
+        },
+        onPointerOut: (event: { stopPropagation: () => void }) => {
+          event.stopPropagation()
+          if (desk().hovered === id) setDeskHovered(null)
+          delete document.documentElement.dataset.hot
+        },
+        onClick: (event: { stopPropagation: () => void }) => {
+          event.stopPropagation()
+          // Pressing the object you are already looking at puts it back.
+          setDeskFocused(desk().focused === id ? null : id)
+        },
+      }
+    : {}
+
+  return (
+    <group ref={outer} {...handlers}>
+      <Model {...model} />
+    </group>
+  )
 }
 
 function Workstation({
@@ -390,12 +573,24 @@ function Workstation({
 
   useEffect(() => {
     const stop = trackPointer()
+
+    // Escape is the way out of anything on this site, and a camera parked on a
+    // keyboard with no way back except finding the object again is a trap.
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && desk().focused) setDeskFocused(null)
+    }
+    window.addEventListener('keydown', handleKey)
+
     return () => {
       stop()
+      window.removeEventListener('keydown', handleKey)
       // The room can unmount mid-hover — a resize across the breakpoint, a
       // route change — and a stranded flag would leave the cursor open over
-      // nothing for the rest of the session.
+      // nothing for the rest of the session. The registry goes with it: a
+      // focus held across a remount would point the camera at an object from
+      // the previous scene.
       delete document.documentElement.dataset.hot
+      resetDesk()
     }
   }, [])
 
@@ -419,6 +614,16 @@ function Workstation({
   const sceneScale = compact ? 0.72 : medium ? 0.88 : 1
   const sceneX = compact ? 0.12 : medium ? 0.45 : 0.95
 
+  /**
+   * The devices are inspectable only where the walk exists.
+   *
+   * Below the breakpoint nothing pins and the room is a small picture at the
+   * top of a scrolling page. Moving the camera to a mouse there would take over
+   * a viewport the visitor is in the middle of scrolling, to show them a mouse.
+   * The monitor keeps its action at every size, because that one goes somewhere.
+   */
+  const interactive = !compact
+
   return (
     <group ref={rig} position={[sceneX, compact ? -0.12 : -0.03, 0]} scale={sceneScale}>
       <Model
@@ -435,19 +640,25 @@ function Workstation({
         <MonitorScreen project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
       </group>
 
-      <Model
+      <DeskObject
+        id="tower"
+        enabled={interactive}
         url={PC_CASE}
         size={[0.82, 1.15, 0.72]}
         position={[1.08, -0.22, -0.04]}
         rotation={[0, Math.PI, 0]}
       />
-      <Model
+      <DeskObject
+        id="keyboard"
+        enabled={interactive}
         url={KEYBOARD}
         size={[1.28, 0.13, 0.48]}
         position={[-0.34, -0.2, 0.68]}
         rotation={[0, Math.PI, 0]}
       />
-      <Model
+      <DeskObject
+        id="mouse"
+        enabled={interactive}
         url={MOUSE}
         size={[0.19, 0.075, 0.29]}
         position={[0.55, -0.2, 0.72]}
@@ -457,9 +668,26 @@ function Workstation({
   )
 }
 
-function RoomShell({ accent }: { accent: string }) {
+/**
+ * The room itself is a way in.
+ *
+ * The floor and the walls are real geometry, so a click on them never reaches
+ * the Canvas's onPointerMissed. Without this, "click anywhere" would mean
+ * "click the sky", and clicking the floor two inches from the desk would do
+ * nothing at all.
+ */
+function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void }) {
   return (
-    <group>
+    <group
+      onClick={(event) => {
+        event.stopPropagation()
+        if (desk().focused) {
+          setDeskFocused(null)
+          return
+        }
+        onEnter()
+      }}
+    >
       <mesh position={[0, -1.22, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[14, 12]} />
         <meshStandardMaterial color="#19191b" roughness={0.9} />
@@ -569,7 +797,7 @@ export function WorkstationScene({
       <Suspense fallback={null}>
         <SceneReady />
         <Environment files={STUDIO} environmentIntensity={0.55} />
-        <RoomShell accent={project.screen.accent} />
+        <RoomShell accent={project.screen.accent} onEnter={onEnter} />
         <Workstation project={project} panel={panel} view={view} hint={hint} onEnter={onEnter} />
         <ContactShadows
           position={[0.65, -1.205, 0.1]}
