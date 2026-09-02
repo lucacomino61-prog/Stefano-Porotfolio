@@ -7,7 +7,7 @@
  * and baked into seven texture atlases. Nothing in here is lit at runtime: every
  * surface is a MeshBasicMaterial painting its atlas, the neon and LEDs are flat
  * colours on a bloom layer, and the moving parts wear a matcap. The recipe is
- * jesse-zhou.com's, the source is `scripts/tower/` and the mechanic-garage repo.
+ * jesse-zhou.com's; the Blender source is `assets/blender/` and the scripts are `scripts/tower/`.
  *
  * What the rest of the page relies on is unchanged: a panel mesh the DOM
  * interface is pinned to (PanelProjection), a camera that walks toward it on
