@@ -52,3 +52,4 @@ next-env.d.ts
 
 # Blender bytecode from headless script runs
 scripts/**/__pycache__/
+assets/blender/previews/

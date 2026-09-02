@@ -922,6 +922,49 @@ function hitboxFor(object: Object3D): Mesh | undefined {
   return undefined
 }
 
+/**
+ * Which hotspot the pointer is actually on — as opposed to merely near.
+ *
+ * A hitbox is a box, and it is deliberately larger than the machine it stands
+ * for: a near miss still opens the arcade, which is what a target wants to be
+ * on a street seen at a shallow angle. That generosity is right for the click
+ * and wrong for the cursor, which was turning into a hand over a hand's width
+ * of empty pavement on every side of every machine.
+ *
+ * So the two questions are separated. The box still catches the click. The
+ * cursor asks a narrower one: is there solid, visible geometry under the
+ * pointer, and does that surface lie inside this box? Air inside the box is
+ * street and answers no; the cabinet inside the box answers yes.
+ *
+ * Both are read off one ray. `intersections` is already sorted near to far, so
+ * a wall standing in front of a machine is found before the box behind it and
+ * fails the containment test on its own — no extra occlusion check needed.
+ */
+const HOVER_PAD = 0.05
+function hotspotUnder(event: ThreeEvent<PointerEvent>): Mesh | null {
+  let box: Mesh | null = null
+  let surface: Vector3 | null = null
+  for (const hit of event.intersections) {
+    if (/HitBox$/.test(hit.object.name)) {
+      if (!box && hit.object instanceof Mesh) box = hit.object
+    } else if (!surface && hit.object.visible) {
+      surface = hit.point
+    }
+    if (box && surface) break
+  }
+  if (!box || !surface) return null
+  const geometry = box.geometry
+  if (!geometry.boundingBox) geometry.computeBoundingBox()
+  const bounds = geometry.boundingBox!
+  box.updateWorldMatrix(true, false)
+  const local = box.worldToLocal(surface.clone())
+  const within =
+    local.x >= bounds.min.x - HOVER_PAD && local.x <= bounds.max.x + HOVER_PAD &&
+    local.y >= bounds.min.y - HOVER_PAD && local.y <= bounds.max.y + HOVER_PAD &&
+    local.z >= bounds.min.z - HOVER_PAD && local.z <= bounds.max.z + HOVER_PAD
+  return within ? box : null
+}
+
 /** The seven atlases. flipY off and sRGB: the glTF UV convention, same as the site. */
 function useAtlases(): Record<string, Texture> {
   const keys = Object.values(BAKED)
@@ -1146,30 +1189,21 @@ function TowerModel({
         dispose={null}
         onClick={activate}
         /*
-         * The hand appears over the machine, not over the air around it.
-         *
-         * A hitbox is a box: deliberately larger than the thing it stands for,
-         * so a click near the arcade still opens the arcade. That generosity is
-         * right for clicking and wrong for the cursor — testing the hovered
-         * object against /HitBox$/ meant the pointer turned into a hand
-         * wherever that invisible volume was, which is a good hand's width of
-         * empty street on every side of every machine.
-         *
-         * So the cursor is driven by the visible geometry instead, and the box
-         * is only consulted to ask which machine that geometry belongs to. The
-         * box keeps catching clicks; it stops claiming to be the object.
+         * Move, not over. Every hotspot is one box, so entering it fires
+         * `over` exactly once and nothing again however far the pointer then
+         * travels inside it — which is the whole region the hand was wrong in.
+         * Re-asking on move is what lets the answer change within a single box.
          */
-        onPointerOver={(event: ThreeEvent<PointerEvent>) => {
-          if (/HitBox$/.test(event.object.name)) return
-          const box = hitboxFor(event.object)
-          if (!box) return
-          event.stopPropagation()
-          hovered.current = box.name
-          document.body.style.cursor = 'pointer'
+        onPointerMove={(event: ThreeEvent<PointerEvent>) => {
+          const box = hotspotUnder(event)
+          if (box) event.stopPropagation()
+          const name = box ? box.name : null
+          if (hovered.current === name) return
+          hovered.current = name
+          document.body.style.cursor = name ? 'pointer' : ''
         }}
-        onPointerOut={(event: ThreeEvent<PointerEvent>) => {
-          const box = hitboxFor(event.object)
-          if (box && hovered.current === box.name) hovered.current = null
+        onPointerOut={() => {
+          hovered.current = null
           document.body.style.cursor = ''
         }}
       />

@@ -12,6 +12,14 @@ import bpy, bmesh, math, os
 from mathutils import Vector, Euler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# The blend the bake and the site both read lives with the other art sources,
+# not beside the script that writes it. This wrote garage.blend into
+# scripts/tower/ while every reader looked in assets/blender/, so a rebuild
+# silently changed nothing anyone loaded.
+ROOT = os.path.dirname(os.path.dirname(HERE))
+BLEND_DIR = os.path.join(ROOT, 'assets', 'blender')
+PREVIEW_DIR = os.path.join(ROOT, 'assets', 'blender', 'previews')
+os.makedirs(BLEND_DIR, exist_ok=True); os.makedirs(PREVIEW_DIR, exist_ok=True)
 
 bpy.ops.wm.read_homefile(use_empty=True)
 scene = bpy.context.scene
@@ -25,16 +33,30 @@ for g in GROUPS:
 
 # ---------------------------------------------------------------- materials
 MATS = {}
+
+def _socket(node, *names):
+    """The first of these sockets the running Blender actually has.
+
+    Blender 4.0 renamed a set of Principled BSDF inputs — 'Emission' became
+    'Emission Color' among them — so a script written against 3.x dies on the
+    lookup rather than on anything to do with what it is building. Asking for
+    the new name first and falling back keeps one script working on both.
+    """
+    for n in names:
+        if n in node.inputs:
+            return node.inputs[n]
+    raise KeyError(f'{node.name}: none of {names} exist; sockets are {[i.name for i in node.inputs]}')
+
 def mat(name, color, rough=0.6, metal=0.0, emit=None, strength=0.0):
     if name in MATS: return MATS[name]
     m = bpy.data.materials.new(name); m.use_nodes = True
     b = m.node_tree.nodes['Principled BSDF']
-    b.inputs['Base Color'].default_value = (*color, 1.0)
-    b.inputs['Roughness'].default_value = rough
-    b.inputs['Metallic'].default_value = metal
+    _socket(b, 'Base Color').default_value = (*color, 1.0)
+    _socket(b, 'Roughness').default_value = rough
+    _socket(b, 'Metallic').default_value = metal
     if emit is not None:
-        b.inputs['Emission'].default_value = (*emit, 1.0)
-        b.inputs['Emission Strength'].default_value = strength
+        _socket(b, 'Emission Color', 'Emission').default_value = (*emit, 1.0)
+        _socket(b, 'Emission Strength').default_value = strength
     m.diffuse_color = (*color, 1.0); MATS[name] = m; return m
 
 M = {k: mat(k, *v) for k, v in {
@@ -109,9 +131,47 @@ def _finish(name, bm, coll, material, loc=(0, 0, 0), rot=(0, 0, 0)):
     if material is not None: me.materials.append(material)
     COLL[coll].objects.link(ob); return ob
 
-def box(name, dims, loc, coll, material, rot=(0, 0, 0)):
+# Every edge is chamfered, and that is most of the look.
+#
+# A cube with true 90-degree edges has nothing for light to do at the corner:
+# two faces meet at one value each and the join is a hard line that reads as
+# untextured CG no matter how good the bake is. A chamfer gives the corner a
+# third, narrow face at an angle to both, so it catches a highlight from the
+# neon on one side and stays in shadow on the other. That thin bright line
+# along every edge is what makes a stylised block read as a modelled object.
+#
+# A rounded fillet, not a flat cut. Two segments plus smooth shading across
+# them (see shade_soft at the end of the build) is what reads as a turned edge:
+# three narrow faces stepping around the corner, shaded as one continuous
+# curve, so the highlight travels along the edge instead of stopping dead on it.
+# Two rather than four because every extra segment is more faces competing for
+# room in the same 2048 atlas, and past two the bake loses more to island
+# packing than the silhouette gains.
+CHAMFER = 0.09
+CHAMFER_MIN = 0.004     # below this the cut is under a pixel in the bake
+CHAMFER_SEG = 2
+
+def box(name, dims, loc, coll, material, rot=(0, 0, 0), chamfer=None):
     bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
     bmesh.ops.scale(bm, vec=Vector(dims), verts=bm.verts)
+    # Hitboxes are collision volumes nobody sees; rounding them only adds
+    # vertices to the ray test. Everything else gets the fillet.
+    if coll != 'HITBOX':
+        want = CHAMFER if chamfer is None else chamfer
+        # Never eat more than a quarter of the thinnest side, or a road marking
+        # 12mm thick becomes a lozenge and a windowpane collapses on itself.
+        width = min(want, min(abs(d) for d in dims) * 0.25)
+        if width >= CHAMFER_MIN:
+            bmesh.ops.bevel(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
+                            offset=width, offset_type='OFFSET', segments=CHAMFER_SEG,
+                            profile=0.5, affect='EDGES', clamp_overlap=True)
+            # Shade the result smooth. Two bevel segments on their own are two
+            # visible facets; smoothing interpolates the normal across them so
+            # the highlight sweeps round the corner. The big faces are coplanar
+            # with themselves, so this bends light only where the geometry
+            # actually turns — the walls stay flat, the edges go round.
+            for face in bm.faces:
+                face.smooth = True
     return _finish(name, bm, coll, material, loc, rot)
 
 def cyl(name, r, h, loc, coll, material, seg=16, rot=(0, 0, 0), r2=None):
@@ -210,11 +270,26 @@ def shell(name, h, wallcol, band, pillar):
     box(f'{name}_wallBack', (W + 2*T, T, h), (0, BACK + T/2, h/2), 'SHELL', M[wallcol])
     box(f'{name}_wallLeft', (T, D, h), (-W/2 - T/2, 0, h/2), 'SHELL', M[wallcol])
     box(f'{name}_wallRight', (T, D, h), (W/2 + T/2, 0, h/2), 'SHELL', M[wallcol])
-    box(f'{name}_roof', (W + 2*T + 0.6, D + 2*T + 0.6, 0.3), (0, 0, h + 0.15), 'SHELL', M['roof'])
-    for nm, dims, loc in ((f'{name}_parapetF', (W + 2*T + 0.6, 0.2, 0.5), (0, FRONT - T - 0.2, h + 0.55)),
-                          (f'{name}_parapetB', (W + 2*T + 0.6, 0.2, 0.5), (0, BACK + T + 0.2, h + 0.55)),
-                          (f'{name}_parapetL', (0.2, D + 2*T + 0.6, 0.5), (-W/2 - T - 0.2, 0, h + 0.55)),
-                          (f'{name}_parapetR', (0.2, D + 2*T + 0.6, 0.5), (W/2 + T + 0.2, 0, h + 0.55))):
+    # The cornice. A roof slab flush with the walls gives a building the
+    # silhouette of a shoebox; the overhang is what turns the top edge into a
+    # shelf that throws a hard shadow down the facade, and that shadow is the
+    # line the eye reads as "roof". OVER is horizontal only — every roof prop
+    # in exterior() is placed relative to `h + 0.3`, so the slab's thickness
+    # and its top face have to stay exactly where they are.
+    OVER = 1.1
+    box(f'{name}_roof', (W + 2*T + OVER, D + 2*T + OVER, 0.3), (0, 0, h + 0.15), 'SHELL', M['roof'])
+    # The fascia hanging under the lip: the underside of an overhang is never
+    # the same value as its top, and a thin darker band there is what sells the
+    # slab as having thickness rather than being a decal on the skyline.
+    for nm, dims, loc in ((f'{name}_fasciaF', (W + 2*T + OVER, 0.14, 0.16), (0, FRONT - T - OVER/2 + 0.07, h - 0.05)),
+                          (f'{name}_fasciaL', (0.14, D + 2*T + OVER, 0.16), (-W/2 - T - OVER/2 + 0.07, 0, h - 0.05)),
+                          (f'{name}_fasciaR', (0.14, D + 2*T + OVER, 0.16), (W/2 + T + OVER/2 - 0.07, 0, h - 0.05))):
+        box(nm, dims, loc, 'SHELL', M[pillar])
+    P = W/2 + T + OVER/2 - 0.1
+    for nm, dims, loc in ((f'{name}_parapetF', (W + 2*T + OVER, 0.2, 0.5), (0, FRONT - T - OVER/2 + 0.1, h + 0.55)),
+                          (f'{name}_parapetB', (W + 2*T + OVER, 0.2, 0.5), (0, BACK + T + OVER/2 - 0.1, h + 0.55)),
+                          (f'{name}_parapetL', (0.2, D + 2*T + OVER, 0.5), (-P, 0, h + 0.55)),
+                          (f'{name}_parapetR', (0.2, D + 2*T + OVER, 0.5), (P, 0, h + 0.55))):
         box(nm, dims, loc, 'SHELL', M[band])
     box(f'{name}_facadeBand', (W + 2*T + 0.6, 0.35, 0.7), (0, FRONT - 0.05, h - 0.35), 'SHELL', M[band])
     box(f'{name}_pillarL', (0.5, 0.5, h), (-W/2 - T/2, FRONT - 0.1, h/2), 'SHELL', M[pillar])
@@ -301,6 +376,30 @@ def exterior(name, h, extras):
         for k in range(3):
             box(f'{name}planter{k}', (0.35, 0.7, 0.3), (XL - 1.15, -1.0 + k * 1.0, 2.1), 'EXTERIOR', M['wallTerracotta'])
             sphere(f'{name}plant{k}', 0.3, (XL - 1.15, -1.0 + k * 1.0, 2.45), 'EXTERIOR', M['green' if k != 1 else 'pink'], seg=8, rings=6)
+    if 'utility' in extras:
+        # The battery pack on the alley wall, and the clutter that collects
+        # under it. This is the thing Jesse Zhou's ramen shop is actually made
+        # of: the shop is the subject, but what makes it read as a real address
+        # is the metering, the conduit and the crates nobody designed. Services
+        # go on the side wall, because that is where a building puts them.
+        UY = -3.0
+        # The pack itself. Deeply rounded — at this size the silhouette is the
+        # only thing doing the recognising, so the corner radius is the detail.
+        box(f'{name}powerPack', (0.17, 0.78, 1.18), (XL - 0.085, UY, 1.55), 'EXTERIOR', M['white'], chamfer=0.16)
+        box(f'{name}powerFace', (0.03, 0.60, 0.94), (XL - 0.18, UY, 1.55), 'EXTERIOR', M['slab'], chamfer=0.10)
+        box(f'{name}powerVent', (0.04, 0.46, 0.06), (XL - 0.19, UY, 1.06), 'EXTERIOR', M['steelDark'])
+        box(f'{name}powerLED', (0.03, 0.07, 0.07), (XL - 0.20, UY + 0.22, 1.92), 'EMISSIVE', E['greenLED'])
+        for i, dy in enumerate((-0.22, 0.22)):
+            cyl(f'{name}powerConduit{i}', 0.028, 0.95, (XL - 0.10, UY + dy, 0.48), 'EXTERIOR', M['steel'], seg=8)
+        box(f'{name}powerMeter', (0.14, 0.42, 0.34), (XL - 0.07, UY, 0.86), 'EXTERIOR', M['steelDark'], chamfer=0.03)
+        box(f'{name}powerBase', (0.30, 0.90, 0.10), (XL - 0.15, UY, 0.05), 'EXTERIOR', M['concrete'])
+        for i, (dy, r, hh, col) in enumerate(((1.05, 0.15, 0.86, 'orange'), (1.42, 0.13, 0.70, 'steel'))):
+            cyl(f'{name}bottle{i}', r, hh, (XL - 0.30, dy, hh / 2), 'EXTERIOR', M[col], seg=14)
+            cyl(f'{name}bottleCap{i}', r * 0.45, 0.12, (XL - 0.30, dy, hh + 0.06), 'EXTERIOR', M['steelDark'], seg=10)
+        for i, (dy, dz, sz) in enumerate(((-1.10, 0.22, 0.44), (-1.10, 0.66, 0.42), (-0.62, 0.20, 0.40))):
+            box(f'{name}crate{i}', (sz, sz, sz), (XL - 0.34, dy, dz), 'EXTERIOR',
+                M['wood' if i % 2 == 0 else 'woodDark'], chamfer=0.035)
+        cyl(f'{name}cableCoil', 0.20, 0.09, (XL - 0.16, 2.1, 1.9), 'EXTERIOR', M['black'], seg=14, rot=(0, math.pi/2, 0))
     if 'mural' in extras:
         for i, (yy, zz, col) in enumerate([(-2.4, 1.0, 'pink'), (-2.4, 2.4, 'blue'), (-1.4, 1.7, 'yellow'), (2.6, 1.4, 'orange'), (2.6, 2.7, 'green')]):
             plane(f'{name}mural{i}', 0.9, 1.1, (XL - 0.02, yy, zz), 'EXTERIOR', M[col], rot=(0, 0, -math.pi/2))
@@ -449,7 +548,7 @@ light('g_front', 'AREA', (0, FRONT - 2.5, 2.5), 400, (1.0, 0.55, 0.85), size=5.0
 light('g_bench', 'POINT', (0.3, 2.3, 2.6), 400, (1.0, 0.7, 0.35))
 light('g_lift', 'POINT', (1.2, 0.0, 3.0), 450, (0.5, 0.9, 1.0))
 light('g_chest', 'POINT', (-3.2, 1.5, 2.0), 220, (1.0, 0.25, 0.75))
-exterior('G', H, ['ac', 'vents', 'stair', 'mural'])
+exterior('G', H, ['ac', 'vents', 'stair', 'mural', 'utility'])
 cyl('dishStand', 0.05, 1.2, (3.8, -2.4, H + 0.3 + 0.6), 'DYNAMIC', M['steel'], seg=8)
 cyl('dish', 0.55, 0.06, (3.8, -2.4, H + 0.3 + 1.3), 'DYNAMIC', M['white'], seg=18, rot=(math.radians(-55), 0, 0), r2=0.15)
 for nm, dims, loc in (('garageScreenHitBox', (1.2, 0.3, 0.7), (RX2, RY2 + 0.22, 1.15)), ('vendHitBox', (0.9, 0.95, 2.0), (VX, VY, 1.0)),
@@ -501,7 +600,7 @@ text_mesh('neonYellowBank', 'RAIFFEISEN BANK', 0.42, (0.0, FRONT - 0.23, H - 0.4
 light('b_fill', 'AREA', (0, 0, H - 0.4), 320, (1.0, 0.97, 0.85), size=6.0)
 light('b_counter', 'POINT', (0, 1.5, 2.5), 140, (1.0, 0.85, 0.4))
 light('b_front', 'AREA', (0, FRONT - 2.0, 2.0), 150, (1.0, 0.9, 0.5), size=5.0, rot=(math.radians(-70), 0, 0))
-exterior('B', H, ['ac', 'antenna'])
+exterior('B', H, ['ac', 'antenna', 'utility'])
 for nm, dims, loc in (('atmHitBox', (0.5, 0.7, 1.2), (-W/2 + 0.6, -0.5, 1.2)), ('ticketHitBox', (0.5, 0.4, 1.3), (3.9, 0.5, 0.65))):
     box(nm, dims, loc, 'HITBOX', M['hitbox'])
 # --- the street-side cash machine: a kiosk on the pavement, back to the left pillar, screen to the road.
@@ -639,7 +738,7 @@ for i, (x, y) in enumerate([(-2.5, -1.0), (0, -1.0), (2.5, -1.0), (-2.5, 1.5), (
 box('ledStripPharma', (3.5, 0.02, 0.02), (0.5, BACK - 1.97, 1.0), 'EMISSIVE', E['neonGreen'])
 light('f_fill', 'AREA', (0, 0, H - 0.4), 380, (0.9, 1.0, 0.95), size=6.0)
 light('f_front', 'AREA', (0, FRONT - 2.5, 2.0), 160, (0.5, 1.0, 0.7), size=5.0, rot=(math.radians(-70), 0, 0))
-exterior('F', H, ['ac', 'billboard'])
+exterior('F', H, ['ac', 'billboard', 'utility'])
 box('pharmaScreenHitBox', (0.7, 0.3, 0.5), (1.5, BACK - 1.75, 1.3), 'HITBOX', M['hitbox'])
 
 # ================================================================ LOT 4 — BAR MARTIRI, Spille (beach bar: hut, deck, sunbeds, umbrellas, pines, sea)
@@ -866,11 +965,17 @@ for ob in COLL['HITBOX'].objects:
 counts = {g: len(COLL[g].objects) for g in GROUPS}
 verts = sum(len(o.data.vertices) for o in bpy.data.objects if o.type == 'MESH')
 print('BUILD OK', counts, 'verts', verts, flush=True)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'garage.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, 'garage.blend'))
 
-scene.render.engine = 'BLENDER_EEVEE'
-scene.eevee.use_bloom = True; scene.eevee.bloom_intensity = 0.08; scene.eevee.use_gtao = True
-scene.eevee.taa_render_samples = 16
+# EEVEE for the previews: they exist to check shapes and placement, and Cycles
+# would spend minutes doing that properly when seconds of approximation answers
+# the question. Both the engine's identifier and half these settings moved in
+# 4.2, so ask the build what it has rather than asserting what it should be.
+engines = scene.render.bl_rna.properties['engine'].enum_items.keys()
+scene.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in engines else 'BLENDER_EEVEE'
+for prop, value in (('use_bloom', True), ('bloom_intensity', 0.08), ('use_gtao', True), ('taa_render_samples', 16)):
+    if hasattr(scene.eevee, prop):
+        setattr(scene.eevee, prop, value)
 for camname, fn, res, look in (('Camera', 'preview_street.png', (1600, 800), (0.0, 0.0, 1.8)),
                                ('CameraBeach', 'preview_beach.png', (1100, 700), (LOT_X['BEACH'], 2.0, 1.4)),
                                ('CameraBack', 'preview_back.png', (1400, 800), (0.0, 0.0, 1.8)),
@@ -879,7 +984,7 @@ for camname, fn, res, look in (('Camera', 'preview_street.png', (1600, 800), (0.
     tgt.location = look
     scene.camera = bpy.data.objects[camname]
     scene.render.resolution_x, scene.render.resolution_y = res
-    scene.render.filepath = os.path.join(HERE, fn)
+    scene.render.filepath = os.path.join(PREVIEW_DIR, fn)
     bpy.ops.render.render(write_still=True)
 tgt.location = (0.0, 0.0, 1.8); scene.camera = cam
 bpy.ops.wm.save_mainfile()

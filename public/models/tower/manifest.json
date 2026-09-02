@@ -16,6 +16,7 @@
     "BlampBBulb",
     "BlampLBulb",
     "BlampRBulb",
+    "BpowerLED",
     "BwinB0Pane",
     "BwinB3Pane",
     "BwinL0Pane",
@@ -25,6 +26,7 @@
     "FlampBBulb",
     "FlampLBulb",
     "FlampRBulb",
+    "FpowerLED",
     "FwinB0Pane",
     "FwinB3Pane",
     "FwinL0Pane",
@@ -32,6 +34,7 @@
     "GlampBBulb",
     "GlampLBulb",
     "GlampRBulb",
+    "GpowerLED",
     "GwinB0Pane",
     "GwinB3Pane",
     "GwinL0Pane",
@@ -223,5 +226,5 @@
     "vespaWheelF"
   ],
   "glb": "garage.glb",
-  "glbBytes": 452068
+  "glbBytes": 730176
 }
