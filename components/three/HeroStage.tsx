@@ -31,11 +31,13 @@ export function HeroStage({
   view,
   hint,
   onEnter,
+  onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
   onEnter: () => void
+  onView: (view: ScreenView) => void
 }) {
   const wrapper = useRef<HTMLDivElement>(null)
   const state = useRef<RootState | null>(null)
@@ -139,7 +141,7 @@ export function HeroStage({
         dpr={profile.dpr}
         shadows
         gl={{ antialias: profile.antialias, alpha: false, powerPreference: 'high-performance' }}
-        camera={{ position: [4.9, 3.9, 5.6], fov: 32, near: 0.1, far: 40 }}
+        camera={{ position: [17.2, 13.1, 24.4], fov: 38, near: 0.1, far: 80 }}
         onCreated={(created) => {
           state.current = created
           // Render one frame immediately rather than waiting for the ticker.
@@ -155,6 +157,7 @@ export function HeroStage({
           view={view}
           hint={hint}
           onEnter={onEnter}
+          onView={onView}
         />
       </Canvas>
     </div>

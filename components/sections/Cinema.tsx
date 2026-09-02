@@ -363,6 +363,7 @@ export function Cinema({
             view={view}
             hint={dict.homeHint}
             onEnter={enter}
+            onView={setView}
           />
 
           {/*

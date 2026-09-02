@@ -42,3 +42,10 @@ next-env.d.ts
 
 # The example file documents variable NAMES only and must be tracked.
 !.env.example
+
+# Blender writes a .blend1 (and .blend2, ...) beside every save: the previous
+# version, kept as a local undo. Committing them doubles the weight of every
+# scene edit to store a copy of the file that is already in the history.
+*.blend1
+*.blend2
+*.blend[0-9]

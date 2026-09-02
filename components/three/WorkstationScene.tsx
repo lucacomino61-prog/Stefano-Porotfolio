@@ -1,7 +1,7 @@
 'use client'
 
-import { ContactShadows, Environment, useGLTF } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
+import { Environment, useGLTF } from '@react-three/drei'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import {
   Box3,
@@ -54,13 +54,17 @@ type ModelProps = {
   metalness?: number
 }
 
-const MONITOR = SCENE.monitor.path
-const PC_CASE = SCENE.tower.path
-const MOUSE = SCENE.mouse.path
-const KEYBOARD = SCENE.keyboard.path
-const DESK = SCENE.desk.path
+// Kept for the legacy workstation components below. They are no longer loaded
+// by the active scene, but retaining the components makes it easy to reuse a
+// single device elsewhere without coupling it to the garage asset.
+const MONITOR = '/models/pc-anatomy/monitor-hero.glb'
+const PC_CASE = '/models/pc-anatomy/pc-case-hero.glb'
+const MOUSE = '/models/pc-anatomy/mouse-hero.glb'
+const KEYBOARD = '/models/pc-anatomy/keyboard-hero.glb'
+const DESK = '/models/workstation/desk.glb'
 const STUDIO = SCENE.studio.path
-const ROOM = SCENE.room.path
+const GARAGE = SCENE.garage.path
+const ROOM = '/models/workstation/room.glb'
 
 function prepareModel(source: Object3D): { model: Object3D; sourceSize: Vector3 } {
   const model = source.clone(true)
@@ -151,8 +155,8 @@ function Model({
  */
 const PANEL_FRAMING = 1.34
 
-const PANEL_W = 1.15
-const PANEL_H = 0.64
+const PANEL_W = 1.69
+const PANEL_H = 0.94
 
 
 /**
@@ -199,7 +203,7 @@ const DRIFT_RATE_Z = 0.11
  * up so the walls, the reveal and the floor separate instead of merging into
  * one void. A colour needs light on it to read as a colour.
  */
-const ROOM_VOID = '#0d1730'
+const ROOM_VOID = '#05070a'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -410,8 +414,8 @@ function MonitorScreen({
   return (
     <mesh
       ref={panel}
-      position={[0, 0.7, -0.273]}
-      rotation={[0, Math.PI, 0]}
+      position={[7.445, 2.45, -4.25]}
+      rotation={[0, Math.PI / 2, 0]}
       onClick={(event) => {
         event.stopPropagation()
         onEnter()
@@ -541,6 +545,7 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
   const home = useRef<Vector3 | null>(null)
   const focus = useMemo(() => new Vector3(), [])
   const scale = useMemo(() => new Vector3(), [])
+  const panelNormal = useMemo(() => new Vector3(), [])
   const panelGoal = useMemo(() => new Vector3(), [])
   const scrollPos = useMemo(() => new Vector3(), [])
 
@@ -626,7 +631,7 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
       )
       // The look target drifts a fraction of the camera, so the desk stays
       // composed instead of sliding across the frame with the move.
-      camera.lookAt(sway * 0.06, 0.35 + rise * 0.03, 0)
+      camera.lookAt(sway * 0.08 - 0.25, 2.7 + rise * 0.04, -0.85)
       camera.updateProjectionMatrix()
       return
     }
@@ -659,7 +664,8 @@ function CameraRig({ panel }: { panel: RefObject<Mesh | null> }) {
     // than the first ones, which is what walking toward something looks like.
     const eased = progress * progress * (3 - 2 * progress) * 0.35 + progress * progress * 0.65
 
-    panelGoal.set(focus.x, focus.y, focus.z + near)
+    mesh.getWorldDirection(panelNormal).normalize()
+    panelGoal.copy(focus).addScaledVector(panelNormal, near)
     scrollPos.lerpVectors(home.current, panelGoal, eased)
 
     // Armed by the room's own readiness signal, which arrives on the window
@@ -771,6 +777,7 @@ function DeskObject({
   )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained as a reusable legacy device cluster
 function Workstation({
   project,
   panel,
@@ -1046,6 +1053,7 @@ function RoomModel() {
   return <primitive object={room} />
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained as the lightweight fallback room shell
 function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void }) {
   return (
     <group
@@ -1108,6 +1116,121 @@ function RoomShell({ accent, onEnter }: { accent: string; onEnter: () => void })
   )
 }
 
+const GARAGE_HOTSPOTS: Readonly<Record<string, ScreenView>> = {
+  INT_GarageSign_Home: 'home',
+  INT_Monitor_Projects: 'work',
+  INT_Arcade_Playground: 'work',
+  INT_PlayStation_Projects: 'work',
+  INT_ToolWall_Skills: 'about',
+  INT_Router_Network: 'about',
+  INT_Certificate_About: 'about',
+  INT_ServiceBoard_Experience: 'process',
+  INT_Intercom_Contact: 'contact',
+}
+
+function garageViewFor(object: Object3D): ScreenView | undefined {
+  let cursor: Object3D | null = object
+  while (cursor) {
+    const view = GARAGE_HOTSPOTS[cursor.name]
+    if (view) return view
+    cursor = cursor.parent
+  }
+  return undefined
+}
+
+function GarageModel({
+  compact,
+  onEnter,
+  onView,
+}: {
+  compact: boolean
+  onEnter: () => void
+  onView: (view: ScreenView) => void
+}) {
+  const { scene } = useGLTF(GARAGE)
+  const garage = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+
+      // The live CanvasTexture below occupies this exact frame. Hiding the
+      // exported placeholder prevents z-fighting while keeping Blender's
+      // monitor bezel, stand and desk intact.
+      if (child.name === 'INT_Monitor_Projects') {
+        child.visible = false
+        return
+      }
+
+      // A 356-mesh diorama should not render every prop into a second shadow
+      // pass. Large silhouettes cast; architecture receives. Emissive detail
+      // and small shelf props keep their Blender-authored material response.
+      child.castShadow =
+        !compact && /^(VEH_|LIFT_|WORK_|TECH_|TOOLS_Chest|EXT_Vending)/.test(child.name)
+      child.receiveShadow = /^(ARCH_|EXT_|ROOF_|GARAGE_)/.test(child.name)
+    })
+    return clone
+  }, [compact, scene])
+
+  const activate = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation()
+    const next = garageViewFor(event.object)
+    if (next) onView(next)
+    onEnter()
+  }
+
+  return (
+    <primitive
+      object={garage}
+      dispose={null}
+      onClick={activate}
+      onPointerOver={(event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation()
+        document.documentElement.dataset.hot = 'true'
+      }}
+      onPointerOut={() => {
+        delete document.documentElement.dataset.hot
+      }}
+    />
+  )
+}
+
+function GarageWorld({
+  project,
+  panel,
+  view,
+  hint,
+  onEnter,
+  onView,
+  compact,
+}: {
+  project: Project
+  panel: RefObject<Mesh | null>
+  view: ScreenView
+  hint: string
+  onEnter: () => void
+  onView: (view: ScreenView) => void
+  compact: boolean
+}) {
+  const { size } = useThree()
+  const scale = compact ? 0.58 : size.width < 1180 ? 0.86 : 1
+
+  return (
+    <group scale={scale} position={compact ? [0, -0.3, 0] : [0, -0.15, 0]}>
+      <GarageModel compact={compact} onEnter={onEnter} onView={onView} />
+      <MonitorScreen
+        project={project}
+        panel={panel}
+        view={view}
+        hint={hint}
+        onEnter={() => {
+          onView('work')
+          onEnter()
+        }}
+      />
+    </group>
+  )
+}
+
 /**
  * Mounts only once the Suspense boundary around it has resolved, which is the
  * one moment the room is genuinely ready to draw.
@@ -1130,11 +1253,13 @@ export function WorkstationScene({
   view,
   hint,
   onEnter,
+  onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
   onEnter: () => void
+  onView: (view: ScreenView) => void
 }) {
   const panel = useRef<Mesh>(null)
   /**
@@ -1163,78 +1288,55 @@ export function WorkstationScene({
         this, and it agrees with the fog by construction.
       */}
       <color attach="background" args={[ROOM_VOID]} />
-      <fog attach="fog" args={[ROOM_VOID, 8.5, 17]} />
-      <ambientLight intensity={1.05} />
+      <fog attach="fog" args={[ROOM_VOID, 24, 58]} />
+      <ambientLight intensity={0.72} />
       {/* Key light, low and cool, from the window side. Cut back hard from what
           a product shot would use: this is a room in the evening with a screen
           on in it, and the screen has to be the brightest thing in the frame. */}
       <directionalLight
         castShadow
-        color="#c8d4e8"
-        intensity={1.15}
-        position={[-3.5, 5.5, 4]}
+        color="#d8e6ff"
+        intensity={2.15}
+        position={[9, 14, 13]}
         /* Halved on a phone. A shadow map is a full scene re-render into a
            square target every frame, so 1024 to 512 is a quarter of that cost,
            at a softness nobody reads as wrong on a 390px screen. */
         shadow-mapSize-width={compact ? 512 : 1024}
         shadow-mapSize-height={compact ? 512 : 1024}
-        shadow-camera-far={16}
+        shadow-camera-far={48}
+        shadow-camera-left={-14}
+        shadow-camera-right={14}
+        shadow-camera-top={14}
+        shadow-camera-bottom={-14}
       />
       {/* The panel's own light in the room, in the colour of whatever is on it.
           This is where each project reaches past the bezel: change the project
           and the desk, the wall and the shadows change with it. */}
       <pointLight
         color={project.glow}
-        intensity={5.5}
-        distance={4.2}
+        intensity={7}
+        distance={7}
         decay={2}
-        position={[0.6, 0.5, 0.75]}
+        position={[4, 2.3, -3.9]}
       />
-      <pointLight color={project.glow} intensity={2.2} distance={6} position={[0.6, 1.5, -1.2]} />
+      <pointLight color="#ff171d" intensity={8} distance={10} decay={2} position={[0, 5.45, -4.6]} />
+      <pointLight color="#ff6a2a" intensity={5} distance={8} decay={2} position={[-1, 2.4, 0.2]} />
 
       <Suspense fallback={null}>
         <SceneReady />
-        <Environment files={STUDIO} environmentIntensity={0.55} />
-        <RoomShell accent={project.screen.accent} onEnter={onEnter} />
-        <Workstation
+        <Environment files={STUDIO} environmentIntensity={0.7} />
+        <GarageWorld
           project={project}
           panel={panel}
           view={view}
           hint={hint}
           onEnter={onEnter}
-        />
-        {/*
-          Rendered a fixed number of times, not forever.
-
-          This is a second render of the scene into its own target, and by
-          default drei repeats it every frame. Nothing under the desk moves:
-          the objects are static, and a contact shadow does not depend on where
-          the camera is standing, so every frame after the first was redrawing
-          the same picture. It sits inside this Suspense boundary, so by the
-          time it mounts the models it is shadowing are already loaded.
-
-          Forty rather than one because the materials are retinted in an effect
-          and the arrival damping is still settling on the first frames; one
-          would bake whatever happened to be there at mount.
-        */}
-        <ContactShadows
-          position={[0.65, -1.205, 0.1]}
-          opacity={0.58}
-          scale={5.4}
-          blur={2.5}
-          far={4}
-          frames={40}
-          resolution={compact ? 256 : 512}
-          color="#050506"
+          onView={onView}
+          compact={compact}
         />
       </Suspense>
     </>
   )
 }
 
-useGLTF.preload(MONITOR)
-useGLTF.preload(PC_CASE)
-useGLTF.preload(MOUSE)
-useGLTF.preload(KEYBOARD)
-useGLTF.preload(DESK)
-useGLTF.preload(ROOM)
+useGLTF.preload(GARAGE)

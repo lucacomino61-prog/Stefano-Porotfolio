@@ -185,13 +185,13 @@ const en: Dictionary = {
     approach: 'Design and build, end to end',
     categoryLabel: 'Discipline',
     yearLabel: 'Shipped',
-    enter: 'Open the workstation',
+    enter: 'Open the garage',
     viewWork: 'View my work',
     apps: 'Applications',
     details: 'Details',
     openSite: 'Open the live site',
     back: 'Back',
-    homeHint: 'Click the monitor',
+    homeHint: 'Click a garage display',
     projects: {
       elixir: {
         category: 'Luxury perfume e-commerce',
@@ -332,13 +332,13 @@ const it: Dictionary = {
     approach: 'Progetto e costruisco, dall’inizio alla fine',
     categoryLabel: 'Disciplina',
     yearLabel: 'Online dal',
-    enter: 'Apri la postazione',
+    enter: 'Apri il garage',
     viewWork: 'Guarda i miei lavori',
     apps: 'Applicazioni',
     details: 'Dettagli',
     openSite: 'Apri il sito online',
     back: 'Indietro',
-    homeHint: 'Clicca il monitor',
+    homeHint: 'Clicca un display',
     projects: {
       elixir: {
         category: 'E-commerce di profumeria di lusso',
@@ -479,13 +479,13 @@ const al: Dictionary = {
     approach: 'Projektoj dhe ndërtoj, nga fillimi në fund',
     categoryLabel: 'Disiplina',
     yearLabel: 'Online nga',
-    enter: 'Hap postin e punës',
+    enter: 'Hap garazhin',
     viewWork: 'Shiko punët e mia',
     apps: 'Aplikacione',
     details: 'Detaje',
     openSite: 'Hap faqen online',
     back: 'Kthehu',
-    homeHint: 'Klikoni monitorin',
+    homeHint: 'Kliko një ekran',
     projects: {
       elixir: {
         category: 'Tregti online parfumesh luksoze',

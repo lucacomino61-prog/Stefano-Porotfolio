@@ -24,11 +24,13 @@ export function GateMount({
   view,
   hint,
   onEnter,
+  onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
   onEnter: () => void
+  onView: (view: ScreenView) => void
 }) {
   const [mounted, setMounted] = useState(false)
 
@@ -64,5 +66,5 @@ export function GateMount({
   }, [])
 
   if (!mounted) return null
-  return <HeroStage project={project} view={view} hint={hint} onEnter={onEnter} />
+  return <HeroStage project={project} view={view} hint={hint} onEnter={onEnter} onView={onView} />
 }

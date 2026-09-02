@@ -35,13 +35,8 @@ export type SceneAsset = {
 }
 
 export const SCENE = {
-  monitor: { path: '/models/pc-anatomy/monitor-hero.glb', label: 'MONITOR' },
-  tower: { path: '/models/pc-anatomy/pc-case-hero.glb', label: 'TOWER' },
-  mouse: { path: '/models/pc-anatomy/mouse-hero.glb', label: 'MOUSE' },
-  keyboard: { path: '/models/pc-anatomy/keyboard-hero.glb', label: 'KEYBOARD' },
-  desk: { path: '/models/workstation/desk.glb', label: 'DESK' },
   studio: { path: '/models/workstation/poly-haven-studio-1k.hdr', label: 'ROOM LIGHT' },
-  room: { path: '/models/workstation/room.glb', label: 'ROOM' },
+  garage: { path: '/models/garage/stefano-motor-works.glb', label: 'MOTOR WORKS' },
 } as const satisfies Record<string, SceneAsset>
 
 /** Every asset, in declaration order, for anything that has to walk the set. */
