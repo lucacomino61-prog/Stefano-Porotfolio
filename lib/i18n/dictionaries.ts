@@ -24,6 +24,8 @@ export type Dictionary = {
     /** Pager controls inside the machine. Icon-only buttons, so these ARE the names. */
     previous: string
     next: string
+    /** The door at the end of the loading screen. */
+    enter: string
   }
   hero: {
     /** The name is not translated. It is here so the reveal has one source. */
@@ -110,6 +112,45 @@ export type Dictionary = {
     intro: string
     steps: { id: string; label: string; body: string }[]
   }
+  /** The cabinet on the Milano terrace, and the same machine as an application on the desktop. */
+  arcade: {
+    title: string
+    insertCoin: string
+    start: string
+    again: string
+    gameOver: string
+    score: string
+    best: string
+    /** The key hint under the tube, for anyone at a keyboard. */
+    controls: string
+    /** The pad's buttons are drawn as arrows; these are their names. */
+    pad: { up: string; down: string; left: string; right: string; button: string }
+    games: Record<'snake' | 'pong' | 'bricks', string>
+  }
+  /** The cash machine on the pavement outside the bank. It dispenses a business card. */
+  atm: {
+    title: string
+    insertCard: string
+    insert: string
+    enterPin: string
+    pinHint: string
+    clear: string
+    enter: string
+    welcome: string
+    withdraw: string
+    withdrawNote: string
+    balance: string
+    balanceNote: string
+    statement: string
+    statementNote: string
+    exit: string
+    exitNote: string
+    dispensing: string
+    keep: string
+    takeCard: string
+    done: string
+    balanceLines: { sites: string; capabilities: string; handovers: string }
+  }
   contact: {
     heading: string
     intro: string
@@ -140,6 +181,41 @@ export type Dictionary = {
 }
 
 const en: Dictionary = {
+  arcade: {
+    title: 'Arcade',
+    insertCoin: 'Insert coin',
+    start: 'Start',
+    again: 'Play again',
+    gameOver: 'Game over',
+    score: 'Score',
+    best: 'Best',
+    controls: 'Arrows or WASD to move, space to start',
+    pad: { up: 'Up', down: 'Down', left: 'Left', right: 'Right', button: 'Start' },
+    games: { snake: 'Snake', pong: 'Pong', bricks: 'Bricks' },
+  },
+  atm: {
+    title: 'Bankomat',
+    insertCard: 'Insert card',
+    insert: 'Insert your card',
+    enterPin: 'Enter your PIN',
+    pinHint: 'Any four digits will do',
+    clear: 'Clear',
+    enter: 'Enter',
+    welcome: 'Welcome. What would you like?',
+    withdraw: 'Withdraw',
+    withdrawNote: 'One business card',
+    balance: 'Balance',
+    balanceNote: 'What is on the account',
+    statement: 'Statement',
+    statementNote: 'How the work runs',
+    exit: 'Take card',
+    exitNote: 'End the session',
+    dispensing: 'Dispensing, please wait',
+    keep: 'Keep this receipt. It is the only one you will need.',
+    takeCard: 'Please take your card',
+    done: 'Done',
+    balanceLines: { sites: 'Sites shipped', capabilities: 'Capabilities', handovers: 'Handovers' },
+  },
   meta: {
     title: 'Stefano Doko, web designer and developer',
     description:
@@ -153,6 +229,7 @@ const en: Dictionary = {
     items: { manifesto: 'Approach', work: 'Work', process: 'Process', contact: 'Contact' },
     previous: 'Previous screen',
     next: 'Next screen',
+    enter: 'Enter',
   },
   hero: {
     name: 'Stefano Doko',
@@ -287,6 +364,41 @@ const en: Dictionary = {
 }
 
 const it: Dictionary = {
+  arcade: {
+    title: 'Arcade',
+    insertCoin: 'Inserisci moneta',
+    start: 'Gioca',
+    again: 'Rigioca',
+    gameOver: 'Game over',
+    score: 'Punti',
+    best: 'Record',
+    controls: 'Frecce o WASD per muoverti, spazio per iniziare',
+    pad: { up: 'Su', down: 'Giù', left: 'Sinistra', right: 'Destra', button: 'Inizia' },
+    games: { snake: 'Snake', pong: 'Pong', bricks: 'Mattoni' },
+  },
+  atm: {
+    title: 'Bancomat',
+    insertCard: 'Inserisci la carta',
+    insert: 'Inserisci la carta',
+    enterPin: 'Digita il PIN',
+    pinHint: 'Vanno bene quattro cifre qualsiasi',
+    clear: 'Cancella',
+    enter: 'Conferma',
+    welcome: 'Benvenuto. Cosa desideri?',
+    withdraw: 'Preleva',
+    withdrawNote: 'Un biglietto da visita',
+    balance: 'Saldo',
+    balanceNote: 'Cosa c’è sul conto',
+    statement: 'Estratto conto',
+    statementNote: 'Come procede il lavoro',
+    exit: 'Ritira la carta',
+    exitNote: 'Chiudi la sessione',
+    dispensing: 'Erogazione in corso, attendi',
+    keep: 'Conserva questa ricevuta. È l’unica che ti serve.',
+    takeCard: 'Ritira la carta',
+    done: 'Fatto',
+    balanceLines: { sites: 'Siti online', capabilities: 'Competenze', handovers: 'Passaggi di mano' },
+  },
   meta: {
     title: 'Stefano Doko, web designer e sviluppatore',
     description:
@@ -300,6 +412,7 @@ const it: Dictionary = {
     items: { manifesto: 'Approccio', work: 'Lavori', process: 'Processo', contact: 'Contatti' },
     previous: 'Schermata precedente',
     next: 'Schermata successiva',
+    enter: 'Entra',
   },
   hero: {
     name: 'Stefano Doko',
@@ -434,6 +547,41 @@ const it: Dictionary = {
 }
 
 const al: Dictionary = {
+  arcade: {
+    title: 'Arcade',
+    insertCoin: 'Fut monedhën',
+    start: 'Luaj',
+    again: 'Luaj sërish',
+    gameOver: 'Loja mbaroi',
+    score: 'Pikë',
+    best: 'Rekord',
+    controls: 'Shigjetat ose WASD për të lëvizur, hapësira për të nisur',
+    pad: { up: 'Lart', down: 'Poshtë', left: 'Majtas', right: 'Djathtas', button: 'Nis' },
+    games: { snake: 'Gjarpri', pong: 'Pong', bricks: 'Tullat' },
+  },
+  atm: {
+    title: 'Bankomat',
+    insertCard: 'Fut kartën',
+    insert: 'Fut kartën',
+    enterPin: 'Shkruaj PIN-in',
+    pinHint: 'Mjaftojnë katër shifra çfarëdo',
+    clear: 'Fshi',
+    enter: 'Konfirmo',
+    welcome: 'Mirë se erdhe. Çfarë dëshiron?',
+    withdraw: 'Tërhiq',
+    withdrawNote: 'Një kartëvizitë',
+    balance: 'Gjendja',
+    balanceNote: 'Çfarë ka në llogari',
+    statement: 'Pasqyra',
+    statementNote: 'Si ecën puna',
+    exit: 'Merr kartën',
+    exitNote: 'Mbyll sesionin',
+    dispensing: 'Duke dhënë, prit pak',
+    keep: 'Ruaje këtë faturë. Është e vetmja që të duhet.',
+    takeCard: 'Merr kartën, të lutem',
+    done: 'Mbaroi',
+    balanceLines: { sites: 'Faqe online', capabilities: 'Aftësi', handovers: 'Dorëzime' },
+  },
   meta: {
     title: 'Stefano Doko, dizajner dhe zhvillues uebi',
     description:
@@ -447,6 +595,7 @@ const al: Dictionary = {
     items: { manifesto: 'Qasja', work: 'Punët', process: 'Procesi', contact: 'Kontakt' },
     previous: 'Ekrani i mëparshëm',
     next: 'Ekrani tjetër',
+    enter: 'Hyr',
   },
   hero: {
     name: 'Stefano Doko',

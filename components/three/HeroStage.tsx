@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { gsap } from '@/lib/motion/gsap'
 import { onFrame } from '@/lib/motion/ticker'
 
-import type { ScreenView } from '@/lib/screen'
+import type { Billboard, Machine, ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
 import { TowerScene, zoomHome } from './TowerScene'
@@ -28,13 +28,17 @@ export function HeroStage({
   project,
   view,
   hint,
+  billboard,
+  machine,
   onEnter,
   onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
-  onEnter: () => void
+  billboard: Billboard
+  machine: Machine
+  onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
 }) {
   const wrapper = useRef<HTMLDivElement>(null)
@@ -147,6 +151,8 @@ export function HeroStage({
           project={project}
           view={view}
           hint={hint}
+          billboard={billboard}
+          machine={machine}
           onEnter={onEnter}
           onView={onView}
         />

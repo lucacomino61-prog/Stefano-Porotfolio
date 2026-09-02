@@ -130,6 +130,14 @@ def plane(name, w, h, loc, coll, material, rot=(0, 0, 0)):
     for loop, t in zip(f.loops, [(0, 0), (1, 0), (1, 1), (0, 1)]): loop[uv].uv = t
     return _finish(name, bm, coll, material, loc, rot)
 
+def pennant(name, w, h, loc, coll, material):
+    """a hanging triangle, both faces, so the bunting reads from the road and from the alley"""
+    bm = bmesh.new()
+    for order in ((0, 1, 2), (0, 2, 1)):
+        pts = [(-w/2, 0, h/2), (0, 0, -h/2), (w/2, 0, h/2)]
+        bm.faces.new([bm.verts.new(pts[i]) for i in order])
+    return _finish(name, bm, coll, material, loc)
+
 def cone_roof(name, r, h, loc, coll, material, seg=10):
     """hollow-looking straw cone: a cone plus a slightly smaller darker cone underneath"""
     cyl(name, r, h, loc, coll, material, seg=seg, r2=0.05)
@@ -496,6 +504,25 @@ light('b_front', 'AREA', (0, FRONT - 2.0, 2.0), 150, (1.0, 0.9, 0.5), size=5.0, 
 exterior('B', H, ['ac', 'antenna'])
 for nm, dims, loc in (('atmHitBox', (0.5, 0.7, 1.2), (-W/2 + 0.6, -0.5, 1.2)), ('ticketHitBox', (0.5, 0.4, 1.3), (3.9, 0.5, 0.65))):
     box(nm, dims, loc, 'HITBOX', M['hitbox'])
+# --- the street-side cash machine: a kiosk on the pavement, back to the left pillar, screen to the road.
+#     `atmOutScreen` is one of the three screens the site walks up to (the others: garageScreen, arcadeScreen).
+AX, AY = -W/2 - T/2, FRONT - 0.65
+box('atmOutBody', (0.9, 0.6, 1.9), (AX, AY, 0.93), G, M['wallBankGrey'])
+box('atmOutFascia', (0.94, 0.64, 0.3), (AX, AY, 2.02), G, M['bankYellow'])
+text_mesh('atmOutText', 'BANKOMAT', 0.12, (AX, AY - 0.33, 1.965), G, M['black'], extrude=0.005, rot=(math.pi/2, 0, 0))
+box('atmOutCanopy', (1.06, 0.7, 0.05), (AX, AY - 0.12, 2.2), G, M['black'])
+box('atmOutFace', (0.78, 0.04, 0.58), (AX, AY - 0.31, 1.32), G, M['black'])
+plane('atmOutScreen', 0.46, 0.34, (AX, AY - 0.336, 1.33), 'SCREENS', M['screenOff'])
+box('atmOutLight', (0.7, 0.03, 0.04), (AX, AY - 0.315, 1.72), 'EMISSIVE', E['neonYellow'])
+box('atmOutKeypad', (0.38, 0.05, 0.22), (AX, AY - 0.315, 0.9), G, M['steel'])
+for i in range(12):
+    box(f'atmOutKey{i}', (0.07, 0.02, 0.038), (AX - 0.1 + (i % 3) * 0.1, AY - 0.345, 0.965 - (i // 3) * 0.05), G, M['white'] if i < 9 else M['yellow'])
+box('atmOutCardSlot', (0.28, 0.03, 0.04), (AX - 0.12, AY - 0.315, 0.68), G, M['steel'])
+box('atmOutLEDgreen', (0.04, 0.02, 0.04), (AX + 0.22, AY - 0.32, 0.68), 'EMISSIVE', E['greenLED'])
+box('atmOutCashSlot', (0.42, 0.03, 0.07), (AX, AY - 0.315, 0.45), G, M['black'])
+box('atmOutStep', (1.1, 0.8, 0.04), (AX, AY - 0.1, 0.0), G, M['kerb'])
+light('b_atm', 'POINT', (AX, AY - 0.9, 1.7), 30, (1.0, 0.85, 0.5))
+box('atmOutHitBox', (1.0, 0.8, 2.3), (AX, AY - 0.05, 1.05), 'HITBOX', M['hitbox'])
 
 # ================================================================ LOT 2 — MILANO
 OX = LOT_X['MILANO']; H = 3.8; G = 'MILANO'
@@ -553,6 +580,26 @@ light('m_front', 'AREA', (0, FRONT - 2.5, 2.0), 150, (1.0, 0.7, 0.5), size=5.0, 
 exterior('M', H, ['tank', 'balcony', 'bulbs'])
 for nm, dims, loc in (('milanoScreenHitBox', (0.3, 1.3, 0.9), (W/2 - 0.1, 2.0, 2.0)), ('vespaHitBox', (1.4, 0.7, 1.0), (2.5, FRONT - 0.8, 0.5))):
     box(nm, dims, loc, 'HITBOX', M['hitbox'])
+# --- the arcade cabinet under the arcade: on the terrace, back to the pier between the first two arches, screen to the road.
+#     `arcadeScreen` is walked up to like the reception monitor; the games run on it.
+CX, CY = -1.5, -3.6 - 0.35
+box('arcadeBody', (0.72, 0.7, 1.85), (CX, CY, 0.12 + 0.925), G, M['black'])
+box('arcadeSideL', (0.012, 0.56, 1.5), (CX - 0.365, CY, 1.0), G, M['purple'])
+box('arcadeSideR', (0.012, 0.56, 1.5), (CX + 0.365, CY, 1.0), G, M['purple'])
+box('arcadeMarquee', (0.76, 0.5, 0.3), (CX, CY - 0.12, 2.1), G, M['black'])
+box('neonPinkArcade', (0.66, 0.02, 0.2), (CX, CY - 0.375, 2.1), 'EMISSIVE', E['neonPink'])
+text_mesh('arcadeMarqueeText', 'ARCADE', 0.13, (CX, CY - 0.39, 2.045), G, M['black'], extrude=0.004, rot=(math.pi/2, 0, 0))
+box('arcadeBezel', (0.68, 0.04, 0.56), (CX, CY - 0.36, 1.45), G, M['steelDark'])
+plane('arcadeScreen', 0.54, 0.4, (CX, CY - 0.385, 1.45), 'SCREENS', M['screenOff'])
+box('arcadeDeck', (0.72, 0.36, 0.06), (CX, CY - 0.5, 1.03), G, M['steelDark'])
+cyl('arcadeStick', 0.012, 0.09, (CX - 0.17, CY - 0.52, 1.1), G, M['steel'], seg=6)
+sphere('arcadeStickBall', 0.032, (CX - 0.17, CY - 0.52, 1.16), G, M['red'], seg=8, rings=6)
+for i, col in enumerate(('red', 'yellow', 'blue')):
+    cyl(f'arcadeBtn{i}', 0.028, 0.025, (CX + 0.02 + i * 0.085, CY - 0.52, 1.07), G, M[col], seg=10)
+box('arcadeCoinDoor', (0.22, 0.02, 0.18), (CX, CY - 0.36, 0.62), G, M['steel'])
+box('arcadeLEDred', (0.03, 0.02, 0.03), (CX + 0.15, CY - 0.365, 0.66), 'EMISSIVE', E['redLED'])
+light('m_arcade', 'POINT', (CX, CY - 0.9, 1.7), 30, (1.0, 0.35, 0.85))
+box('arcadeHitBox', (0.8, 0.9, 2.4), (CX, CY - 0.1, 1.2), 'HITBOX', M['hitbox'])
 
 # ================================================================ LOT 3 — FARMACIA
 OX = LOT_X['FARMACIA']; H = 3.4; G = 'FARMACIA'
@@ -721,6 +768,75 @@ for i in range(2):
     x1 = LOT_X[('MILANO', 'BEACH')[i]] + PITCH/2 - 0.3
     cyl(f'cable{i}', 0.012, x1 - x0, ((x0 + x1)/2, ROAD_Y0 - 0.5, 3.85), 'EXTERIOR', M['black'], seg=4, rot=(0, math.pi/2, 0))
 
+# ---- more street: a traffic light at the crossing (the three lamps are swapped at runtime), a bus shelter on the far
+#      pavement, bikes racked at the pharmacy, manholes, a dumpster in the alley, a parking sign by the car, potted
+#      plants at the pharmacy door, and bunting on the first cable
+TLX, TLY = LOT_X['BANK'] + PITCH/2 + 2.9, ROAD_Y0 + 0.3
+cyl('trafficPole', 0.06, 3.3, (TLX, TLY, 1.65), 'EXTERIOR', M['steelDark'], seg=10)
+box('trafficPoleBase', (0.36, 0.36, 0.08), (TLX, TLY, 0.04), 'EXTERIOR', M['steelDark'])
+box('trafficHead', (0.34, 0.3, 0.92), (TLX, TLY, 3.05), 'EXTERIOR', M['black'])
+for nm, z, em in (('trafficRed', 3.33, 'redLED'), ('trafficAmber', 3.05, 'neonOrange'), ('trafficGreen', 2.77, 'greenLED')):
+    cyl(nm, 0.1, 0.04, (TLX, TLY - 0.16, z), 'EMISSIVE', E[em], seg=12, rot=(math.pi/2, 0, 0))
+    box(nm + 'Hood', (0.26, 0.14, 0.03), (TLX, TLY - 0.2, z + 0.12), 'EXTERIOR', M['black'])
+BSX, BSY = LOT_X['MILANO'] + PITCH/2, ROAD_Y1 - T - 0.9
+box('busShelterRoof', (3.2, 1.3, 0.08), (BSX, BSY, 2.45), 'EXTERIOR', M['steelDark'])
+box('busShelterBack', (3.1, 0.04, 2.0), (BSX, BSY - 0.55, 1.45), 'EXTERIOR', M['glass'])
+for i, x in enumerate((-1.55, 1.55)):
+    cyl(f'busShelterPost{i}', 0.04, 2.45, (BSX + x, BSY - 0.55, 1.225), 'EXTERIOR', M['steelDark'], seg=8)
+    cyl(f'busShelterPostF{i}', 0.04, 2.45, (BSX + x, BSY + 0.55, 1.225), 'EXTERIOR', M['steelDark'], seg=8)
+box('busBench', (2.2, 0.4, 0.06), (BSX, BSY - 0.25, 0.5), 'EXTERIOR', M['wood'])
+for k in (-1, 1):
+    box(f'busBenchLeg{k}', (0.06, 0.36, 0.47), (BSX + k * 0.95, BSY - 0.25, 0.235), 'EXTERIOR', M['steelDark'])
+box('busPanel', (0.6, 0.03, 0.9), (BSX - 1.2, BSY - 0.5, 1.5), 'EXTERIOR', M['white'])
+cyl('busSignPole', 0.03, 2.9, (BSX + 1.9, BSY + 0.4, 1.45), 'EXTERIOR', M['steelDark'], seg=8)
+box('busSign', (0.42, 0.03, 0.42), (BSX + 1.9, BSY + 0.4, 2.7), 'EXTERIOR', M['yellow'])
+text_mesh('busSignText', 'BUS', 0.16, (BSX + 1.9, BSY + 0.38, 2.64), 'EXTERIOR', M['black'], extrude=0.004, rot=(math.pi/2, 0, 0))
+BKX, BKY = LOT_X['FARMACIA'] + 2.4, ROAD_Y0 + 0.9
+for i in range(2):
+    rx = BKX + i * 0.9
+    for k in (-1, 1):
+        cyl(f'bikeRack{i}{k}', 0.025, 0.75, (rx + k * 0.3, BKY, 0.375), 'EXTERIOR', M['steelDark'], seg=8)
+    cyl(f'bikeRackTop{i}', 0.025, 0.66, (rx, BKY, 0.75), 'EXTERIOR', M['steelDark'], seg=8, rot=(0, math.pi/2, 0))
+for i, col in enumerate(('blue', 'red')):
+    bx, by = BKX + 0.45 + i * 0.9, BKY + 0.35
+    for k, dy in enumerate((-0.5, 0.5)):
+        cyl(f'bikeWheel{i}{k}', 0.32, 0.03, (bx, by + dy, 0.33), 'EXTERIOR', M['rubber'], seg=16, rot=(0, math.pi/2, 0))
+        cyl(f'bikeHub{i}{k}', 0.05, 0.05, (bx, by + dy, 0.33), 'EXTERIOR', M['hub'], seg=8, rot=(0, math.pi/2, 0))
+    box(f'bikeFrameA{i}', (0.03, 0.55, 0.03), (bx, by + 0.02, 0.62), 'EXTERIOR', M[col], rot=(math.radians(-35), 0, 0))
+    box(f'bikeFrameB{i}', (0.03, 0.03, 0.55), (bx, by - 0.12, 0.5), 'EXTERIOR', M[col], rot=(math.radians(15), 0, 0))
+    box(f'bikeFrameC{i}', (0.03, 0.03, 0.5), (bx, by + 0.42, 0.55), 'EXTERIOR', M[col], rot=(math.radians(-20), 0, 0))
+    box(f'bikeSaddle{i}', (0.08, 0.2, 0.05), (bx, by - 0.25, 0.8), 'EXTERIOR', M['black'])
+    box(f'bikeBar{i}', (0.42, 0.03, 0.03), (bx, by + 0.5, 0.85), 'EXTERIOR', M['steel'])
+for i, x in enumerate((LOT_X['GARAGE'] + 2.0, LOT_X['MILANO'] - 3.5, LOT_X['FARMACIA'] + 4.0)):
+    cyl(f'manhole{i}', 0.32, 0.02, (x, (ROAD_Y0 + ROAD_Y1)/2 - T + 2.2 - (i % 2) * 4.4, -0.07), 'EXTERIOR', M['steelDark'], seg=14)
+DX, DY = LOT_X['BANK'] + 2.5, BACK + T + 1.4
+box('dumpsterBody', (1.5, 0.9, 1.0), (DX, DY, 0.55), 'EXTERIOR', M['green'])
+box('dumpsterLid', (1.54, 0.94, 0.08), (DX, DY, 1.09), 'EXTERIOR', M['pineDark'])
+for i, (wx, wy) in enumerate([(-0.6, -0.35), (0.6, -0.35), (-0.6, 0.35), (0.6, 0.35)]):
+    cyl(f'dumpsterWheel{i}', 0.08, 0.06, (DX + wx, DY + wy, 0.08), 'EXTERIOR', M['rubber'], seg=8, rot=(math.pi/2, 0, 0))
+for i in range(3):
+    box(f'binBag{i}', (0.5, 0.45, 0.4), (DX + 1.2 + (i % 2) * 0.4, DY - 0.2 + (i // 2) * 0.4, 0.2 + (0.35 if i == 2 else 0.0)), 'EXTERIOR', M['black'])
+PSX, PSY = LOT_X['BANK'] + 3.6, ROAD_Y0 + 0.35
+cyl('parkSignPole', 0.03, 2.4, (PSX, PSY, 1.2), 'EXTERIOR', M['steelDark'], seg=8)
+box('parkSign', (0.44, 0.03, 0.44), (PSX, PSY, 2.5), 'EXTERIOR', M['blue'])
+text_mesh('parkSignText', 'P', 0.28, (PSX, PSY - 0.02, 2.4), 'EXTERIOR', M['white'], extrude=0.004, rot=(math.pi/2, 0, 0))
+for i, x in enumerate((LOT_X['FARMACIA'] - 3.9, LOT_X['FARMACIA'] - 2.1)):
+    cyl(f'pharmaPot{i}', 0.18, 0.45, (x, FRONT - 0.5, 0.2), 'EXTERIOR', M['wallTerracotta'], seg=10, r2=0.22)
+    sphere(f'pharmaPlant{i}', 0.32, (x, FRONT - 0.5, 0.65), 'EXTERIOR', M['pine'], seg=8, rings=6)
+x0 = LOT_X['GARAGE'] + PITCH/2 - 0.3; x1 = LOT_X['MILANO'] + PITCH/2 - 0.3
+for i in range(int((x1 - x0) / 0.75)):
+    pennant(f'pennant{i}', 0.3, 0.34, (x0 + 0.55 + i * 0.75, ROAD_Y0 - 0.5, 3.85 - 0.19), 'EXTERIOR', M[('pink', 'yellow', 'blue', 'green', 'orange')[i % 5]])
+
+# ---- the billboard on the bank's roof: the first screen's name, role and way in, painted at runtime.
+#      Nothing here is baked: `heroScreen` is a SCREENS plane and the frame and posts wear a matcap
+#      (DYNAMIC), so the words can change without an atlas changing.
+BBX, BBY, BBZ = LOT_X['BANK'], YB - 0.9, 3.6 + 0.3
+for i, x in enumerate((-3.4, 3.4)):
+    cyl(f'heroPost{i}', 0.09, 2.6, (BBX + x, BBY, BBZ + 1.3), 'DYNAMIC', M['steelDark'], seg=10)
+box('heroFrame', (8.3, 0.14, 3.9), (BBX, BBY, BBZ + 3.0), 'DYNAMIC', M['black'])
+plane('heroScreen', 8.0, 3.6, (BBX, BBY - 0.09, BBZ + 3.0), 'SCREENS', M['screenOff'])
+box('heroHitBox', (8.4, 0.5, 4.0), (BBX, BBY, BBZ + 3.0), 'HITBOX', M['hitbox'])
+
 # ================================================================ world, washes, cameras
 OX = 0.0
 world = bpy.data.worlds.get('World') or bpy.data.worlds.new('World')
@@ -741,6 +857,8 @@ def camera(name, loc, lens):
 cam = camera('Camera', (-14.0, -42.0, 16.0), 32)
 cam2 = camera('CameraBeach', (LOT_X['BEACH'] - 6.0, -16.0, 6.0), 28)
 cam3 = camera('CameraBack', (26.0, 30.0, 14.0), 30)
+cam4 = camera('CameraAtm', (LOT_X['BANK'] - 2.2, -9.0, 2.4), 45)
+cam5 = camera('CameraArcade', (LOT_X['MILANO'] + 0.9, -8.6, 2.2), 45)
 scene.camera = cam
 for ob in COLL['HITBOX'].objects:
     ob.display_type = 'WIRE'; ob.hide_render = True
@@ -755,7 +873,9 @@ scene.eevee.use_bloom = True; scene.eevee.bloom_intensity = 0.08; scene.eevee.us
 scene.eevee.taa_render_samples = 16
 for camname, fn, res, look in (('Camera', 'preview_street.png', (1600, 800), (0.0, 0.0, 1.8)),
                                ('CameraBeach', 'preview_beach.png', (1100, 700), (LOT_X['BEACH'], 2.0, 1.4)),
-                               ('CameraBack', 'preview_back.png', (1400, 800), (0.0, 0.0, 1.8))):
+                               ('CameraBack', 'preview_back.png', (1400, 800), (0.0, 0.0, 1.8)),
+                               ('CameraAtm', 'preview_atm.png', (1000, 700), (LOT_X['BANK'] - 4.6, -4.2, 1.2)),
+                               ('CameraArcade', 'preview_arcade.png', (1000, 700), (LOT_X['MILANO'] - 1.5, -4.0, 1.3))):
     tgt.location = look
     scene.camera = bpy.data.objects[camname]
     scene.render.resolution_x, scene.render.resolution_y = res

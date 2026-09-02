@@ -22,11 +22,12 @@ export default async function Page(props: { params: Promise<{ locale: string }> 
       <Cinema
         dict={dict.work}
         hero={dict.hero}
-        calendar={dict.calendar}
         nav={dict.nav}
         about={dict.about}
         process={dict.process}
         contact={dict.contact}
+        arcade={dict.arcade}
+        atm={dict.atm}
         locale={locale}
       />
       <Work dict={dict.work} label={dict.nav.items.work} />

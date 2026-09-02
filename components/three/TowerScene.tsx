@@ -20,12 +20,14 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import {
+  BackSide,
   Box3,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
   CircleGeometry,
   Color,
+  CylinderGeometry,
   DoubleSide,
   Group,
   Layers,
@@ -37,7 +39,6 @@ import {
   Points,
   PointsMaterial,
   Quaternion,
-  RepeatWrapping,
   ShaderMaterial,
   SRGBColorSpace,
   Texture,
@@ -56,15 +57,39 @@ import { cinema } from '@/lib/motion/cinema'
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
 import { SCENE } from '@/lib/motion/sceneAssets'
 import { damp } from '@/lib/motion/pointer'
-import type { ScreenView } from '@/lib/screen'
+import { MACHINE_MESH, type Billboard, type Machine, type ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
+
+import { SCREEN_PAINTERS, makeArcadeAttract, makeBillboard, type Painter } from './screens'
 
 const TOWER = SCENE.tower.path
 const DRACO = '/draco/'
 
-/** Where the wide shot looks: the middle of the tower, not a desk. */
-// A little to the right of the tower's axis, so the building sits beside the copy instead of under it.
-// Left of the street's centre (x≈3), so the row sits in the right two thirds beside the copy.
+/**
+ * The wide shot, fitted to the frame.
+ *
+ * The street is sixty metres wide and five tall. On a landscape frame the
+ * whole row fits across, seen from the left, above and in front. A portrait
+ * frame cannot hold the row without making it a thread across the middle, so
+ * there the camera stands over the garage and the bank, tilted down, and the
+ * rest of the street is a swipe away. Both are solved from the field of view
+ * and the aspect rather than typed, so a resize re-fits instead of re-guessing.
+ */
+type Shot = { position: Vector3; target: Vector3 }
+
+function homeFor(aspect: number, fov: number): Shot {
+  const portrait = aspect < 1
+  const tangent = Math.tan((fov * Math.PI) / 360)
+  const halfWidth = portrait ? 11 : 33
+  const distance = Math.max(halfWidth / (tangent * aspect), 11 / tangent) * 1.08
+  // Portrait looks at the seam between the garage and the bank, so both lots
+  // and the reception monitor inside the garage are in the frame.
+  const target = portrait ? new Vector3(-18, 0.5, 0) : new Vector3(-2, 1.5, 0)
+  const bearing = (portrait ? new Vector3(-0.22, 0.62, 0.75) : new Vector3(-0.34, 0.18, 0.92)).normalize()
+  return { position: target.clone().addScaledVector(bearing, distance), target }
+}
+
+/** Where the wide shot looks before the first frame has been measured. */
 const HOME_LOOK = new Vector3(-2.0, 1.5, 0)
 
 /**
@@ -200,7 +225,7 @@ function tube(context: CanvasRenderingContext2D): void {
 
 function MonitorScreen({
   project,
-  panel,
+  register,
   view,
   hint,
   onEnter,
@@ -208,7 +233,7 @@ function MonitorScreen({
   quaternion,
 }: {
   project: Project
-  panel: RefObject<Mesh | null>
+  register: (entry: MachineEntry | null) => void
   view: ScreenView
   hint: string
   onEnter: () => void
@@ -340,7 +365,7 @@ function MonitorScreen({
 
   return (
     <mesh
-      ref={panel}
+      ref={(mesh) => register(mesh ? { mesh, w: PANEL_W, h: PANEL_H } : null)}
       position={position}
       quaternion={quaternion}
       onClick={(event) => {
@@ -422,14 +447,19 @@ const PANEL_CORNERS = [
   [-0.5, 0.5],
 ] as const
 
-function PanelProjection({ panel }: { panel: RefObject<Mesh | null> }) {
+/** One screen the camera can walk up to: the live plane in its frame, and its size in metres. */
+type MachineEntry = { mesh: Mesh; w: number; h: number }
+type Machines = Record<Machine, MachineEntry | null>
+
+function PanelProjection({ machines, machine }: { machines: RefObject<Machines>; machine: Machine }) {
   const { camera, size } = useThree()
   const corner = useMemo(() => new Vector3(), [])
   const last = useRef('')
 
   useFrame(() => {
-    const mesh = panel.current
-    if (!mesh) return
+    const entry = machines.current[machine]
+    if (!entry) return
+    const mesh = entry.mesh
 
     let minX = Infinity
     let minY = Infinity
@@ -437,7 +467,7 @@ function PanelProjection({ panel }: { panel: RefObject<Mesh | null> }) {
     let maxY = -Infinity
 
     for (const [x, y] of PANEL_CORNERS) {
-      corner.set(x * PANEL_W, y * PANEL_H, 0)
+      corner.set(x * entry.w, y * entry.h, 0)
       mesh.localToWorld(corner)
       corner.project(camera)
       const px = ((corner.x + 1) / 2) * size.width
@@ -482,10 +512,15 @@ const zoom = {
   /** the hotspot the camera is currently parked on, if any */
   parked: null as string | null,
 }
-const HOME_POSITION = new Vector3(-26, 14, 66)
+/** The fitted wide shot for the current frame. TowerScene writes it on every resize. */
+let home: Shot = { position: new Vector3(-26, 14, 66), target: HOME_LOOK.clone() }
+
+function setHome(shot: Shot): void {
+  home = shot
+}
 
 export function zoomHome(): void {
-  zoom.goal = { position: HOME_POSITION.clone(), target: HOME_LOOK.clone(), key: 'home' }
+  zoom.goal = { position: home.position.clone(), target: home.target.clone(), key: 'home' }
   zoom.parked = null
 }
 
@@ -507,7 +542,15 @@ function zoomTo(bounds: Box3, key: string, camera: PerspectiveCamera): void {
   zoom.parked = key
 }
 
-function CameraRig({ panel, controls }: { panel: RefObject<Mesh | null>; controls: RefObject<OrbitControlsImpl | null> }) {
+function CameraRig({
+  machines,
+  machine,
+  controls,
+}: {
+  machines: RefObject<Machines>
+  machine: Machine
+  controls: RefObject<OrbitControlsImpl | null>
+}) {
   const { camera, size } = useThree()
   /** where the walk starts: the orbit position at the moment the Cinema goes live */
   const walkFrom = useMemo(() => ({ position: new Vector3(), target: new Vector3() }), [])
@@ -533,9 +576,10 @@ function CameraRig({ panel, controls }: { panel: RefObject<Mesh | null>; control
   }, [controls])
 
   useFrame((_, delta) => {
-    const mesh = panel.current
+    const entry = machines.current[machine]
     const orbit = controls.current
-    if (!mesh || !orbit) return
+    if (!entry || !orbit) return
+    const mesh = entry.mesh
     const step = Math.min(delta, 1 / 20) * 1000
     zoom.lastStep = step
     const { progress, live } = cinema()
@@ -581,8 +625,8 @@ function CameraRig({ panel, controls }: { panel: RefObject<Mesh | null>; control
 
     mesh.getWorldPosition(focus)
     mesh.getWorldScale(scale)
-    const halfHeight = (PANEL_H * scale.y) / 2
-    const halfWidth = (PANEL_W * scale.x) / 2
+    const halfHeight = (entry.h * scale.y) / 2
+    const halfWidth = (entry.w * scale.x) / 2
 
     // Distance at which the panel fits the frame, with room for the bezel and desk around it.
     const fit = Math.max(halfHeight / tangent, halfWidth / (tangent * aspect))
@@ -643,13 +687,18 @@ const BAKED: Record<string, keyof typeof SCENE> = {
   exteriorJoined: 'exterior',
 }
 const EMISSIVE_RULES: readonly (readonly [RegExp, string])[] = [
-  [/^(neonPink|ledStripBench)$/, PALETTE.pink],
+  [/^(neonPink|neonPinkArcade|ledStripBench)$/, PALETTE.pink],
+  // The traffic light's three lamps. Their colours are swapped every few
+  // seconds in the frame loop; these are the colours they start with.
+  [/^trafficRed$/, PALETTE.red],
+  [/^trafficAmber$/, PALETTE.orange],
+  [/^trafficGreen$/, PALETTE.led],
   [/^[GBMF]win[LRB]\d+Pane$/, PALETTE.window],
   [/^[GBMF]lamp[LRB]Bulb$|^FbillboardLamp\d$|^MroofBulb\d$|^deckBulb\d+$|^lampGlobe[LR]\d$|^parkedHead[LR]$/, PALETTE.warm],
   [/^BantennaLED$/, PALETTE.red],
   [/^neonOrangeBar$/, PALETTE.orange],
   [/^(neonBlue|neonBlueSpille|storageLight|vendLight)$/, PALETTE.blue],
-  [/^(neonYellow|neonYellowBank|poleLight|atmLight|madonnina)$/, PALETTE.yellow],
+  [/^(neonYellow|neonYellowBank|poleLight|atmLight|atmOutLight|madonnina)$/, PALETTE.yellow],
   [/^(neonGreen|neonGreenFarmacia|neonGreenBar|cross[VH]|ledStripPharma)$/, PALETTE.green],
   [/^(neonWhiteMilano|neonWhiteBar)$/, PALETTE.white],
   [/^neonRedBar$/, PALETTE.red],
@@ -661,10 +710,27 @@ const SIGN_COLOURS: Record<string, string> = {
   Red: PALETTE.red, Blue: PALETTE.blue, Pink: PALETTE.pink, Green: PALETTE.green, Orange: PALETTE.orange, Yellow: PALETTE.yellow,
 }
 const SIGN = /^(garage|bank|milano|farmacia|bar|credits)(Black|Tip|White|Red|Blue|Pink|Green|Orange|Yellow)$/
-const SCREENS = /^(vendScreen|garageSmallScreen|atmScreen|ticketScreen|milanoScreen|pharmaScreen|easelFrontGraphic|barScreen)$/
-const DYNAMIC = /^(fan[12]|dish|dishStand|spareWheel|spareHub|vaultWheel|vaultSpoke\d|vespa\w+)$/
-/** The plane the DOM interface is pinned to. Hidden; MonitorScreen occupies its frame. */
-const PANEL_MESH = 'garageScreen'
+const SCREENS = /^(vendScreen|garageSmallScreen|atmScreen|ticketScreen|milanoScreen|pharmaScreen|easelFrontGraphic|barScreen|heroScreen)$/
+const DYNAMIC = /^(fan[12]|dish|dishStand|spareWheel|spareHub|vaultWheel|vaultSpoke\d|vespa\w+|heroPost\d|heroFrame)$/
+/** GLB plane -> the machine whose screen it is. Hidden; a live plane of our own takes its frame. */
+const MACHINE_BY_MESH: Record<string, Machine> = Object.fromEntries(
+  (Object.keys(MACHINE_MESH) as Machine[]).map((machine) => [MACHINE_MESH[machine], machine]),
+)
+/** Hotspot -> the small screen behind it, which brightens while the pointer is over it. */
+const WAKES: Record<string, string> = {
+  vendHitBox: 'vendScreen',
+  garageSmallHitBox: 'garageSmallScreen',
+  atmHitBox: 'atmScreen',
+  ticketHitBox: 'ticketScreen',
+  milanoScreenHitBox: 'milanoScreen',
+  pharmaScreenHitBox: 'pharmaScreen',
+  easelHitBox: 'easelFrontGraphic',
+  barScreenHitBox: 'barScreen',
+}
+const WHITE = new Color('#ffffff')
+const TRAFFIC_ON = { red: PALETTE.red, amber: PALETTE.orange, green: PALETTE.led } as const
+/** Dark enough to fall under the bloom threshold: an unlit lamp, not a dim one. */
+const TRAFFIC_OFF = '#0a0a0c'
 
 /**
  * The five lots, in the GLB's own metres (Blender: lot pitch 12.1 m, Milano at
@@ -689,31 +755,6 @@ function lotBox(lot: (typeof LOTS)[number], root: Object3D): Box3 {
   return box.applyMatrix4(root.matrixWorld)
 }
 
-/**
- * Which screen a click opens. The sign post is the menu; the props on each
- * floor are shortcuts into the same five views.
- */
-const TOWER_HOTSPOTS: Record<string, ScreenView> = {
-  garageHitBox: 'home',
-  garageScreenHitBox: 'work',
-  vendHitBox: 'work',
-  carHitBox: 'work',
-  garageSmallHitBox: 'process',
-  bankHitBox: 'process',
-  atmHitBox: 'process',
-  ticketHitBox: 'process',
-  milanoHitBox: 'about',
-  milanoScreenHitBox: 'about',
-  vespaHitBox: 'about',
-  creditsHitBox: 'about',
-  easelHitBox: 'about',
-  farmaciaHitBox: 'contact',
-  pharmaScreenHitBox: 'contact',
-  // Bar Martiri is one of the two shipped projects, so its lot opens the work
-  barHitBox: 'work',
-  barScreenHitBox: 'work',
-}
-
 /** A sphere-shaded gradient drawn once: the matcap for the moving metal parts. */
 function makeMatcap(base: string, highlight: string, rim: string): Texture {
   const s = 256
@@ -732,10 +773,23 @@ function makeMatcap(base: string, highlight: string, rim: string): Texture {
   return texture
 }
 
-/** Dark glass for the secondary screens (the live panel is the reception monitor). */
+/** Dark glass for a screen nothing paints. */
 function screenMaterial(): MeshBasicMaterial {
   return new MeshBasicMaterial({ color: '#05060c', side: DoubleSide })
 }
+
+/** A screen in the street that paints itself: its canvas, its painter, and when it last did. */
+type LiveScreen = {
+  name: string
+  material: MeshBasicMaterial
+  texture: CanvasTexture
+  context: CanvasRenderingContext2D
+  painter: Painter
+  last: number
+}
+
+/** Where a machine's screen sits in the GLB and how big it is, read off the exported plane. */
+type MachineFrame = { position: Vector3; quaternion: Quaternion; w: number; h: number }
 
 type Dressed = {
   root: Group
@@ -743,11 +797,13 @@ type Dressed = {
   fans: Mesh[]
   vault: Mesh[]
   dishPivot: Group | null
-  panelPosition: Vector3
-  panelQuaternion: Quaternion
+  machines: Record<Machine, MachineFrame | null>
+  live: LiveScreen[]
+  signs: Map<string, { material: MeshBasicMaterial; base: Color }>
+  traffic: Partial<Record<'red' | 'amber' | 'green', MeshBasicMaterial>>
 }
 
-function dress(scene: Group, atlases: Record<string, Texture>): Dressed {
+function dress(scene: Group, atlases: Record<string, Texture>, painters: Record<string, Painter>): Dressed {
   const root = scene.clone(true)
   const matcap = makeMatcap('#9aa0a8', '#ffffff', PALETTE.blue)
   const matcapRed = makeMatcap('#c8202a', '#ffd0d0', PALETTE.pink)
@@ -756,8 +812,10 @@ function dress(scene: Group, atlases: Record<string, Texture>): Dressed {
   const hitboxes: Mesh[] = []
   const fans: Mesh[] = []
   const vault: Mesh[] = []
-  const panelPosition = new Vector3()
-  const panelQuaternion = new Quaternion()
+  const machines: Record<Machine, MachineFrame | null> = { monitor: null, arcade: null, atm: null }
+  const live: LiveScreen[] = []
+  const signs = new Map<string, { material: MeshBasicMaterial; base: Color }>()
+  const traffic: Dressed['traffic'] = {}
 
   root.updateMatrixWorld(true)
   root.traverse((object) => {
@@ -769,18 +827,46 @@ function dress(scene: Group, atlases: Record<string, Texture>): Dressed {
     }
     const emissive = EMISSIVE_RULES.find(([pattern]) => pattern.test(name))
     if (emissive) {
-      object.material = new MeshBasicMaterial({ color: emissive[1], toneMapped: false })
+      const material = new MeshBasicMaterial({ color: emissive[1], toneMapped: false })
+      object.material = material
       object.layers.enable(BLOOM_LAYER)
+      const lamp = name.match(/^traffic(Red|Amber|Green)$/)
+      if (lamp) traffic[lamp[1].toLowerCase() as 'red' | 'amber' | 'green'] = material
       return
     }
-    if (name === PANEL_MESH) {
-      object.getWorldPosition(panelPosition)
-      object.getWorldQuaternion(panelQuaternion)
+    const machine = MACHINE_BY_MESH[name]
+    if (machine) {
+      // The exported plane is the frame. Its size is read rather than typed, so
+      // a screen resized in Blender is resized here without anyone remembering.
+      object.geometry.computeBoundingBox()
+      const size = object.geometry.boundingBox!.getSize(new Vector3())
+      machines[machine] = {
+        position: object.getWorldPosition(new Vector3()),
+        quaternion: object.getWorldQuaternion(new Quaternion()),
+        w: size.x,
+        h: size.y,
+      }
       object.visible = false
       return
     }
     if (SCREENS.test(name)) {
-      object.material = screenMaterial()
+      const painter = painters[name] ?? SCREEN_PAINTERS[name]
+      if (!painter) {
+        object.material = screenMaterial()
+        return
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = painter.w
+      canvas.height = painter.h
+      const context = canvas.getContext('2d')!
+      const texture = new CanvasTexture(canvas)
+      // glTF UVs, the same convention as the baked atlases.
+      texture.flipY = false
+      texture.colorSpace = SRGBColorSpace
+      texture.anisotropy = 4
+      const material = new MeshBasicMaterial({ map: texture, toneMapped: false, side: DoubleSide })
+      object.material = material
+      live.push({ name, material, texture, context, painter, last: -1 })
       return
     }
     if (/HitBox$/.test(name)) {
@@ -793,12 +879,15 @@ function dress(scene: Group, atlases: Record<string, Texture>): Dressed {
     if (sign) {
       const part = sign[2]
       const colour = part === 'Black' || part === 'Tip' ? PALETTE.black : part === 'White' ? PALETTE.white : SIGN_COLOURS[part]
-      object.material = new MeshBasicMaterial({ color: colour, toneMapped: false })
+      const material = new MeshBasicMaterial({ color: colour, toneMapped: false })
+      object.material = material
+      // The coloured board is what lifts under the pointer; the black backing and the white letters stay.
+      if (SIGN_COLOURS[part]) signs.set(sign[1], { material, base: material.color.clone() })
       return
     }
     if (DYNAMIC.test(name)) {
       object.material = new MeshMatcapMaterial({
-        matcap: name === 'vespaBody' ? matcapRed : /^vespa(Seat|Wheel[FB])$/.test(name) ? matcapDark : matcap,
+        matcap: name === 'vespaBody' ? matcapRed : /^vespa(Seat|Wheel[FB])$|^heroFrame$/.test(name) ? matcapDark : matcap,
       })
       if (/^fan/.test(name)) fans.push(object)
       if (/^vault/.test(name)) vault.push(object)
@@ -821,23 +910,13 @@ function dress(scene: Group, atlases: Record<string, Texture>): Dressed {
     }
   }
 
-  return { root, hitboxes, fans, vault, dishPivot, panelPosition, panelQuaternion }
+  return { root, hitboxes, fans, vault, dishPivot, machines, live, signs, traffic }
 }
 
 function hitboxFor(object: Object3D): Mesh | undefined {
   let cursor: Object3D | null = object
   while (cursor) {
     if (cursor instanceof Mesh && /HitBox$/.test(cursor.name)) return cursor
-    cursor = cursor.parent
-  }
-  return undefined
-}
-
-function towerViewFor(object: Object3D): ScreenView | undefined {
-  let cursor: Object3D | null = object
-  while (cursor) {
-    const view = TOWER_HOTSPOTS[cursor.name]
-    if (view) return view
     cursor = cursor.parent
   }
   return undefined
@@ -863,30 +942,153 @@ function useAtlases(): Record<string, Texture> {
   }, [loaded])
 }
 
+/**
+ * A machine's screen from across the street: its attract loop, painted into a
+ * canvas at the painter's own rate. Once the walk lands, the DOM interface
+ * pinned to this plane takes over and this is what is underneath it.
+ */
+function AttractScreen({
+  frame,
+  painter,
+  wake,
+  hovered,
+  register,
+  onEnter,
+}: {
+  frame: MachineFrame
+  painter: Painter
+  /** The hitbox whose hover brightens this screen. */
+  wake: string
+  hovered: RefObject<string | null>
+  register: (entry: MachineEntry | null) => void
+  onEnter: () => void
+}) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = painter.w
+    canvas.height = painter.h
+    const next = new CanvasTexture(canvas)
+    next.colorSpace = SRGBColorSpace
+    next.anisotropy = 8
+    return next
+  }, [painter])
+  const material = useMemo(() => new MeshBasicMaterial({ map: texture, toneMapped: false }), [texture])
+  const clock = useRef(0)
+  const last = useRef(-1)
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05)
+    const t = (clock.current += dt)
+    if (last.current < 0 || t - last.current >= 1 / painter.fps) {
+      const context = (texture.image as HTMLCanvasElement).getContext('2d')
+      if (context) {
+        painter.paint(context, painter.w, painter.h, t)
+        texture.needsUpdate = true
+        last.current = t
+      }
+    }
+    const goal = hovered.current === wake ? 1.5 : 1
+    material.color.setScalar(damp(material.color.r, goal, 9, dt * 1000))
+  })
+
+  useEffect(
+    () => () => {
+      texture.dispose()
+      material.dispose()
+    },
+    [texture, material],
+  )
+
+  return (
+    <mesh
+      ref={(mesh) => register(mesh ? { mesh, w: frame.w, h: frame.h } : null)}
+      position={frame.position}
+      quaternion={frame.quaternion}
+      material={material}
+      onClick={(event) => {
+        event.stopPropagation()
+        onEnter()
+      }}
+      onPointerOver={(event) => {
+        event.stopPropagation()
+        hovered.current = wake
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerOut={() => {
+        if (hovered.current === wake) hovered.current = null
+        document.body.style.cursor = ''
+      }}
+    >
+      <planeGeometry args={[frame.w, frame.h]} />
+    </mesh>
+  )
+}
+
 function TowerModel({
   onEnter,
   onView,
   project,
-  panel,
+  machines,
   view,
   hint,
+  billboard,
 }: {
-  onEnter: () => void
+  onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
   project: Project
-  panel: RefObject<Mesh | null>
+  machines: RefObject<Machines>
   view: ScreenView
   hint: string
+  billboard: Billboard
 }) {
   const { scene } = useGLTF(TOWER, DRACO)
   const atlases = useAtlases()
-  const dressed = useMemo(() => dress(scene as Group, atlases), [scene, atlases])
+  // The billboard's painter carries the visitor's language, so it is made here
+  // rather than in the static table beside the other screens.
+  const painters = useMemo(() => ({ heroScreen: makeBillboard(billboard) }), [billboard])
+  const dressed = useMemo(() => dress(scene as Group, atlases, painters), [scene, atlases, painters])
+  /** The hotspot under the pointer, if any. Read in the frame loop, never rendered. */
+  const hovered = useRef<string | null>(null)
+  const clock = useRef(0)
+  const arcadeAttract = useMemo(() => makeArcadeAttract(), [])
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
+    const t = (clock.current += dt)
     for (const fan of dressed.fans) fan.rotation.z -= dt * 6
     for (const part of dressed.vault) part.rotation.x += dt * 0.6
     if (dressed.dishPivot) dressed.dishPivot.rotation.y += dt * 0.35
+
+    // The screens that paint themselves, each at its own rate.
+    for (const screen of dressed.live) {
+      const { fps } = screen.painter
+      if (screen.last >= 0 && (fps === 0 || t - screen.last < 1 / fps)) continue
+      screen.painter.paint(screen.context, screen.painter.w, screen.painter.h, t)
+      screen.texture.needsUpdate = true
+      screen.last = t
+    }
+
+    // Hover wakes what it is over. The screen behind a hotspot is driven
+    // brighter and a board on the sign post lifts toward white, so the street
+    // answers the pointer before anything is pressed.
+    const over = hovered.current
+    for (const screen of dressed.live) {
+      const goal = over && WAKES[over] === screen.name ? 1.55 : 1
+      screen.material.color.setScalar(damp(screen.material.color.r, goal, 9, dt * 1000))
+    }
+    dressed.signs.forEach((sign, key) => {
+      const goal = over === `${key}HitBox` ? 0.45 : 0
+      const lift = damp((sign.material.userData.lift as number | undefined) ?? 0, goal, 9, dt * 1000)
+      sign.material.userData.lift = lift
+      sign.material.color.copy(sign.base).lerp(WHITE, lift)
+    })
+
+    // The traffic light runs its cycle: red, green, amber, and round again.
+    const phase = t % 12
+    const lit = phase < 6 ? 'red' : phase < 10.5 ? 'green' : 'amber'
+    for (const lamp of ['red', 'amber', 'green'] as const) {
+      dressed.traffic[lamp]?.color.set(lamp === lit ? TRAFFIC_ON[lamp] : TRAFFIC_OFF)
+    }
   })
 
   const { camera } = useThree()
@@ -899,10 +1101,24 @@ function TowerModel({
   const activate = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
     const hit = hitboxFor(event.object)
-    // the reception monitor walks straight in
+    // the three machines walk straight in: the reception monitor, the cabinet, the cash machine
     if (hit && hit.name === 'garageScreenHitBox') {
       onView('work')
-      onEnter()
+      onEnter('monitor')
+      return
+    }
+    if (hit && hit.name === 'arcadeHitBox') {
+      onEnter('arcade')
+      return
+    }
+    if (hit && hit.name === 'atmOutHitBox') {
+      onEnter('atm')
+      return
+    }
+    // the billboard says "open the garage", so it does what it says
+    if (hit && hit.name === 'heroHitBox') {
+      onView('home')
+      onEnter('monitor')
       return
     }
     // the road and pavement are "nothing": zoom back out
@@ -916,7 +1132,7 @@ function TowerModel({
     const lot = signed ? LOTS.find((l) => l.key === signed[1])! : lotByX(local.x)
     if (zoom.parked === lot.key) {
       onView(lot.view)
-      onEnter()
+      onEnter('monitor')
       return
     }
     onView(lot.view)
@@ -932,30 +1148,65 @@ function TowerModel({
         onPointerOver={(event: ThreeEvent<PointerEvent>) => {
           if (!/HitBox$/.test(event.object.name)) return
           event.stopPropagation()
+          hovered.current = event.object.name
           document.body.style.cursor = 'pointer'
         }}
-        onPointerOut={() => {
+        onPointerOut={(event: ThreeEvent<PointerEvent>) => {
+          if (hovered.current === event.object.name) hovered.current = null
           document.body.style.cursor = ''
         }}
       />
-      <MonitorScreen
-        project={project}
-        panel={panel}
-        view={view}
-        hint={hint}
-        position={dressed.panelPosition}
-        quaternion={dressed.panelQuaternion}
-        onEnter={() => {
-          onView('work')
-          onEnter()
-        }}
-      />
+      {dressed.machines.monitor ? (
+        <MonitorScreen
+          project={project}
+          register={(entry) => {
+            machines.current.monitor = entry
+          }}
+          view={view}
+          hint={hint}
+          position={dressed.machines.monitor.position}
+          quaternion={dressed.machines.monitor.quaternion}
+          onEnter={() => {
+            onView('work')
+            onEnter('monitor')
+          }}
+        />
+      ) : null}
+      {dressed.machines.arcade ? (
+        <AttractScreen
+          frame={dressed.machines.arcade}
+          painter={arcadeAttract}
+          wake="arcadeHitBox"
+          hovered={hovered}
+          register={(entry) => {
+            machines.current.arcade = entry
+          }}
+          onEnter={() => onEnter('arcade')}
+        />
+      ) : null}
+      {dressed.machines.atm ? (
+        <AttractScreen
+          frame={dressed.machines.atm}
+          painter={SCREEN_PAINTERS.atmOutScreen}
+          wake="atmOutHitBox"
+          hovered={hovered}
+          register={(entry) => {
+            machines.current.atm = entry
+          }}
+          onEnter={() => onEnter('atm')}
+        />
+      ) : null}
     </>
   )
 }
 
-/** Stars on the upper hemisphere and a mirror floor: the two things that make the void read as a night. */
-function Night() {
+/**
+ * Stars on the upper hemisphere and a mirror floor: the two things that make
+ * the void read as a night. The mirror is a second render of the whole street
+ * every frame, so a phone goes without it: the road is dark there instead of
+ * reflective, and the frame rate is the thing that gets kept.
+ */
+function Night({ reflective }: { reflective: boolean }) {
   const stars = useMemo(() => {
     const n = 1400
     const position = new Float32Array(n * 3)
@@ -977,6 +1228,7 @@ function Night() {
     return points
   }, [])
   const mirror = useMemo(() => {
+    if (!reflective) return null
     const reflector = new Reflector(new CircleGeometry(70, 64), {
       clipBias: 0.003,
       textureWidth: 768,
@@ -987,16 +1239,60 @@ function Night() {
     reflector.rotation.x = -Math.PI / 2
     reflector.position.y = -0.05
     return reflector
+  }, [reflective])
+  const floor = useMemo(() => {
+    if (reflective) return null
+    const plane = new Mesh(new CircleGeometry(70, 64), new MeshBasicMaterial({ color: '#0a0c11' }))
+    plane.rotation.x = -Math.PI / 2
+    plane.position.y = -0.05
+    return plane
+  }, [reflective])
+  /**
+   * The sky. A drum around the whole scene, outside the star shell and inside
+   * the far plane, painted with one vertical gradient: the void overhead, a
+   * band of city glow at the horizon, and the void again below the road. It
+   * is the difference between a model floating in nothing and a street at
+   * night, and it costs one 2x256 texture and a cylinder.
+   */
+  const sky = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 2
+    canvas.height = 256
+    const context = canvas.getContext('2d')!
+    const gradient = context.createLinearGradient(0, 0, 0, 256)
+    gradient.addColorStop(0, ROOM_VOID)
+    gradient.addColorStop(0.55, '#070a18')
+    gradient.addColorStop(0.72, '#101a3c')
+    gradient.addColorStop(0.8, '#0a1028')
+    gradient.addColorStop(1, ROOM_VOID)
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 2, 256)
+    const texture = new CanvasTexture(canvas)
+    texture.colorSpace = SRGBColorSpace
+    const drum = new Mesh(
+      new CylinderGeometry(300, 300, 260, 48, 1, true),
+      new MeshBasicMaterial({ map: texture, side: BackSide, fog: false, depthWrite: false }),
+    )
+    // the horizon band lands a little above the road, where the buildings meet the night
+    drum.position.y = 74
+    return drum
   }, [])
   useEffect(() => () => {
     stars.geometry.dispose()
     ;(stars.material as PointsMaterial).dispose()
-    mirror.dispose()
-  }, [stars, mirror])
+    mirror?.dispose()
+    floor?.geometry.dispose()
+    ;(floor?.material as MeshBasicMaterial | undefined)?.dispose()
+    sky.geometry.dispose()
+    ;(sky.material as MeshBasicMaterial).map?.dispose()
+    ;(sky.material as MeshBasicMaterial).dispose()
+  }, [stars, mirror, floor, sky])
   return (
     <>
+      <primitive object={sky} />
       <primitive object={stars} />
-      <primitive object={mirror} />
+      {mirror ? <primitive object={mirror} /> : null}
+      {floor ? <primitive object={floor} /> : null}
     </>
   )
 }
@@ -1009,7 +1305,7 @@ function Night() {
  * frameloop="never": advance() runs the subscribers in order and skips its own
  * gl.render when any subscriber has a priority above zero.
  */
-function Bloom({ mirror }: { mirror: RefObject<Object3D | null> }) {
+function Bloom({ mirror, divisor }: { mirror: RefObject<Object3D | null>; divisor: number }) {
   const { gl, scene, camera, size } = useThree()
   const layer = useMemo(() => {
     const layers = new Layers()
@@ -1021,7 +1317,7 @@ function Bloom({ mirror }: { mirror: RefObject<Object3D | null> }) {
 
   const passes = useMemo(() => {
     const renderPass = new RenderPass(scene, camera)
-    const bloomPass = new UnrealBloomPass(new Vector2(size.width / 2, size.height / 2), 0.85, 0.55, 0.05)
+    const bloomPass = new UnrealBloomPass(new Vector2(size.width / divisor, size.height / divisor), 0.85, 0.55, 0.05)
     const bloomComposer = new EffectComposer(gl)
     bloomComposer.renderToScreen = false
     bloomComposer.addPass(renderPass)
@@ -1052,8 +1348,10 @@ function Bloom({ mirror }: { mirror: RefObject<Object3D | null> }) {
     passes.finalComposer.setPixelRatio(ratio)
     passes.bloomComposer.setSize(size.width, size.height)
     passes.finalComposer.setSize(size.width, size.height)
-    passes.bloomPass.resolution.set(size.width / 2, size.height / 2)
-  }, [passes, size, gl])
+    // A third of the frame on a phone, half on a desk: bloom is a blur, and a
+    // blur does not need the pixels it is spreading.
+    passes.bloomPass.resolution.set(size.width / divisor, size.height / divisor)
+  }, [passes, size, gl, divisor])
 
   useEffect(() => () => {
     passes.bloomComposer.dispose()
@@ -1097,26 +1395,38 @@ export function TowerScene({
   project,
   view,
   hint,
+  billboard,
+  machine,
   onEnter,
   onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
-  onEnter: () => void
+  billboard: Billboard
+  machine: Machine
+  onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
 }) {
-  const panel = useRef<Mesh>(null)
+  /** The three live screens, registered as they mount; the rig and the projection follow `machine`. */
+  const machines = useRef<Machines>({ monitor: null, arcade: null, atm: null })
   const mirror = useRef<Object3D>(null)
   const controls = useRef<OrbitControlsImpl>(null)
-  const { size } = useThree()
+  const { size, camera } = useThree()
   const compact = size.width < 760
-  const scale = compact ? 0.6 : size.width < 1180 ? 0.8 : 1
+
+  // Re-fit the wide shot to the frame, at mount and on every resize, and glide
+  // to it unless the visitor is somewhere on purpose: parked on a lot, or
+  // inside a machine.
+  useEffect(() => {
+    setHome(homeFor(size.width / Math.max(size.height, 1), (camera as PerspectiveCamera).fov ?? 38))
+    if (!zoom.parked && cinema().progress === 0) zoomHome()
+  }, [size.width, size.height, camera])
 
   return (
     <>
-      <CameraRig panel={panel} controls={controls} />
-      <PanelProjection panel={panel} />
+      <CameraRig machines={machines} machine={machine} controls={controls} />
+      <PanelProjection machines={machines} machine={machine} />
       {/*
         Free orbit. Drag turns the street through a full 360°, the wheel or a
         pinch zooms, a right-drag / two-finger drag pans along the road. The rig
@@ -1138,21 +1448,20 @@ export function TowerScene({
       />
       <color attach="background" args={[ROOM_VOID]} />
       <group ref={mirror as RefObject<Group>}>
-        <Night />
+        <Night reflective={!compact} />
       </group>
-      <Bloom mirror={mirror} />
+      <Bloom mirror={mirror} divisor={compact ? 3 : 2} />
       <Suspense fallback={null}>
         <SceneReady />
-        <group scale={scale}>
-          <TowerModel
-            project={project}
-            panel={panel}
-            view={view}
-            hint={hint}
-            onEnter={onEnter}
-            onView={onView}
-          />
-        </group>
+        <TowerModel
+          project={project}
+          machines={machines}
+          view={view}
+          hint={hint}
+          billboard={billboard}
+          onEnter={onEnter}
+          onView={onView}
+        />
       </Suspense>
     </>
   )
