@@ -21,7 +21,14 @@ import { THEME_ATTRIBUTE, applyTheme, resolveTheme, writeChoice } from '@/lib/th
  * turns over on its own at seven, which is the only way a promise about night
  * and day survives a tab left open.
  */
-export function ThemeToggle({ dict }: { dict: Dictionary['hero'] }) {
+export function ThemeToggle({
+  dict,
+  className = 'plate group cursor-pointer transition-colors duration-[var(--f4)] hover:text-slate-mark',
+}: {
+  dict: Dictionary['hero']
+  /** The slate by default; the header hands it a bar-sized control instead. */
+  className?: string
+}) {
   useEffect(() => {
     // The clock keeps running underneath, so once a minute the page is asked
     // whether the hour has moved past a boundary. Once a minute, not once a
@@ -46,11 +53,7 @@ export function ThemeToggle({ dict }: { dict: Dictionary['hero'] }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="plate group cursor-pointer transition-colors duration-[var(--f4)] hover:text-slate-mark"
-    >
+    <button type="button" onClick={toggle} className={className}>
       {/* The accessible name is the destination, and it changes with the sheet,
           which is what tells a screen reader where the switch stands. Both
           names are in the markup and the wrong one is hidden the same way the

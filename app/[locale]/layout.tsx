@@ -1,11 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import { notFound } from 'next/navigation'
 import Script from 'next/script'
 
 import '../globals.css'
 
-import { Cursor } from '@/components/motion/Cursor'
 import { SmoothScroll } from '@/components/motion/SmoothScroll'
 import { SiteFooter } from '@/components/ui/SiteFooter'
 import { Grain } from '@/components/ui/Grain'
@@ -82,6 +81,18 @@ export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }))
 }
 
+/**
+ * The street runs edge to edge on a phone, so the page has to be allowed
+ * under the notch and the home indicator: without `viewport-fit: cover` every
+ * `env(safe-area-inset-*)` in the stylesheet is zero and the rules that read
+ * them are dead code.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export async function generateMetadata(props: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
@@ -154,11 +165,11 @@ export default async function RootLayout(props: {
         </a>
 
         <SmoothScroll />
-        <Cursor />
-        <Loader dict={dict.nav} name={dict.hero.name} />
+        <Loader dict={dict.nav} />
         <Grain />
         <SiteHeader
           nav={dict.nav}
+          hero={dict.hero}
           locale={locale}
           scenes={buildScenes(dict)}
           name={dict.hero.name}

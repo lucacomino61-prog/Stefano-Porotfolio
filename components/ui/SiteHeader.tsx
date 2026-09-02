@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
+import { SoundToggle } from '@/components/ui/SoundToggle'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { LOCALES, type Locale } from '@/lib/i18n/config'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { getScroller, scrollToTarget } from '@/lib/motion/scroller'
@@ -44,11 +46,14 @@ function timecode(progress: number): string {
  */
 export function SiteHeader({
   nav,
+  hero,
   locale,
   scenes,
   name,
 }: {
   nav: Dictionary['nav']
+  /** The two switches used to sit on slates in the first viewport; the bar carries them now that the first viewport is the street alone. */
+  hero: Dictionary['hero']
   locale: Locale
   scenes: Scene[]
   name: string
@@ -175,6 +180,13 @@ export function SiteHeader({
           </li>
         ))}
       </ul>
+
+      {/* The apparatus: sound and the sheet. Controls, so they stay real DOM
+          rather than going into the street with the rest of the first screen. */}
+      <div className="site-switches">
+        <SoundToggle dict={hero} className="site-switch" />
+        <ThemeToggle dict={hero} className="site-switch" />
+      </div>
     </header>
   )
 }

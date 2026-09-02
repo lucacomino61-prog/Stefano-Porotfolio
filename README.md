@@ -86,17 +86,46 @@ but nothing claims a client, an outcome, a metric or a date it cannot support.
 
 ## Loading
 
-The first screen is a room that has to arrive over the network, so
-[components/ui/Loader.tsx](components/ui/Loader.tsx) covers the wait. The number
-on it is real: files arrived out of files expected, counted off resource timing,
-which does not care that R3F loads through its own manager rather than three's
-default one. Dismissal is separate from the count and comes from `SceneReady`
-inside the scene's Suspense boundary — a component that cannot mount until its
-siblings' resources exist cannot be wrong about whether they exist.
+The first screen is a street that has to arrive over the network, so
+[components/ui/Loader.tsx](components/ui/Loader.tsx) covers the wait with the
+street being written: lines of `build_street.py` and `bake_export.py`, the real
+calls and the real mesh names, typed into a terminal as the files land. The
+typing is driven by the actual byte progress (files arrived out of files
+expected, counted off resource timing, which does not care that R3F loads
+through its own manager) with a pace on top so it reads as typing rather than
+as a jump; the percentage in the corner is the same number. Readiness is
+separate from the count and comes from `SceneReady` inside the scene's Suspense
+boundary.
 
-Three ways out, and all of them are covered: the room finishes, the room says it
-is not coming (reduced motion), or a nine second deadline passes. A loading
-screen is the one component where a bug means nobody ever sees the site.
+It ends at a door. When the last line is typed and the street has said it is
+ready, an **Enter** control fades up (the Enter key does the same) and the
+visitor opens the site. Every path reaches it: the street finishes, the street
+says it is not coming (reduced motion, which also skips the typing), or a nine
+second deadline passes. Until the door is offered the overlay is out of the
+accessibility tree and inert; once it is, it is a dialog with one button in it.
+
+## The first screen
+
+The first screen is the street and nothing else. The name, the role and the
+way in are painted on the billboard on the bank's roof
+([components/three/screens.ts](components/three/screens.ts), `heroScreen`, in
+the visitor's language, with the clock in its corner), the sound and sheet
+switches sit in the bar, and the contact link is the bar's own. What stays in
+the DOM over the street is what the street cannot carry: a visually hidden
+heading for the document, and a control for the walk that is drawn only while
+it has keyboard focus, in the same register as the skip link.
+
+## Phones
+
+The same street, with three differences. The wide shot is solved from the
+frame's aspect (`homeFor` in `TowerScene`): a landscape frame holds the whole
+row, a portrait one stands over the garage and the bank, tilted down, and the
+rest of the street is a swipe away. The mirror road is a second render of the
+whole scene every frame, so below 760px the road is a dark floor instead;
+bloom runs at a third of the frame there rather than half, and the pixel ratio
+is capped at 1.5. The arcade draws its pad only where the primary pointer is a
+thumb. `viewport-fit: cover` is set so the bar's gutters can read the safe-area
+insets under a notch.
 
 ## The monitor
 
@@ -115,13 +144,13 @@ breakpoint there is no walk to take, so the same control jumps to the panel
 where it sits in the page.
 
 A click target that exists only inside WebGL cannot be tabbed to, cannot be
-announced, and does not exist for anyone not using a mouse — so *Open the
-workstation* in the hero is the same action on a real button, and every control
-inside the screen is real DOM.
+announced, and does not exist for anyone not using a mouse. So the same action
+exists as a real button over the street, visually hidden until it has focus
+(`.cinema-enter`), and every control inside the screen is real DOM.
 
 The first screen and the walk toward the workstation are one pinned section,
 [components/sections/Cinema.tsx](components/sections/Cinema.tsx). Scroll drives a
-camera in `WorkstationScene`, not a CSS transform: the position travels through
+camera in `TowerScene`, not a CSS transform: the position travels through
 [lib/motion/cinema.ts](lib/motion/cinema.ts) and is read inside the frame loop,
 so the scene never re-renders to move. As the panel fills the frame a real DOM
 interface crossfades over it, and from there the switcher and both links are
@@ -134,6 +163,63 @@ The room loads 4.1MB across five models and an environment map — the 38MB in
 under reduced motion; the pinned walk toward the monitor is still desktop only,
 but the workstation itself is the first thing this site has to say and a phone
 gets to see it.
+
+## The machines
+
+Three screens in the street can be walked up to, and one mechanism serves all
+three: the GLB exports a plane by name, the scene hides it and puts a live plane
+of its own in its frame, the camera walks to whichever is current, and a DOM
+interface is pinned to its projected rectangle. `lib/screen.ts` lists them.
+
+| Machine | Plane | What is on it |
+| --- | --- | --- |
+| the reception monitor in the garage | `garageScreen` | the site: applications on a desktop, one window at a time |
+| the cabinet under the Milano arcade | `arcadeScreen` | three games: Snake, Pong, Bricks |
+| the cash machine outside the bank | `atmOutScreen` | a PIN, a menu, and one withdrawal: a business card |
+
+The games live in `lib/arcade/`, plain state machines over a 320x240 canvas with
+no React and no three in them. That is what lets one implementation run in
+three places: inside a window on the desktop (the ARCADE application, which is
+how a keyboard or a reduced-motion visitor reaches them), on the panel pinned to
+the cabinet, and as the attract loop painted onto the cabinet's own screen
+across the street. Arrows or WASD, space to start; a pad is drawn where the
+primary pointer is a thumb. Best scores are kept per game in localStorage.
+
+The cash machine accepts any four digits, because a puzzle in front of the
+contact details is a wall. Its balance and statement read facts the site already
+states; the receipt prints the name, the role and the contact address.
+
+## The street's screens
+
+Every other screen in the street paints itself: the diagnostic cart, the vending
+machine, the bank's cash machine and queue counter, the café's menu board, the
+pharmacy's cross, the chalk board at the garage door, the beach bar's board.
+[components/three/screens.ts](components/three/screens.ts) holds one painter
+per plane, each at its own rate (a clock once a minute, a blink twice a second,
+a chalk board never), and the scene uploads the canvas as that plane's texture.
+Hovering a hotspot drives the screen behind it brighter and lifts its board on
+the sign post; the traffic light at the crossing runs red, green, amber in the
+frame loop. Walking into a machine plays a CRT coming on, and the walk out is
+the same tube switching off.
+
+## The street (Blender)
+
+The scene is procedural. `scripts/tower/build_street.py` builds every lot, lamp
+and hitbox from code and saves `garage.blend` beside itself;
+`scripts/tower/bake_export.py` joins each bake group, unwraps it, bakes the
+lighting to a 2048 px atlas with Cycles and exports a Draco GLB with no
+materials, into a `public/` folder two levels up from the blend it is run on.
+Names are the contract: the scene assigns materials by mesh name.
+
+```bash
+blender -b -P scripts/tower/build_street.py
+blender -b assets/blender/garage.blend -P scripts/tower/bake_export.py -- 2048 48
+```
+
+The repo keeps the blends in `assets/blender/` and the served files in
+`public/models/tower/`, so after a bake copy the atlases and the GLB across (the
+GLB as `tower.glb`). A full bake is about an hour on a laptop CPU; a third
+argument names the groups to bake, comma separated, for a partial one.
 
 ## Day and night
 

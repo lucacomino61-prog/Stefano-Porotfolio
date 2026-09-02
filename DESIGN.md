@@ -135,6 +135,14 @@ Pins are disabled below **1024px**, where the rail becomes a 2.75rem top strip
 and `main` carries matching padding. Any full-height section must therefore
 subtract that strip: `min-h-[calc(100svh-2.75rem)] lg:min-h-svh`.
 
+**The street on a phone** is not scaled down, it is reframed. The wide shot is
+solved from the aspect: a landscape frame holds the sixty-metre row, a portrait
+one stands over the garage and the bank tilted down, so the models fill the
+frame instead of becoming a thread across it. Below 760px the road stops being
+a mirror (a second render of the whole street every frame) and bloom runs at a
+third of the frame; the pixel ratio is capped at 1.5. `viewport-fit: cover` is
+declared so the bar's gutters can read the safe-area insets.
+
 ## Motion
 
 Durations are frame counts at 24fps, because the world runs at 24fps:
@@ -150,6 +158,19 @@ from it, and the timecode rail subscribes to it. Anything calling
 
 **Reduced motion is a build, not a degradation.** Lenis is never constructed,
 the canvas never mounts, and `gsap.matchMedia` creates no ScrollTriggers at all.
+
+**A tube coming on.** The walk lands on a CRT switching on: the picture opens
+from a bright line, height first and width a beat behind, six tenths of a second
+on an exponential out. Reversed, it is the same tube switching off. It lands on
+a picture the texture was already showing, so the crossfade hides nothing.
+
+**The street answers the pointer.** A hotspot under the cursor drives the screen
+behind it half again as bright and lifts its board on the sign post toward
+white, damped in the frame loop: nothing is pressed yet, and the street has
+already said what it will do. The small screens paint themselves at their own
+rates (a clock once a minute, a blink twice a second, chalk never), and the
+traffic light runs its cycle in the same loop: red six seconds, green four and
+a half, amber one and a half.
 
 ## Emphasis
 
@@ -182,7 +203,7 @@ clears AA for text that size.
   a seam.
 - **Ruled fields** (`ContactForm`). Underline only, no boxes, labels in the
   apparatus register above the line. The form is the report sheet.
-- **The walk** (`Cinema`, `WorkstationScene`). The first screen and the approach
+- **The walk** (`Cinema`, `TowerScene`). The first screen and the approach
   to the monitor are one section because they are one camera move. Scroll is a
   distance: `lib/motion/cinema.ts` carries the position, a ScrollTrigger writes
   it, and the camera reads it inside the frame loop, so moving the camera
@@ -198,13 +219,35 @@ clears AA for text that size.
   already showing, same composition and same palette, and everything pressable
   from then on is ordinary HTML. Below 1024px and under reduced motion none of
   it runs, and the scene's thirty-eight megabytes are never even fetched.
-- **The slates** (`.plate`, in the first viewport). Filled rectangles, each one
-  exactly as wide as what is written on it, stacked with a three pixel gap:
-  name, role, then the apparatus row of clock, date stamp and sound switch. The
-  fill is `--gate` rather than `--ground`, so a slate reads as a hole cut into
-  the lit frame and not a card laid on top of it. Padding is set in `em`, which
-  is what keeps the proportion identical from the name down to the clock.
-  Boxes here and nowhere else: the form below is still ruled, never boxed.
+- **The machines** (`TowerScene`, `lib/screen.ts`). Three screens can be walked
+  up to, by one mechanism: the reception monitor carries the site, the cabinet
+  under the Milano arcade carries the games, the cash machine outside the bank
+  dispenses a business card. Each is a plane the GLB exports by name; the scene
+  hides it, puts a live plane in its frame, and the DOM interface is pinned to
+  whichever the camera walked to. Adding a fourth is a name here and a plane in
+  Blender.
+- **The cabinet** (`ArcadeScreen`, `lib/arcade`). A 4:3 tube drawn at 320x240
+  and scaled without smoothing, because a phosphor has pixels. Its light is one
+  of the street's own three neons, one per game, and the marquee's text-shadow
+  is the one glow the arcade is allowed: a lamp, not a fill. The pad is drawn
+  only where the primary pointer is a thumb; the keys are named under the tube.
+- **The cash machine** (`AtmScreen`). Yellow on black, because it is the bank's
+  machine and not the site's; what it prints is the site's. Any four digits are
+  a PIN. The balance is two sites, five capabilities and zero handovers; the
+  statement is the five passes; the receipt is the card.
+- **The first screen is the street.** The slates that carried the name, the
+  role and the apparatus row over the room are gone. The name and the role are
+  painted on the billboard on the bank's roof, in the visitor's language, with
+  the clock in its corner and the way in blinking under it; the sound and sheet
+  switches moved into the bar; the heading is in the document but visually
+  hidden, and the walk's control is drawn only while it has keyboard focus. On
+  a phone the same rule holds: the street is the whole first screen, seen from
+  over the garage and the bank, and the rest of it is a swipe away.
+- **The door** (`Loader`). The loading screen types the street's own scripts
+  into a terminal as the files land, at a pace on top of the real progress,
+  and ends at an Enter control the visitor presses. A terminal that types real
+  code tells the truth about what is arriving; the slate fill is `--gate`, the
+  hole cut into the frame, and the syntax is two colours and a weight.
 - **The ground glass** (`GridPattern`). A focusing screen is etched with a
   grid, and this is that etching: dashed because it is scribed rather than
   printed, radially masked so it concentrates where the operator frames and

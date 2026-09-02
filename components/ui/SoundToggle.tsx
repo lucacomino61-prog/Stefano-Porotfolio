@@ -28,7 +28,14 @@ const SRC = '/audio/room-tone.wav'
 const VOLUME = 0.45
 const FADE_MS = 500
 
-export function SoundToggle({ dict }: { dict: Dictionary['hero'] }) {
+export function SoundToggle({
+  dict,
+  className = 'plate group cursor-pointer transition-colors duration-[var(--f4)] hover:text-slate-mark',
+}: {
+  dict: Dictionary['hero']
+  /** The slate by default; the header hands it a bar-sized control instead. */
+  className?: string
+}) {
   const audio = useRef<HTMLAudioElement>(null)
   const fade = useRef<ReturnType<typeof setInterval>>(undefined)
   const [playing, setPlaying] = useState(false)
@@ -86,7 +93,7 @@ export function SoundToggle({ dict }: { dict: Dictionary['hero'] }) {
         aria-pressed={playing}
         aria-label={label}
         title={label}
-        className="plate group cursor-pointer transition-colors duration-[var(--f4)] hover:text-slate-mark"
+        className={className}
       >
         <svg
           viewBox="0 0 24 24"

@@ -6,12 +6,10 @@ import { useEffect, useRef, useState } from 'react'
 import { gsap } from '@/lib/motion/gsap'
 import { onFrame } from '@/lib/motion/ticker'
 
-import type { ScreenView } from '@/lib/screen'
+import type { Billboard, Machine, ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
 
-import { deskFocusSnapshot, setDeskFocused } from '@/lib/motion/desk'
-
-import { WorkstationScene } from './WorkstationScene'
+import { TowerScene, zoomHome } from './TowerScene'
 
 /**
  * The single WebGL surface.
@@ -30,13 +28,17 @@ export function HeroStage({
   project,
   view,
   hint,
+  billboard,
+  machine,
   onEnter,
   onView,
 }: {
   project: Project
   view: ScreenView
   hint: string
-  onEnter: () => void
+  billboard: Billboard
+  machine: Machine
+  onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
 }) {
   const wrapper = useRef<HTMLDivElement>(null)
@@ -120,28 +122,21 @@ export function HeroStage({
          * Clicking the room goes in, not just the monitor or the button.
          *
          * onPointerMissed is the click that hit no geometry at all: the space
-         * above the desk, the empty part of the frame. The devices and the
+         * above the street, the empty part of the frame. The hotspots and the
          * panel stop propagation on their own clicks, so this cannot fire
-         * underneath them.
-         *
-         * If a device is being looked at, a click on nothing dismisses it
-         * rather than walking in. That is the ordinary meaning of clicking away
-         * from something, and walking the camera somewhere else instead would
-         * be two changes for one press.
+         * underneath them. With free orbit a click on nothing zooms back out
+         * to the wide shot; walking in is the monitor's and the button's job.
          */
-        onPointerMissed={() => {
-          if (deskFocusSnapshot()) {
-            setDeskFocused(null)
-            return
-          }
-          onEnter()
-        }}
+        onPointerMissed={() => zoomHome()}
         frameloop="never"
         // See `profile` above: the phone was rasterising more than the desktop.
         dpr={profile.dpr}
-        shadows
+        // No shadows: every surface is baked, nothing in the scene is lit at runtime.
         gl={{ antialias: profile.antialias, alpha: false, powerPreference: 'high-performance' }}
-        camera={{ position: [17.2, 13.1, 24.4], fov: 38, near: 0.1, far: 80 }}
+        // Wide shot of the street (five lots, ~60 m) from the road side, high
+        // and to the left, so the row recedes toward the beach. far covers the
+        // star shell (100) with margin.
+        camera={{ position: [-26, 14, 66], fov: 38, near: 0.1, far: 420 }}
         onCreated={(created) => {
           state.current = created
           // Render one frame immediately rather than waiting for the ticker.
@@ -152,10 +147,12 @@ export function HeroStage({
           created.advance(gsap.ticker.time)
         }}
       >
-        <WorkstationScene
+        <TowerScene
           project={project}
           view={view}
           hint={hint}
+          billboard={billboard}
+          machine={machine}
           onEnter={onEnter}
           onView={onView}
         />

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ContactForm } from '@/components/sections/ContactForm'
+import { ArcadeScreen } from '@/components/ui/ArcadeScreen'
 import { ProjectPanes } from '@/components/ui/ProjectScreen'
 import type { Locale } from '@/lib/i18n/config'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
@@ -41,6 +42,7 @@ export function ScreenOS({
   contact,
   nav,
   hero,
+  arcade,
   locale,
   active,
   onSelect,
@@ -53,6 +55,7 @@ export function ScreenOS({
   contact: Dictionary['contact']
   nav: Dictionary['nav']
   hero: Dictionary['hero']
+  arcade: Dictionary['arcade']
   locale: Locale
   active: ProjectId
   onSelect: (id: ProjectId) => void
@@ -68,6 +71,7 @@ export function ScreenOS({
     about: nav.items.manifesto,
     process: nav.items.process,
     contact: nav.items.contact,
+    arcade: arcade.title,
   }
 
   // Opening always starts at the first screen. Without this, leaving Process on
@@ -179,6 +183,10 @@ export function ScreenOS({
                 ))}
               </nav>
             </div>
+          ) : view === 'arcade' ? (
+            // The cabinet in the street, as an application: same games, same
+            // tube, reachable from a keyboard and without a room.
+            <ArcadeScreen dict={arcade} embedded />
           ) : (
             <Paged pages={pagesFor(view, { about, process, contact, locale })} page={page} onPage={setPage} nav={nav} />
           )}
@@ -238,6 +246,18 @@ function AppGlyph({ section }: { section: ScreenSection }) {
       <svg viewBox="0 0 24 24">
         <path d="M4 6.5h4M4 12h4M4 17.5h4" {...common} />
         <path d="M12 6.5h8M12 12h8M12 17.5h8" {...common} opacity={0.55} />
+      </svg>
+    )
+  }
+
+  if (section === 'arcade') {
+    // A joystick: the ball on its stick, the deck, and two buttons beside it.
+    return (
+      <svg viewBox="0 0 24 24">
+        <path d="M4 15.5h16v3H4z" {...common} />
+        <path d="M9 15.5V9.5" {...common} />
+        <circle cx="9" cy="7" r="2.4" {...common} />
+        <path d="M14.5 13h.01M17.5 13h.01" {...common} strokeWidth={2.4} />
       </svg>
     )
   }

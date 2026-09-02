@@ -1,17 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { Hero } from '@/components/sections/Hero'
 import { GateMount } from '@/components/three/GateMount'
+import { ArcadeScreen } from '@/components/ui/ArcadeScreen'
+import { AtmScreen } from '@/components/ui/AtmScreen'
 import { ScreenOS } from '@/components/ui/ScreenOS'
-import type { ScreenView } from '@/lib/screen'
+import type { Machine, ScreenView } from '@/lib/screen'
 import type { Locale } from '@/lib/i18n/config'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
 import { EMPTY_LOADING, loadingState, subscribeLoading } from '@/lib/motion/loading'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
-import { deskFocusSnapshot } from '@/lib/motion/desk'
 import { getScroller, scrollToTarget } from '@/lib/motion/scroller'
 import { PROJECTS, type ProjectId } from '@/lib/projects'
 
@@ -61,20 +61,22 @@ function readMotionMediaOnServer(): boolean {
 export function Cinema({
   dict,
   hero,
-  calendar,
   nav,
   about,
   process,
   contact,
+  arcade,
+  atm,
   locale,
 }: {
   dict: Dictionary['work']
   hero: Dictionary['hero']
-  calendar: Dictionary['calendar']
   nav: Dictionary['nav']
   about: Dictionary['about']
   process: Dictionary['process']
   contact: Dictionary['contact']
+  arcade: Dictionary['arcade']
+  atm: Dictionary['atm']
   locale: Locale
 }) {
   const root = useRef<HTMLElement>(null)
@@ -84,6 +86,8 @@ export function Cinema({
   const opener = useRef<HTMLElement | null>(null)
   const [active, setActive] = useState<ProjectId>(PROJECTS[0]!.id)
   const [view, setView] = useState<ScreenView>('home')
+  /** Which of the three screens the camera walks to: the monitor, the cabinet, or the cash machine. */
+  const [machine, setMachine] = useState<Machine>('monitor')
   const [zoomed, setZoomed] = useState(false)
   const hasWalk = useSyncExternalStore(
     subscribeMotionMedia,
@@ -111,7 +115,8 @@ export function Cinema({
    * operate is not a subject. One timeline owns the move, so a click in the
    * room and the Escape key can never disagree about where you are standing.
    */
-  const enter = useCallback(() => {
+  const enter = useCallback((next: Machine) => {
+    setMachine(next)
     const timeline = walk.current
     if (!timeline) {
       // Narrow and reduced-motion have no walk to take. The same control still
@@ -233,28 +238,37 @@ export function Cinema({
           position,
           {
             value: 1,
-            duration: 1.7,
-            ease: 'power2.inOut',
+            // A slower, softer walk: the street is wide and the monitor is
+            // small, so the approach covers far more ground than the old desk.
+            duration: 2.6,
+            ease: 'power3.inOut',
             onUpdate: () => setCinemaProgress(position.value),
           },
           0,
         )
 
-        // The copy clears the frame early, while there is still a room to look
-        // at. Holding it any longer would leave a name floating over a monitor.
-        timeline.to(
-          '[data-hero-copy]',
-          { opacity: 0, yPercent: -4, duration: 0.4, ease: 'power2.in' },
-          0.05,
-        )
-
         // The interface arrives only once the panel is nearly the frame, so the
         // crossfade lands on a picture the texture is already showing.
+        // A tube coming on. The picture opens from a bright line, height first
+        // and width a beat behind, which is the order a CRT's deflection
+        // settles in; reversed, it is the same tube switching off. It lands on
+        // a picture the texture is already showing, so the crossfade has
+        // nothing to hide. The filter is cleared once it has landed so the
+        // panel is not composited through an identity brightness for the rest
+        // of the visit.
         timeline.fromTo(
           '[data-screen-ui]',
-          { opacity: 0, scale: 0.965 },
-          { opacity: 1, scale: 1, duration: 0.45, ease: 'power2.out' },
-          1.2,
+          { opacity: 0, scaleY: 0.02, scaleX: 1.08, filter: 'brightness(2.6)' },
+          {
+            opacity: 1,
+            scaleY: 1,
+            scaleX: 1,
+            filter: 'brightness(1)',
+            duration: 0.6,
+            ease: 'expo.out',
+            onComplete: () => gsap.set('[data-screen-ui]', { clearProps: 'filter' }),
+          },
+          2.0,
         )
 
         walk.current = timeline
@@ -287,17 +301,9 @@ export function Cinema({
     const refresh = () => ScrollTrigger.refresh()
     window.addEventListener('load', refresh)
 
-    /**
-     * Escape walks back out.
-     *
-     * It defers to the desk: if a device is being looked at, that is the
-     * innermost thing open and Escape belongs to it. WorkstationScene clears
-     * the device on the same key, so this checks before acting rather than both
-     * firing and the visitor losing two levels for one press.
-     */
+    /** Escape walks back out. */
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (deskFocusSnapshot()) return
       exit()
     }
     window.addEventListener('keydown', handleKey)
@@ -310,6 +316,13 @@ export function Cinema({
   }, [exit])
 
   const project = PROJECTS.find((entry) => entry.id === active) ?? PROJECTS[0]!
+
+  // One object for the life of the dictionary: the scene repaints the
+  // billboard when this changes, and dressing the street is not cheap.
+  const billboard = useMemo(
+    () => ({ name: hero.name, role: hero.role, based: hero.based, hint: dict.enter }),
+    [hero.name, hero.role, hero.based, dict.enter],
+  )
 
   /**
    * Whether the room is drawing the interface, or the page has to.
@@ -333,6 +346,7 @@ export function Cinema({
       contact={contact}
       nav={nav}
       hero={hero}
+      arcade={arcade}
       locale={locale}
       active={active}
       onSelect={select}
@@ -340,6 +354,28 @@ export function Cinema({
       onView={setView}
     />
   )
+
+  /**
+   * What is drawn on the panel depends on which machine the camera walked to.
+   *
+   * Without a room there is only the page, and the page carries the site. The
+   * games are still reachable there, as an application on the desktop; the
+   * cash machine, which dispenses nothing the contact section does not already
+   * say, stays in the street.
+   *
+   * The arcade and the cash machine take `active` rather than being unmounted
+   * on exit: the walk out plays the tube switching off over half a second, and
+   * a screen that went blank the instant Back was pressed would show the
+   * attract texture through the picture that is still collapsing.
+   */
+  const machineInterface =
+    !roomMounted || machine === 'monitor' ? (
+      screenInterface
+    ) : machine === 'arcade' ? (
+      <ArcadeScreen dict={arcade} active={zoomed} />
+    ) : (
+      <AtmScreen dict={atm} hero={hero} about={about} steps={process} active={zoomed} />
+    )
 
   return (
     <section
@@ -362,27 +398,32 @@ export function Cinema({
             project={project}
             view={view}
             hint={dict.homeHint}
+            billboard={billboard}
+            machine={machine}
             onEnter={enter}
             onView={setView}
           />
 
           {/*
-            Inert once the camera has left it, for the same reason the screen
-            interface is inert before the camera arrives.
+            The first screen is the street and nothing else. The name, the
+            role and the way in are painted on the billboard on the bank's
+            roof and on the screens in the lots, where they belong to the
+            world rather than sitting over it.
 
-            The walk fades this block to opacity 0, and opacity 0 does not
-            remove an element from the tab order or the accessibility tree.
-            Measured from inside the machine: seven controls — both switches,
-            "Open the workstation", "Send a message" and the three devices —
-            still took focus while invisible, and a screen reader still read
-            them. A mouse was only ever protected by the screen overlay
-            happening to be painted on top; a keyboard had nothing.
-
-            The exact mirror of `inert` on `.cinema-screen` below: one is live
-            whenever the other is not.
+            What stays in the DOM is what the world cannot carry: a real
+            heading for the document, and a real control for the walk, drawn
+            only while it has focus. A click target that exists only inside
+            WebGL cannot be tabbed to, cannot be announced, and does not exist
+            at all for anyone not using a pointer. Inert once the camera is
+            inside a machine, the exact mirror of `inert` on `.cinema-screen`
+            below: one is live whenever the other is not.
           */}
-          <div data-hero-copy className="cinema-copy" inert={hasWalk && zoomed}>
-            <Hero dict={hero} calendar={calendar} enterLabel={dict.enter} onEnter={enter} />
+          <div className="cinema-copy" inert={hasWalk && zoomed}>
+            <h1 className="sr-only">{hero.name}</h1>
+            <p className="sr-only">{hero.role}</p>
+            <button type="button" onClick={() => enter('monitor')} className="cinema-enter">
+              {dict.enter}
+            </button>
           </div>
         </div>
 
@@ -398,7 +439,7 @@ export function Cinema({
           hierarchy reads: section, menu, room. Escape still leaves outright
           from anywhere, for anyone who wants the short way.
         */}
-        {zoomed && view === 'home' ? (
+        {zoomed && (machine !== 'monitor' || view === 'home') ? (
           <button ref={exitControl} type="button" onClick={exit} className="cinema-exit">
             {dict.back}
           </button>
@@ -428,7 +469,7 @@ export function Cinema({
           className={roomMounted ? 'cinema-screen cinema-screen-panel' : 'cinema-screen cinema-screen-flat'}
           inert={hasWalk && !zoomed}
         >
-          {screenInterface}
+          {machineInterface}
         </div>
       </div>
     </section>
