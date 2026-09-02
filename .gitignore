@@ -49,3 +49,6 @@ next-env.d.ts
 *.blend1
 *.blend2
 *.blend[0-9]
+
+# Blender bytecode from headless script runs
+scripts/**/__pycache__/

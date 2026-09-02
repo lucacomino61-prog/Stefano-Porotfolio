@@ -37,6 +37,15 @@ import { onFrame } from '@/lib/motion/ticker'
  */
 const DEADLINE_MS = 9000
 
+/**
+ * How long the typing may keep the door shut after the work is actually done.
+ *
+ * The animation is the loading experience and it should get to finish when
+ * anyone is watching. It should not get to finish when nobody is: past this,
+ * the text snaps and the door opens.
+ */
+const CATCHUP_MS = 2500
+
 /** Characters per second, at most. The network is allowed to be slower; it is never allowed to be faster. */
 const PACE = 720
 
@@ -238,10 +247,29 @@ export function Loader({ dict }: { dict: Dictionary['nav'] }) {
       shown = TOTAL
     }
 
+    // When the work finished, in wall clock rather than in frames.
+    //
+    // The typing is paced off frame deltas, which is right while anyone is
+    // watching and wrong the moment nobody is: a backgrounded tab throttles the
+    // ticker to about a frame a second and can stop it altogether, and the
+    // delta is clamped to 100ms besides, so a second of real time advances the
+    // text by a tenth of one. Measured live: every asset was on disk at 10.5s
+    // and the loader was still at 013% at 138s.
+    let finishedAt = 0
+
     const stop = onFrame((_, deltaMs) => {
       const { fraction: done, complete: finished } = drive.current
+      if (finished && finishedAt === 0) finishedAt = Date.now()
+
+      // Past the grace period the text stops being a progress bar and becomes
+      // an animation standing between the visitor and a site that is ready.
+      const overdue = finished && Date.now() - finishedAt > CATCHUP_MS
       const target = finished ? TOTAL : Math.floor(done * TOTAL)
-      const next = reduced ? TOTAL : Math.min(target, shown + PACE * (Math.min(deltaMs, 100) / 1000))
+      const next =
+        reduced || overdue
+          ? TOTAL
+          : Math.min(target, shown + PACE * (Math.min(deltaMs, 100) / 1000))
+
       if (next !== shown) {
         shown = next
         paint(shown)
@@ -249,6 +277,22 @@ export function Loader({ dict }: { dict: Dictionary['nav'] }) {
       if (shown >= TOTAL && finished) setPhase('ready')
     })
     return stop
+  }, [phase])
+
+  /*
+   * The door opens even if the ticker never runs.
+   *
+   * The catch-up above needs a frame to notice it is overdue, and a tab that is
+   * hidden the whole time may never give it one — rAF is throttled or paused,
+   * while timers are only throttled. So this is the one path that does not
+   * depend on the animation loop at all: a visitor who opens the site in a
+   * background tab and comes back should find a door, not a counter stopped at
+   * thirteen per cent.
+   */
+  useEffect(() => {
+    if (phase !== 'typing') return
+    const timer = window.setTimeout(() => setPhase('ready'), DEADLINE_MS + CATCHUP_MS)
+    return () => window.clearTimeout(timer)
   }, [phase])
 
   const leave = useCallback(() => {
