@@ -7,7 +7,7 @@ import bpy, os, sys, json, math, time
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SIZE = int(argv[0]) if len(argv) > 0 else 2048
 SAMPLES = int(argv[1]) if len(argv) > 1 else 48
-ONLY = argv[2].split(',') if len(argv) > 2 and argv[2] not in ('day', 'night') else None
+ONLY = argv[2].split(',') if len(argv) > 2 and argv[2] and argv[2] not in ('day', 'night') else None
 VARIANT = next((a for a in argv if a in ('day', 'night')), 'night')
 
 # Day writes its own atlases beside the night ones rather than over them, so a
@@ -103,9 +103,13 @@ scene.cycles.denoising_input_passes = 'RGB_ALBEDO_NORMAL'
 # white speckle that survives denoising.
 scene.cycles.sample_clamp_indirect = 8.0
 scene.cycles.blur_glossy = 1.0
-scene.cycles.max_bounces = 4
-scene.cycles.diffuse_bounces = 3
-scene.cycles.glossy_bounces = 2
+# Light that only bounces three times in a room with walls, a ceiling and a
+# floor never reaches the back of it: the corners go flat black and read as
+# painted-on shadow. Realism here is mostly bounce count and roughness.
+scene.cycles.max_bounces = 8
+scene.cycles.diffuse_bounces = 4
+scene.cycles.glossy_bounces = 4
+scene.cycles.transmission_bounces = 4
 scene.cycles.caustics_reflective = False
 scene.cycles.caustics_refractive = False
 scene.cycles.bake_type = 'COMBINED'

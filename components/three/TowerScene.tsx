@@ -1145,14 +1145,31 @@ function TowerModel({
         object={dressed.root}
         dispose={null}
         onClick={activate}
+        /*
+         * The hand appears over the machine, not over the air around it.
+         *
+         * A hitbox is a box: deliberately larger than the thing it stands for,
+         * so a click near the arcade still opens the arcade. That generosity is
+         * right for clicking and wrong for the cursor — testing the hovered
+         * object against /HitBox$/ meant the pointer turned into a hand
+         * wherever that invisible volume was, which is a good hand's width of
+         * empty street on every side of every machine.
+         *
+         * So the cursor is driven by the visible geometry instead, and the box
+         * is only consulted to ask which machine that geometry belongs to. The
+         * box keeps catching clicks; it stops claiming to be the object.
+         */
         onPointerOver={(event: ThreeEvent<PointerEvent>) => {
-          if (!/HitBox$/.test(event.object.name)) return
+          if (/HitBox$/.test(event.object.name)) return
+          const box = hitboxFor(event.object)
+          if (!box) return
           event.stopPropagation()
-          hovered.current = event.object.name
+          hovered.current = box.name
           document.body.style.cursor = 'pointer'
         }}
         onPointerOut={(event: ThreeEvent<PointerEvent>) => {
-          if (hovered.current === event.object.name) hovered.current = null
+          const box = hitboxFor(event.object)
+          if (box && hovered.current === box.name) hovered.current = null
           document.body.style.cursor = ''
         }}
       />

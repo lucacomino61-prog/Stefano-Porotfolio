@@ -2,14 +2,14 @@
   "size": 2048,
   "samples": 256,
   "groups": {
-    "shellJoined": "shellBaked.png",
-    "groundJoined": "groundBaked.png",
-    "garageJoined": "garageBaked.png",
-    "bankJoined": "bankBaked.png",
-    "milanoJoined": "milanoBaked.png",
-    "farmaciaJoined": "farmaciaBaked.png",
-    "beachJoined": "beachBaked.png",
-    "exteriorJoined": "exteriorBaked.png"
+    "shellJoined": "shellBakedDay.png",
+    "groundJoined": "groundBakedDay.png",
+    "garageJoined": "garageBakedDay.png",
+    "bankJoined": "bankBakedDay.png",
+    "milanoJoined": "milanoBakedDay.png",
+    "farmaciaJoined": "farmaciaBakedDay.png",
+    "beachJoined": "beachBakedDay.png",
+    "exteriorJoined": "exteriorBakedDay.png"
   },
   "emissive": [
     "BantennaLED",
