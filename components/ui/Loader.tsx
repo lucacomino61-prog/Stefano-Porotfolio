@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { EMPTY_LOADING, loadingState, subscribeLoading } from '@/lib/motion/loading'
-import { SCENE_ASSETS, SCENE_ASSET_LABEL } from '@/lib/motion/sceneAssets'
+import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
 
 /**
  * The first thing anyone sees.
@@ -49,8 +49,8 @@ function useAssetsArrived(): ReadonlySet<string> {
     const seen = new Set<string>()
 
     const consider = (name: string) => {
-      const match = SCENE_ASSETS.find((asset) => name.endsWith(asset))
-      if (match) seen.add(match)
+      const match = SCENE_ASSETS.find((asset) => name.endsWith(asset.path))
+      if (match) seen.add(match.path)
     }
 
     const observer = new PerformanceObserver((list) => {
@@ -174,10 +174,14 @@ export function Loader({ dict, name }: { dict: Dictionary['nav']; name: string }
         {scene.expecting === false ? null : (
           <ol className="loader-boot">
             {SCENE_ASSETS.map((asset) => (
-              <li key={asset} className="loader-boot-line" data-here={arrived.has(asset)}>
-                <span className="loader-boot-label">{SCENE_ASSET_LABEL[asset] ?? asset}</span>
+              <li
+                key={asset.path}
+                className="loader-boot-line"
+                data-here={arrived.has(asset.path)}
+              >
+                <span className="loader-boot-label">{asset.label}</span>
                 <span className="loader-boot-fill" aria-hidden="true" />
-                <span className="loader-boot-state">{arrived.has(asset) ? 'OK' : '··'}</span>
+                <span className="loader-boot-state">{arrived.has(asset.path) ? 'OK' : '··'}</span>
               </li>
             ))}
           </ol>

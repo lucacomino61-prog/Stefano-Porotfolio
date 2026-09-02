@@ -2621,3 +2621,23 @@ html[data-machine='open'] body {
 .cinema-copy .hero-secondary {
   text-shadow: 0 0.06em 0.5em color-mix(in oklab, var(--slate) 78%, transparent);
 }
+
+/*
+ * The bar, while it is standing on the room.
+ *
+ * Until it lifts, the header has no ground of its own — that is deliberate, so
+ * the first screen is the room rather than a letterbox with a room under it.
+ * The cost is that its legibility depends on whatever the scene happens to be
+ * doing behind it, and the scene is the part most likely to change: the room
+ * has already been near black, pastel blue and navy in a day.
+ *
+ * A shadow rather than a colour, for exactly that reason. Tuning the text to
+ * today's wall would need retuning the next time the wall moves; a shadow holds
+ * against a wall of any brightness and costs nothing when the wall is dark.
+ */
+.site-header:not([data-lifted='true']) .site-word,
+.site-header:not([data-lifted='true']) .site-nav-link,
+.site-header:not([data-lifted='true']) .site-locale,
+.site-header:not([data-lifted='true']) .site-timecode {
+  text-shadow: 0 1px 6px color-mix(in oklab, var(--slate) 72%, transparent);
+}

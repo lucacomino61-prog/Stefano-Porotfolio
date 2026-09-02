@@ -28,7 +28,7 @@ import {
   setDeskHovered,
 } from '@/lib/motion/desk'
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
-import { SCENE_ASSETS } from '@/lib/motion/sceneAssets'
+import { SCENE } from '@/lib/motion/sceneAssets'
 import { damp, pointer, trackPointer } from '@/lib/motion/pointer'
 import type { ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
@@ -54,7 +54,13 @@ type ModelProps = {
   metalness?: number
 }
 
-const [MONITOR, PC_CASE, MOUSE, KEYBOARD, DESK, STUDIO, ROOM] = SCENE_ASSETS
+const MONITOR = SCENE.monitor.path
+const PC_CASE = SCENE.tower.path
+const MOUSE = SCENE.mouse.path
+const KEYBOARD = SCENE.keyboard.path
+const DESK = SCENE.desk.path
+const STUDIO = SCENE.studio.path
+const ROOM = SCENE.room.path
 
 function prepareModel(source: Object3D): { model: Object3D; sourceSize: Vector3 } {
   const model = source.clone(true)
