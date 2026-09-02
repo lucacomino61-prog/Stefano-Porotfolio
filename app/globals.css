@@ -252,65 +252,6 @@ body {
   display: inline-block;
   will-change: transform;
 }
-
-/* The follower.
-   Written as real CSS rather than utilities on purpose. Every state changes
-   the same properties the base state sets, and utility variants competing for
-   one property are decided by source order in the generated sheet, not by the
-   order they appear in the class attribute. Driving width and height through
-   custom properties keeps the centring maths automatic and leaves nothing for
-   the cascade to get wrong. */
-.cursor-ring {
-  --ring-w: 22px;
-  --ring-h: 22px;
-
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 60;
-  width: var(--ring-w);
-  height: var(--ring-h);
-  margin-top: calc(var(--ring-h) / -2);
-  margin-left: calc(var(--ring-w) / -2);
-  border: 1px solid #fff;
-  border-radius: 999px;
-  pointer-events: none;
-  /* Inverts whatever is under it, so it stays visible on the graphite ground
-     and on a canary field without owning a colour. */
-  mix-blend-mode: difference;
-  transition:
-    width var(--f6) var(--ease-out),
-    height var(--f6) var(--ease-out),
-    margin var(--f6) var(--ease-out),
-    border-radius var(--f6) var(--ease-out),
-    background-color var(--f6) var(--ease-out),
-    opacity var(--f6) var(--ease-out);
-}
-
-.cursor-ring[data-state='interactive'] {
-  --ring-w: 44px;
-  --ring-h: 44px;
-}
-
-/* Over a text field the ring becomes the caret it is standing in for. */
-.cursor-ring[data-state='text'] {
-  --ring-w: 2px;
-  --ring-h: 28px;
-
-  border-radius: 0;
-  background-color: #fff;
-}
-
-/* The native pointer is hidden only while the custom one is actually mounted.
-   That class is added by Cursor.tsx after it has confirmed a fine pointer and
-   no reduced-motion preference, so a touch device or a reduced-motion visitor
-   never loses their cursor. Hiding it unconditionally, as most drop-in cursor
-   components do, is the bug this guards against. */
-.has-custom-cursor,
-.has-custom-cursor * {
-  cursor: none;
-}
-
 /* Focus is a bracket, the mark a camera assistant makes. Not a browser ring. */
 :focus-visible {
   outline: 2px solid var(--mark);
@@ -992,7 +933,7 @@ body {
  * And the left gutter is the hero column: measured there, this block ran from
  * 771 to 887 straight through "Open the workstation" at 812 to 864.
  *
- * The 760px cut is the same breakpoint WorkstationScene uses to decide the
+ * The 760px cut is the same breakpoint TowerScene uses to decide the
  * devices are inspectable at all. Below it nothing pins, the room is a small
  * picture at the top of a scrolling page, and there is nothing to control.
  */
@@ -1187,7 +1128,7 @@ body {
 /*
  * The glass, on the DOM half of the screen.
  *
- * The texture carries its own tube (see WorkstationScene), but once the walk
+ * The texture carries its own tube (see TowerScene), but once the walk
  * lands you are reading real HTML painted over that panel, and without this the
  * interface stops being a screen at exactly the moment you are closest to it.
  * Same two effects, in CSS this time.
@@ -2056,11 +1997,7 @@ body {
 
 /* The follower opens over the monitor the same way it opens over a link. The
    room is WebGL, so it cannot match a selector; it sets this instead. */
-[data-hot='true'] .cursor-ring {
-  --ring-w: 44px;
-  --ring-h: 44px;
-}
-
+[data-hot='true'] 
 /* ---------------------------------------------------------------------------
    THE MACHINE
 

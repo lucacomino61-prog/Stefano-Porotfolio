@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored, minified Draco decoder served as-is for the tower's GLB.
+    "public/draco/**",
   ]),
 ]);
 

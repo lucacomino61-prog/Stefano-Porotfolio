@@ -1,5 +1,4 @@
 import { GateText } from '@/components/motion/GateText'
-import { Magnetic } from '@/components/motion/Magnetic'
 import { CircledTake } from '@/components/ui/CircledTake'
 import { Readouts } from '@/components/ui/Readouts'
 import { SoundToggle } from '@/components/ui/SoundToggle'
@@ -55,11 +54,9 @@ export function Hero({
               exists inside WebGL cannot be tabbed to, cannot be announced and
               does not exist at all for anyone not using a mouse. This is the
               same action as a real control. */}
-          <Magnetic>
-            <CircledTake onClick={onEnter}>
-              {enterLabel}
-            </CircledTake>
-          </Magnetic>
+          <CircledTake onClick={onEnter}>
+            {enterLabel}
+          </CircledTake>
 
           <a href="#contact" className="hero-secondary">
             {dict.cta}

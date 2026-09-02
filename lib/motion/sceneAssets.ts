@@ -1,5 +1,5 @@
 /**
- * Everything the room has to fetch before it can be drawn.
+ * Everything the tower has to fetch before it can be drawn.
  *
  * Declared here rather than inside the 3D component because two places need it
  * and only one of them can import three: the scene loads these, and the loading
@@ -34,9 +34,21 @@ export type SceneAsset = {
   readonly label: string
 }
 
+/**
+ * One Draco GLB for the geometry and one baked atlas per floor. The GLB carries
+ * no materials at all: the scene assigns them by mesh name, and the atlases are
+ * the light. Source and bake scripts live in `scripts/tower/`.
+ */
 export const SCENE = {
-  studio: { path: '/models/workstation/poly-haven-studio-1k.hdr', label: 'ROOM LIGHT' },
-  garage: { path: '/models/garage/stefano-motor-works.glb', label: 'MOTOR WORKS' },
+  tower: { path: '/models/tower/tower.glb', label: 'STREET GEOMETRY' },
+  shell: { path: '/models/tower/shellBaked.png', label: 'WALLS + ROOFS' },
+  ground: { path: '/models/tower/groundBaked.png', label: 'ROAD' },
+  exterior: { path: '/models/tower/exteriorBaked.png', label: 'FACADES' },
+  garage: { path: '/models/tower/garageBaked.png', label: 'GARAGE' },
+  bank: { path: '/models/tower/bankBaked.png', label: 'BANK' },
+  milano: { path: '/models/tower/milanoBaked.png', label: 'MILANO' },
+  farmacia: { path: '/models/tower/farmaciaBaked.png', label: 'FARMACIA' },
+  beach: { path: '/models/tower/beachBaked.png', label: 'BAR MARTIRI' },
 } as const satisfies Record<string, SceneAsset>
 
 /** Every asset, in declaration order, for anything that has to walk the set. */

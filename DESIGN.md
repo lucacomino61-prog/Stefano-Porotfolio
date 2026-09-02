@@ -182,7 +182,7 @@ clears AA for text that size.
   a seam.
 - **Ruled fields** (`ContactForm`). Underline only, no boxes, labels in the
   apparatus register above the line. The form is the report sheet.
-- **The walk** (`Cinema`, `WorkstationScene`). The first screen and the approach
+- **The walk** (`Cinema`, `TowerScene`). The first screen and the approach
   to the monitor are one section because they are one camera move. Scroll is a
   distance: `lib/motion/cinema.ts` carries the position, a ScrollTrigger writes
   it, and the camera reads it inside the frame loop, so moving the camera

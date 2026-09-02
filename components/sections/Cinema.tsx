@@ -11,7 +11,6 @@ import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { setCinemaLive, setCinemaProgress } from '@/lib/motion/cinema'
 import { EMPTY_LOADING, loadingState, subscribeLoading } from '@/lib/motion/loading'
 import { MEDIA, ScrollTrigger, gsap } from '@/lib/motion/gsap'
-import { deskFocusSnapshot } from '@/lib/motion/desk'
 import { getScroller, scrollToTarget } from '@/lib/motion/scroller'
 import { PROJECTS, type ProjectId } from '@/lib/projects'
 
@@ -233,18 +232,20 @@ export function Cinema({
           position,
           {
             value: 1,
-            duration: 1.7,
-            ease: 'power2.inOut',
+            // A slower, softer walk: the street is wide and the monitor is
+            // small, so the approach covers far more ground than the old desk.
+            duration: 2.6,
+            ease: 'power3.inOut',
             onUpdate: () => setCinemaProgress(position.value),
           },
           0,
         )
 
-        // The copy clears the frame early, while there is still a room to look
-        // at. Holding it any longer would leave a name floating over a monitor.
+        // The copy clears the frame early, while there is still a street to
+        // look at. Holding it any longer would leave a name floating over a monitor.
         timeline.to(
           '[data-hero-copy]',
-          { opacity: 0, yPercent: -4, duration: 0.4, ease: 'power2.in' },
+          { opacity: 0, yPercent: -4, duration: 0.6, ease: 'power2.in' },
           0.05,
         )
 
@@ -253,8 +254,8 @@ export function Cinema({
         timeline.fromTo(
           '[data-screen-ui]',
           { opacity: 0, scale: 0.965 },
-          { opacity: 1, scale: 1, duration: 0.45, ease: 'power2.out' },
-          1.2,
+          { opacity: 1, scale: 1, duration: 0.7, ease: 'power2.out' },
+          1.9,
         )
 
         walk.current = timeline
@@ -287,17 +288,9 @@ export function Cinema({
     const refresh = () => ScrollTrigger.refresh()
     window.addEventListener('load', refresh)
 
-    /**
-     * Escape walks back out.
-     *
-     * It defers to the desk: if a device is being looked at, that is the
-     * innermost thing open and Escape belongs to it. WorkstationScene clears
-     * the device on the same key, so this checks before acting rather than both
-     * firing and the visitor losing two levels for one press.
-     */
+    /** Escape walks back out. */
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (deskFocusSnapshot()) return
       exit()
     }
     window.addEventListener('keydown', handleKey)

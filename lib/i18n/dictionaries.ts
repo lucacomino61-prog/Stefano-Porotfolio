@@ -147,7 +147,7 @@ const en: Dictionary = {
   },
   nav: {
     skipToContent: 'Skip to content',
-    loadingLabel: 'Loading the room',
+    loadingLabel: 'Building the street',
     languageLabel: 'Language',
     sections: 'Sections',
     items: { manifesto: 'Approach', work: 'Work', process: 'Process', contact: 'Contact' },
@@ -294,7 +294,7 @@ const it: Dictionary = {
   },
   nav: {
     skipToContent: 'Vai al contenuto',
-    loadingLabel: 'Carico la stanza',
+    loadingLabel: 'Costruisco la strada',
     languageLabel: 'Lingua',
     sections: 'Sezioni',
     items: { manifesto: 'Approccio', work: 'Lavori', process: 'Processo', contact: 'Contatti' },
@@ -441,7 +441,7 @@ const al: Dictionary = {
   },
   nav: {
     skipToContent: 'Kalo te përmbajtja',
-    loadingLabel: 'Po ngarkoj dhomën',
+    loadingLabel: 'Po ndërtoj rrugën',
     languageLabel: 'Gjuha',
     sections: 'Seksionet',
     items: { manifesto: 'Qasja', work: 'Punët', process: 'Procesi', contact: 'Kontakt' },

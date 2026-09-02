@@ -5,7 +5,6 @@ import Script from 'next/script'
 
 import '../globals.css'
 
-import { Cursor } from '@/components/motion/Cursor'
 import { SmoothScroll } from '@/components/motion/SmoothScroll'
 import { SiteFooter } from '@/components/ui/SiteFooter'
 import { Grain } from '@/components/ui/Grain'
@@ -154,7 +153,6 @@ export default async function RootLayout(props: {
         </a>
 
         <SmoothScroll />
-        <Cursor />
         <Loader dict={dict.nav} name={dict.hero.name} />
         <Grain />
         <SiteHeader

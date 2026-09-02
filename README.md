@@ -121,7 +121,7 @@ inside the screen is real DOM.
 
 The first screen and the walk toward the workstation are one pinned section,
 [components/sections/Cinema.tsx](components/sections/Cinema.tsx). Scroll drives a
-camera in `WorkstationScene`, not a CSS transform: the position travels through
+camera in `TowerScene`, not a CSS transform: the position travels through
 [lib/motion/cinema.ts](lib/motion/cinema.ts) and is read inside the frame loop,
 so the scene never re-renders to move. As the panel fills the frame a real DOM
 interface crossfades over it, and from there the switcher and both links are
