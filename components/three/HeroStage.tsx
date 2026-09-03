@@ -136,12 +136,12 @@ export function HeroStage({
         // Wide shot of the street (five lots, ~60 m) from the road side, high
         // and to the left, so the row recedes toward the beach. far covers the
         // star shell (100) with margin.
-        // The three-quarter corner of the cube, matching homeFor()'s landscape
+        // The three-quarter of the shopfront, matching homeFor()'s landscape
         // fit at this field of view. This is where the camera actually sits
         // until something moves it — `home` in TowerScene only takes over once
         // a zoom returns — so a stale value here parks the visitor in empty
         // space no matter what the fitting maths says.
-        camera={{ position: [-23, 13, 30], fov: 38, near: 0.1, far: 420 }}
+        camera={{ position: [-10.2, 7.0, 16.7], fov: 38, near: 0.1, far: 420 }}
         onCreated={(created) => {
           state.current = created
           // Render one frame immediately rather than waiting for the ticker.

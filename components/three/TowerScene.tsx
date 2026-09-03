@@ -3,8 +3,10 @@
 /**
  * The tower.
  *
- * A four-floor diorama (garage, bank, Milano, farmacia) built and lit in Blender
- * and baked into seven texture atlases. Nothing in here is lit at runtime: every
+ * One workshop on a corner, built and lit in Blender and baked into four
+ * texture atlases. It was five places along a street, and then six on the faces
+ * of a cube; both cost more to draw than they were worth, and a single shop the
+ * camera can stand in front of is what the frame budget actually buys. Nothing in here is lit at runtime: every
  * surface is a MeshBasicMaterial painting its atlas, the neon and LEDs are flat
  * colours on a bloom layer, and the moving parts wear a matcap. The recipe is
  * jesse-zhou.com's; the Blender source is `assets/blender/` and the scripts are `scripts/tower/`.
@@ -18,7 +20,7 @@
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from 'react'
+import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import {
   BackSide,
   Box3,
@@ -53,10 +55,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { Reflector } from 'three/addons/objects/Reflector.js'
 
-import { currentTheme, subscribeTheme, type Theme } from '@/lib/theme'
 import { cinema } from '@/lib/motion/cinema'
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
-import { SCENE, sheetPath } from '@/lib/motion/sceneAssets'
+import { SCENE } from '@/lib/motion/sceneAssets'
 import { damp } from '@/lib/motion/pointer'
 import { MACHINE_MESH, type Billboard, type Machine, type ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
@@ -81,21 +82,21 @@ const DRACO = '/draco/'
  */
 type Shot = { position: Vector3; target: Vector3 }
 
-const CUBE_RADIUS = 13.4
+const SHOP_RADIUS = 7.4
 
 function homeFor(aspect: number, fov: number): Shot {
   const portrait = aspect < 1
   const tangent = Math.tan((fov * Math.PI) / 360)
   // Fit the whole cube both ways round: vertically by the field of view, and
   // horizontally by the same divided by the aspect, whichever needs more room.
-  const distance = Math.max(CUBE_RADIUS / tangent, CUBE_RADIUS / (tangent * aspect)) * (portrait ? 1.12 : 1.02)
-  const target = new Vector3(0, 0, 0)
-  const bearing = (portrait ? new Vector3(-0.62, 0.66, 0.86) : new Vector3(-0.78, 0.46, 1.0)).normalize()
+  const distance = Math.max(SHOP_RADIUS / tangent, SHOP_RADIUS / (tangent * aspect)) * (portrait ? 1.12 : 1.02)
+  const target = new Vector3(0, 2.0, 0)
+  const bearing = (portrait ? new Vector3(-0.42, 0.58, 1.0) : new Vector3(-0.61, 0.42, 1.0)).normalize()
   return { position: target.clone().addScaledVector(bearing, distance), target }
 }
 
 /** Where the wide shot looks before the first frame has been measured. */
-const HOME_LOOK = new Vector3(0, 0, 0)
+const HOME_LOOK = new Vector3(0, 2.0, 0)
 
 /**
  * The panel.
@@ -157,15 +158,6 @@ const ENTER_LIFT = 0.32
  * one void. A colour needs light on it to read as a colour.
  */
 const ROOM_VOID = '#04050c'
-/**
- * The same void at noon.
- *
- * Swapping eight atlases turns the cube's surfaces over and leaves it hanging
- * in a starfield, which is a lit building at midnight — the one thing the day
- * sheet is not. The sky has to turn over with it or the switch only half
- * happens, and half a change of hour reads as a bug rather than as daylight.
- */
-const DAY_VOID = '#aebfd8'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -527,7 +519,7 @@ const zoom = {
   parked: null as string | null,
 }
 /** The fitted wide shot for the current frame. TowerScene writes it on every resize. */
-let home: Shot = { position: new Vector3(-22, 13, 28), target: HOME_LOOK.clone() }
+let home: Shot = { position: new Vector3(-10.2, 7.0, 16.7), target: HOME_LOOK.clone() }
 
 function setHome(shot: Shot): void {
   home = shot
@@ -694,10 +686,6 @@ const BAKED: Record<string, keyof typeof SCENE> = {
   shellJoined: 'shell',
   groundJoined: 'ground',
   garageJoined: 'garage',
-  bankJoined: 'bank',
-  milanoJoined: 'milano',
-  farmaciaJoined: 'farmacia',
-  beachJoined: 'beach',
   exteriorJoined: 'exterior',
 }
 const EMISSIVE_RULES: readonly (readonly [RegExp, string])[] = [
@@ -764,6 +752,12 @@ const TRAFFIC_OFF = '#0a0a0c'
 /**
  * The five places, addressed by the mesh each one bakes down to.
  *
+ * There is one place now — the workshop — so every board on the directory
+ * frames the same building and differs only in the view it puts on the
+ * monitor. The keys are kept because the boards in Blender are named after
+ * them and the site maps them to screen views; renaming one would silently
+ * remove a destination.
+ *
  * These used to carry a hand-measured centre and size along a street: lots at
  * a fixed pitch on the x axis, so "which lot is this?" was `Math.abs(x - c)`.
  * The places are on the six faces of a cube now — two of them are above and
@@ -778,10 +772,10 @@ const TRAFFIC_OFF = '#0a0a0c'
  */
 const LOTS: readonly { key: string; view: ScreenView; mesh: string }[] = [
   { key: 'garage', view: 'home', mesh: 'garageJoined' },
-  { key: 'bank', view: 'process', mesh: 'bankJoined' },
-  { key: 'milano', view: 'about', mesh: 'milanoJoined' },
-  { key: 'farmacia', view: 'contact', mesh: 'farmaciaJoined' },
-  { key: 'bar', view: 'work', mesh: 'beachJoined' },
+  { key: 'bank', view: 'process', mesh: 'garageJoined' },
+  { key: 'milano', view: 'about', mesh: 'garageJoined' },
+  { key: 'farmacia', view: 'contact', mesh: 'garageJoined' },
+  { key: 'bar', view: 'work', mesh: 'garageJoined' },
 ]
 function lotBox(lot: (typeof LOTS)[number], root: Object3D): Box3 {
   const mesh = root.getObjectByName(lot.mesh)
@@ -804,83 +798,6 @@ function lotAtPoint(point: Vector3, root: Object3D) {
     }
   }
   return best
-}
-
-/**
- * Which sheet the page is on, as something the scene can re-render against.
- *
- * The switch keeps no React state on purpose — the attribute on the root
- * element is the one copy of the truth — so this watches that attribute rather
- * than introducing a second copy that could drift out of step with the CSS.
- * The server snapshot is the night sheet because that is what the boot script
- * writes before React sees anything, and returning the same string every time
- * is what keeps hydration quiet.
- */
-function useTheme(): Theme {
-  return useSyncExternalStore(subscribeTheme, currentTheme, () => 'dark' as Theme)
-}
-
-/**
- * Turn the street over between the two bakes.
- *
- * Both sheets exist as complete sets of atlases — the same geometry, once under
- * neon and once under a sun — so changing the hour is changing which eight
- * images the same eight meshes are wearing. Loading is imperative rather than
- * through useLoader because suspending here would unmount the scene and throw
- * the visitor back to the loading screen to change a light switch.
- *
- * The dip is the point. Swapping the maps on the frame they arrive reads as a
- * glitch — every surface in the scene changes value at once, which nothing
- * physical does. Driving the materials down first, swapping in the dark, and
- * bringing them back up reads as the lights being changed over, and it hides
- * the fact that the eight images do not finish decoding on the same frame.
- */
-function useSheetSwap(dressed: Dressed, theme: Theme, level: RefObject<number>) {
-  const owned = useRef<Texture[]>([])
-  useEffect(() => {
-    let cancelled = false
-    const urls = dressed.baked.map(({ key }) => sheetPath(key, theme))
-    // Nothing to fetch on the first pass: the night set is already mounted.
-    if (urls.every((url, i) => dressed.baked[i].material.map?.userData.url === url)) return
-    level.current = 0.001            // tell the frame loop to take the lights down
-    const loader = new TextureLoader()
-    Promise.all(urls.map((url) => loader.loadAsync(url).then((texture) => {
-      texture.flipY = false
-      texture.colorSpace = SRGBColorSpace
-      texture.anisotropy = 4
-      texture.userData.url = url
-      return texture
-    })))
-      .then((textures) => {
-        if (cancelled) {
-          textures.forEach((t) => t.dispose())
-          return
-        }
-        // Only ever dispose what this effect loaded. The first set belongs to
-        // useLoader's cache, and freeing that would empty the cache entry the
-        // next switch back is counting on.
-        const previous = owned.current
-        textures.forEach((texture, index) => {
-          dressed.baked[index].material.map = texture
-          dressed.baked[index].material.needsUpdate = true
-        })
-        owned.current = textures
-        previous.forEach((texture) => texture.dispose())
-        level.current = 1
-      })
-      .catch(() => {
-        // A sheet that will not load is not worth blacking the scene out for.
-        level.current = 1
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [dressed, theme, level])
-
-  useEffect(() => () => {
-    owned.current.forEach((texture) => texture.dispose())
-    owned.current = []
-  }, [])
 }
 
 /** A sphere-shaded gradient drawn once: the matcap for the moving metal parts. */
@@ -1240,20 +1157,10 @@ function TowerModel({
   const hovered = useRef<string | null>(null)
   const clock = useRef(0)
   const arcadeAttract = useMemo(() => makeArcadeAttract(), [])
-  /** 1 in normal light, near 0 while the sheet is being changed under us. */
-  const sheet = useRef(1)
-  useSheetSwap(dressed, useTheme(), sheet)
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const t = (clock.current += dt)
-    // The lights coming up, or going down while the other sheet loads. Slower
-    // than the hover ramps below on purpose: this is a room changing its hour,
-    // not a control answering a pointer.
-    for (const { material } of dressed.baked) {
-      material.color.setScalar(damp(material.color.r, sheet.current, 5, dt * 1000))
-    }
-
     for (const fan of dressed.fans) fan.rotation.z -= dt * 6
     for (const part of dressed.vault) part.rotation.x += dt * 0.6
     if (dressed.dishPivot) dressed.dishPivot.rotation.y += dt * 0.35
@@ -1427,8 +1334,6 @@ function TowerModel({
  * reflective, and the frame rate is the thing that gets kept.
  */
 function Night({ reflective }: { reflective: boolean }) {
-  const theme = useTheme()
-  const day = theme === 'light'
   const stars = useMemo(() => {
     const n = 1400
     const position = new Float32Array(n * 3)
@@ -1449,8 +1354,6 @@ function Night({ reflective }: { reflective: boolean }) {
     const points = new Points(geometry, new PointsMaterial({ size: 0.7, vertexColors: true, transparent: true, opacity: 0.85 }))
     return points
   }, [])
-  // Stars are the one thing daylight simply removes rather than recolours.
-  stars.visible = !day
   const mirror = useMemo(() => {
     if (!reflective) return null
     const reflector = new Reflector(new CircleGeometry(70, 64), {
@@ -1467,7 +1370,6 @@ function Night({ reflective }: { reflective: boolean }) {
   const floor = useMemo(() => {
     if (reflective) return null
     const plane = new Mesh(new CircleGeometry(70, 64), new MeshBasicMaterial({ color: '#0a0c11' }))
-    plane.userData.night = '#0a0c11'
     plane.rotation.x = -Math.PI / 2
     plane.position.y = -0.05
     return plane
@@ -1484,20 +1386,16 @@ function Night({ reflective }: { reflective: boolean }) {
     canvas.width = 2
     canvas.height = 256
     const context = canvas.getContext('2d')!
-    // Both hours are painted into the same strip, one above the other, and the
-    // drum's UVs are shifted to choose between them. One texture, two skies,
-    // and changing the hour costs a repaint of nothing at all.
-    const paint = (top: number, stops: [number, string][]) => {
-      const gradient = context.createLinearGradient(0, top, 0, top + 128)
-      for (const [at, hex] of stops) gradient.addColorStop(at, hex)
-      context.fillStyle = gradient
-      context.fillRect(0, top, 2, 128)
-    }
-    paint(0, [[0, DAY_VOID], [0.5, '#c6d6ea'], [0.74, '#e6eef7'], [0.86, '#cfdcec'], [1, '#9fb2cd']])
-    paint(128, [[0, ROOM_VOID], [0.55, '#070a18'], [0.72, '#101a3c'], [0.8, '#0a1028'], [1, ROOM_VOID]])
+    const gradient = context.createLinearGradient(0, 0, 0, 256)
+    gradient.addColorStop(0, ROOM_VOID)
+    gradient.addColorStop(0.55, '#070a18')
+    gradient.addColorStop(0.72, '#101a3c')
+    gradient.addColorStop(0.8, '#0a1028')
+    gradient.addColorStop(1, ROOM_VOID)
+    context.fillStyle = gradient
+    context.fillRect(0, 0, 2, 256)
     const texture = new CanvasTexture(canvas)
     texture.colorSpace = SRGBColorSpace
-    texture.repeat.set(1, 0.5)
     const drum = new Mesh(
       new CylinderGeometry(300, 300, 260, 48, 1, true),
       new MeshBasicMaterial({ map: texture, side: BackSide, fog: false, depthWrite: false }),
@@ -1506,14 +1404,6 @@ function Night({ reflective }: { reflective: boolean }) {
     drum.position.y = 74
     return drum
   }, [])
-  // Which half of the strip the drum is wearing. UV origin is the bottom, so
-  // the night half — painted second, lower down the canvas — is offset 0.
-  const skyMap = (sky.material as MeshBasicMaterial).map
-  if (skyMap) {
-    skyMap.offset.y = day ? 0.5 : 0
-    skyMap.needsUpdate = true
-  }
-  if (floor) (floor.material as MeshBasicMaterial).color.set(day ? '#93a6c2' : (floor.userData.night as string))
   useEffect(() => () => {
     stars.geometry.dispose()
     ;(stars.material as PointsMaterial).dispose()
@@ -1645,7 +1535,6 @@ export function TowerScene({
   onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
 }) {
-  const theme = useTheme()
   /** The three live screens, registered as they mount; the rig and the projection follow `machine`. */
   const machines = useRef<Machines>({ monitor: null, arcade: null, atm: null })
   const mirror = useRef<Object3D>(null)
@@ -1684,7 +1573,7 @@ export function TowerScene({
         minPolarAngle={0.2}
         maxPolarAngle={1.5}
       />
-      <color attach="background" args={[theme === 'light' ? DAY_VOID : ROOM_VOID]} />
+      <color attach="background" args={[ROOM_VOID]} />
       <group ref={mirror as RefObject<Group>}>
         <Night reflective={!compact} />
       </group>

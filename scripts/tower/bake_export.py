@@ -194,6 +194,13 @@ def bake_group(ob, tex_name):
 manifest = {'size': SIZE, 'samples': SAMPLES, 'groups': {}, 'emissive': [], 'screens': [], 'signs': [], 'hitboxes': [], 'dynamic': []}
 t_all = time.time()
 for coll_name, joined_name, tex_name in GROUPS:
+    # A group with nothing in it is not an error any more: the scene is one
+    # shop, so the four collections that used to be the other lots are empty.
+    # Baking them would write a 2048 of pure black and the site would fetch it.
+    _coll = bpy.data.collections.get(coll_name)
+    if _coll is None or not _coll.objects:
+        log(f'{coll_name}: empty, skipped')
+        continue
     # every group is joined + unwrapped so the exported GLB is always complete; ONLY limits which ones get baked
     ob = join_group(coll_name, joined_name)
     if ob is None:
