@@ -41,7 +41,7 @@ import { createScreens } from './world/screens'
  */
 type Manifest = {
   groups: Record<string, { atlas: string; size: number }>
-  glow: { palette: Record<string, { color: string; gain: number }>; objects: Record<string, string> }
+  glow: { palette: Record<string, { color: string; gain: number; bloom?: boolean }>; objects: Record<string, string> }
   live: Record<string, string[]>
 }
 
@@ -182,7 +182,7 @@ async function main() {
       const base = new Color(palette[glowKey].color).multiplyScalar(palette[glowKey].gain)
       const material = new MeshBasicMaterial({ color: base, toneMapped: false })
       object.material = material
-      object.layers.enable(BLOOM_LAYER)
+      if (palette[glowKey].bloom !== false) object.layers.enable(BLOOM_LAYER)
       if (name.startsWith('plate_')) plates.set(name.slice(6), { material, base })
       return
     }

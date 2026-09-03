@@ -2,95 +2,118 @@
  "palette": {
   "pink": {
    "color": "#ff2f9c",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "cyan": {
    "color": "#28e7ff",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "green": {
    "color": "#41ff8f",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "yellow": {
    "color": "#ffd23a",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "orange": {
    "color": "#ff8c2a",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "red": {
    "color": "#ff3b5c",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "blue": {
    "color": "#3d6bff",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "white": {
    "color": "#f2f4ff",
-   "gain": 0.45
+   "gain": 0.75,
+   "bloom": false
   },
   "globe": {
    "color": "#ffe4fb",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "lantern": {
    "color": "#ffe3a8",
-   "gain": 0.8
+   "gain": 0.8,
+   "bloom": true
   },
   "holo": {
    "color": "#3cf5ff",
-   "gain": 1.0
+   "gain": 1.0,
+   "bloom": true
   },
   "platePink": {
    "color": "#ff2f7a",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "plateCyan": {
    "color": "#27dcff",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "plateGreen": {
    "color": "#45ff96",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "plateOrange": {
    "color": "#ff9d2a",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "plateRed": {
    "color": "#ff3a5f",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "plateWhite": {
    "color": "#f8f6ff",
-   "gain": 0.5
+   "gain": 0.5,
+   "bloom": true
   },
   "vendGlow": {
    "color": "#dcf6ff",
-   "gain": 0.7
+   "gain": 0.7,
+   "bloom": true
   },
   "vendHeader": {
    "color": "#8fe9ff",
-   "gain": 0.6
+   "gain": 0.6,
+   "bloom": true
   },
   "ledCyan": {
    "color": "#5df3ff",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "ledRed": {
    "color": "#ff4a5a",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "ledGreen": {
    "color": "#5cff8a",
-   "gain": 0.9
+   "gain": 0.9,
+   "bloom": true
   },
   "ledWhite": {
    "color": "#ffffff",
-   "gain": 0.8
+   "gain": 0.8,
+   "bloom": true
   }
  },
  "objects": {

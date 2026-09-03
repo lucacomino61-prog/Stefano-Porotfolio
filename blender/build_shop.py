@@ -145,7 +145,8 @@ M = {k: mat(k, *v) for k, v in {
 M['wood'] = mat_wood('wood', ('#c98a52', '#e6b27a'))
 M['woodDark'] = mat_wood('woodDark', ('#7a4b2a', '#a86c3f'))
 
-# neon and lamps: hex colour the runtime paints, bake emission strength, runtime bloom gain
+# neon and lamps: hex colour the runtime paints, bake emission strength, runtime gain,
+# and whether the runtime blooms it (the white lamps light the bake but glow too much on screen)
 GLOW = {
     'pink':    ('#ff2f9c', 14, 1.0),
     'cyan':    ('#28e7ff', 12, 1.0),
@@ -154,7 +155,7 @@ GLOW = {
     'orange':  ('#ff8c2a', 8, 0.9),
     'red':     ('#ff3b5c', 8, 0.9),
     'blue':    ('#3d6bff', 8, 0.9),
-    'white':   ('#f2f4ff', 5, 0.45),
+    'white':   ('#f2f4ff', 5, 0.75, False),
     'globe':   ('#ffe4fb', 36, 1.0),
     'lantern': ('#ffe3a8', 9, 0.8),
     'holo':    ('#3cf5ff', 26, 1.0),
@@ -679,7 +680,7 @@ counts = {g: len(COLL[g].objects) for g in GROUPS}
 verts = sum(len(o.data.vertices) for c in COLL.values() for o in c.objects if o.type == 'MESH')
 print('BUILD OK', counts, 'verts', verts, flush=True)
 with open(os.path.join(HERE, 'glow.json'), 'w', encoding='utf-8') as f:
-    json.dump({'palette': {k: {'color': v[0], 'gain': v[2]} for k, v in GLOW.items()}, 'objects': GLOW_OF}, f, indent=1)
+    json.dump({'palette': {k: {'color': v[0], 'gain': v[2], 'bloom': (v[3] if len(v) > 3 else True)} for k, v in GLOW.items()}, 'objects': GLOW_OF}, f, indent=1)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'shop.blend'))
 
 if os.environ.get('SHOP_NO_PREVIEW') != '1':
