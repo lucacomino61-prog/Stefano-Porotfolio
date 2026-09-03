@@ -35,6 +35,11 @@ LAMP_KEEP = 0.16
 NEON_KEEP = 0.30
 
 SUN_NAME = 'sun_day'
+# The fills standing off each opening are not shop lights, they are what the
+# sky would be doing if the room had a front on a street. Dimming them to 16%
+# with the lamps would bake a daylight variant whose interiors are darker than
+# the night one, which is the wrong way round.
+FILL_PREFIX = 'faceFill'
 DAY_COLLECTION = 'DAY'
 
 # Sky, and the ground bounce under it. Warm enough to read as afternoon rather
@@ -114,7 +119,7 @@ def apply(variant: str) -> None:
 
     # --- the lamps the street was built with -------------------------------
     for obj in bpy.data.objects:
-        if obj.type != 'LIGHT' or obj.name == SUN_NAME:
+        if obj.type != 'LIGHT' or obj.name == SUN_NAME or obj.name.startswith(FILL_PREFIX):
             continue
         authored = _remember(obj.data, 'authored_energy', obj.data.energy)
         obj.data.energy = authored * LAMP_KEEP if day else authored

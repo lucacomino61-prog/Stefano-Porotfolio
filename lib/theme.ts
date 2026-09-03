@@ -83,3 +83,23 @@ if(s&&s.against===a&&(s.theme==='light'||s.theme==='dark'))t=s.theme;
 }catch(e){}
 document.documentElement.setAttribute(${JSON.stringify(THEME_ATTRIBUTE)},t);
 }catch(e){document.documentElement.setAttribute(${JSON.stringify(THEME_ATTRIBUTE)},'dark')}})()`
+
+/**
+ * The sheet, for anything that has to react rather than be styled.
+ *
+ * The switch above deliberately keeps no React state: the attribute on the
+ * root element is the single copy of the truth, and CSS reads it directly. The
+ * 3D scene cannot — it has to swap a set of baked textures when the page turns
+ * over — so it watches the same attribute instead of being handed a second
+ * copy of the answer that could disagree with the first.
+ */
+export function currentTheme(): Theme {
+  const attribute = document.documentElement.getAttribute(THEME_ATTRIBUTE)
+  return isTheme(attribute) ? attribute : automaticTheme()
+}
+
+export function subscribeTheme(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: [THEME_ATTRIBUTE] })
+  return () => observer.disconnect()
+}

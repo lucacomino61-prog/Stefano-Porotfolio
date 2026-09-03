@@ -86,11 +86,7 @@
     "lampBulb0",
     "lampBulb1",
     "lampGlobeL0",
-    "lampGlobeL1",
-    "lampGlobeL2",
     "lampGlobeR0",
-    "lampGlobeR1",
-    "lampGlobeR2",
     "ledStripBench",
     "ledStripPharma",
     "liftLEDgreen",
@@ -109,8 +105,6 @@
     "neonWhiteMilano",
     "neonYellow",
     "neonYellowBank",
-    "parkedHeadL",
-    "parkedHeadR",
     "pharmaPanel0",
     "pharmaPanel1",
     "pharmaPanel2",
@@ -226,5 +220,5 @@
     "vespaWheelF"
   ],
   "glb": "garage.glb",
-  "glbBytes": 730176
+  "glbBytes": 806636
 }

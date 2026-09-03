@@ -32,6 +32,14 @@ export type SceneAsset = {
    * and the overlay is aria-hidden and inert so nothing announces them.
    */
   readonly label: string
+  /**
+   * The same surface baked under a sun instead of neon, where there is one.
+   *
+   * Only the eight atlases have a daylight twin — the geometry is one GLB and
+   * does not change with the hour. An asset without this is loaded once and
+   * never swapped, which is why it is optional rather than an empty string.
+   */
+  readonly day?: string
 }
 
 /**
@@ -41,15 +49,29 @@ export type SceneAsset = {
  */
 export const SCENE = {
   tower: { path: '/models/tower/tower.glb', label: 'STREET GEOMETRY' },
-  shell: { path: '/models/tower/shellBaked.png', label: 'WALLS + ROOFS' },
-  ground: { path: '/models/tower/groundBaked.png', label: 'ROAD' },
-  exterior: { path: '/models/tower/exteriorBaked.png', label: 'FACADES' },
-  garage: { path: '/models/tower/garageBaked.png', label: 'GARAGE' },
-  bank: { path: '/models/tower/bankBaked.png', label: 'BANK' },
-  milano: { path: '/models/tower/milanoBaked.png', label: 'MILANO' },
-  farmacia: { path: '/models/tower/farmaciaBaked.png', label: 'FARMACIA' },
-  beach: { path: '/models/tower/beachBaked.png', label: 'BAR MARTIRI' },
+  shell: { path: '/models/tower/shellBaked.png', day: '/models/tower/shellBakedDay.png', label: 'WALLS + ROOFS' },
+  ground: { path: '/models/tower/groundBaked.png', day: '/models/tower/groundBakedDay.png', label: 'ROAD' },
+  exterior: { path: '/models/tower/exteriorBaked.png', day: '/models/tower/exteriorBakedDay.png', label: 'FACADES' },
+  garage: { path: '/models/tower/garageBaked.png', day: '/models/tower/garageBakedDay.png', label: 'GARAGE' },
+  bank: { path: '/models/tower/bankBaked.png', day: '/models/tower/bankBakedDay.png', label: 'BANK' },
+  milano: { path: '/models/tower/milanoBaked.png', day: '/models/tower/milanoBakedDay.png', label: 'MILANO' },
+  farmacia: { path: '/models/tower/farmaciaBaked.png', day: '/models/tower/farmaciaBakedDay.png', label: 'FARMACIA' },
+  beach: { path: '/models/tower/beachBaked.png', day: '/models/tower/beachBakedDay.png', label: 'BAR MARTIRI' },
 } as const satisfies Record<string, SceneAsset>
 
 /** Every asset, in declaration order, for anything that has to walk the set. */
 export const SCENE_ASSETS: readonly SceneAsset[] = Object.values(SCENE)
+
+/**
+ * Which image an asset wears on a given sheet.
+ *
+ * `SCENE` is declared `as const` so each entry keeps its literal type, which is
+ * what makes `SCENE.garage.path` a known string rather than just `string`. The
+ * cost is that the union of entries has no common `day` property — the GLB has
+ * no daylight twin — so reading it off an entry chosen at runtime needs the
+ * wider type. Widening once, here, keeps that from being everyone's problem.
+ */
+export function sheetPath(key: keyof typeof SCENE, theme: 'light' | 'dark'): string {
+  const asset: SceneAsset = SCENE[key]
+  return theme === 'light' && asset.day ? asset.day : asset.path
+}

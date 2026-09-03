@@ -9,7 +9,7 @@
 # not baked: EMISSIVE (bloom), SCREENS (swapped textures), SIGNS + HITBOX (menu), DYNAMIC (matcap, animated)
 # run:  blender -b -P build_street.py   (saves garage.blend next to this file, renders previews)
 import bpy, bmesh, math, os
-from mathutils import Vector, Euler
+from mathutils import Vector, Euler, Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The blend the bake and the site both read lives with the other art sources,
@@ -162,15 +162,22 @@ def box(name, dims, loc, coll, material, rot=(0, 0, 0), chamfer=None):
         # 12mm thick becomes a lozenge and a windowpane collapses on itself.
         width = min(want, min(abs(d) for d in dims) * 0.25)
         if width >= CHAMFER_MIN:
-            bmesh.ops.bevel(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
-                            offset=width, offset_type='OFFSET', segments=CHAMFER_SEG,
-                            profile=0.5, affect='EDGES', clamp_overlap=True)
-            # Shade the result smooth. Two bevel segments on their own are two
-            # visible facets; smoothing interpolates the normal across them so
-            # the highlight sweeps round the corner. The big faces are coplanar
-            # with themselves, so this bends light only where the geometry
-            # actually turns — the walls stay flat, the edges go round.
-            for face in bm.faces:
+            made = bmesh.ops.bevel(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
+                                   offset=width, offset_type='OFFSET', segments=CHAMFER_SEG,
+                                   profile=0.5, affect='EDGES', clamp_overlap=True)
+            # Smooth the bevel, and ONLY the bevel.
+            #
+            # Shading every face smooth looks right on a 30cm prop and destroys
+            # anything large. A face's shading normal is interpolated from its
+            # corners, and on a beveled box every corner normal is tilted 45
+            # degrees into the round — so on the 14m lid of the cube that tilt
+            # got interpolated across the whole surface, the lid stopped facing
+            # up, and it rendered black under a light directly above it.
+            #
+            # Restricting it to the faces the bevel created keeps the flat
+            # surfaces flat and honest, and still sweeps the highlight round
+            # the corner, which was the only reason to smooth anything.
+            for face in made['faces']:
                 face.smooth = True
     return _finish(name, bm, coll, material, loc, rot)
 
@@ -247,22 +254,159 @@ FRONT, BACK = -D/2, D/2
 GAP = 2.6                 # alley between buildings
 PITCH = W + 2*T + GAP     # lot to lot
 LOTS = [('GARAGE', 4.0, 'wallPurple'), ('BANK', 3.6, 'wallBankGrey'), ('MILANO', 3.8, 'wallCream'), ('FARMACIA', 3.4, 'wallMint'), ('BEACH', 0.0, None)]
-LOT_X = {name: (i - 2) * PITCH for i, (name, _, _) in enumerate(LOTS)}   # centred on the Milano lot
+# Six faces, six places. Every diorama is still authored in exactly the frame
+# it always was — floor at z=0, open side toward -y — and is then rotated onto
+# the face it belongs to once it is finished. Nothing inside a lot knows or
+# cares where it ended up, which is why none of the interiors below changed.
+#
+# The lots therefore all build at the origin now, on top of each other, and are
+# separated afterwards. LOT_X survives as zeroes rather than being deleted
+# because the interiors reference it constantly.
+LOT_X = {name: 0.0 for name, _, _ in LOTS}
 STREET_W = PITCH * 5
+
+CUBE = 14.0
+HALF = CUBE / 2
+# Each room is recessed into the cube and looks out through its own face, so a
+# face IS the room's open front rather than a lid it stands on. The first
+# arrangement stood them on the faces instead, and every side of the cube then
+# showed that room's roof: a roof is not a place.
+#
+# A room is 7 deep, and recessed from its own face it reaches exactly the
+# centre. 14 is therefore the tightest the cube can be: opposite rooms meet
+# back to back, their two back walls overlapping by their own thickness where
+# nobody can see either of them. Any smaller and one room's floor comes through
+# the other's ceiling; any larger and the faces turn into letterbox slots in a
+# monolith, which is what 16 looked like.
+#
+# Two kinds of face, because there are two kinds of place.
+#
+# Four of these are interiors: a room with walls and a roof, which only reads
+# if you are looking into it. Those are recessed behind their face, and the
+# face is the opening — 'recess'.
+#
+# The other two are outdoors. A beach and a public square are a floor with
+# things standing on it and no ceiling at all, so recessing one turns its sand
+# into a wall you look at edge-on, which is exactly what the top face did on
+# the first attempt. Those sit on top of their face instead and are read from
+# above — 'stand'. The cube ends up a beach on the lid, a square underneath,
+# and four shopfronts round the sides.
+#
+# Second entry: for 'recess', which way is up inside that room; for 'stand',
+# which way it opens. Both are tangents of the face, so each place carries its
+# own gravity and the cube as a whole has none.
+FACES = {
+    'GARAGE':   ((0, -1, 0), (0, 0, 1),  'recess'),
+    'BANK':     ((1, 0, 0),  (0, 0, 1),  'recess'),
+    'MILANO':   ((0, 1, 0),  (0, 0, 1),  'recess'),
+    'FARMACIA': ((-1, 0, 0), (0, 0, 1),  'recess'),
+    'BEACH':    ((0, 0, 1),  (0, -1, 0), 'stand'),
+    'PIAZZA':   ((0, 0, -1), (0, 1, 0),  'stand'),
+}
+# How tall the opening has to be to clear what stands behind it, per face.
+OPENING = {'GARAGE': 5.6, 'BANK': 5.2, 'MILANO': 5.4, 'FARMACIA': 5.0, 'BEACH': 6.4, 'PIAZZA': 7.2}
+OPEN_W = 11.2
+
+def _basis(key):
+    normal, tangent, mode = FACES[key]
+    n = Vector(normal).normalized()
+    t = Vector(tangent).normalized()
+    if mode == 'recess':
+        z = t          # the room's up becomes a tangent of the face
+        y = -n         # it opens along -y, and that has to point outward
+    else:
+        z = n          # the place stands on the face, so its up IS the normal
+        y = -t         # and it opens along the tangent it was given
+    x = y.cross(z)     # follows, and is what keeps the basis right-handed
+    return n, t, x, y, z
+
+_placed = set()
+
+def _fresh():
+    """Every object built since the last time this was asked."""
+    new = [o for o in bpy.data.objects if o.name not in _placed]
+    for o in new:
+        _placed.add(o.name)
+    return new
+
+def face(key, height):
+    """Rotate everything built since the last face() onto this cube face.
+
+    The rotation is assembled from where the lot's own axes have to end up
+    rather than written as three Euler angles, because the angles are only
+    obvious for one of the six and wrong-by-a-sign for the rest. Local +z (the
+    lot's up) becomes the face normal; local -y (the side it opens toward)
+    becomes the face's chosen tangent; local +x follows from those two, which
+    is what keeps the basis right-handed and the text unmirrored.
+    """
+    n, t, x, y, z = _basis(key)
+    rot = Matrix(((x.x, y.x, z.x, 0.0),
+                  (x.y, y.y, z.y, 0.0),
+                  (x.z, y.z, z.z, 0.0),
+                  (0.0, 0.0, 0.0, 1.0)))
+    # Slide back so the room's open front (local y = FRONT) lands on the face,
+    # then down its own up-axis so it is centred in the opening rather than
+    # sitting on the sill with all the empty room above it.
+    if FACES[key][2] == 'recess':
+        # Slide back so the open front (local y = FRONT) lands on the face,
+        # then down its own up-axis so it is centred in the opening rather
+        # than sitting on the sill with the empty room above it.
+        placement = Matrix.Translation(n * (HALF + FRONT) - t * (height / 2)) @ rot
+    else:
+        # Standing: the floor is the face, so there is nothing to centre.
+        placement = Matrix.Translation(n * HALF) @ rot
+    moved = _fresh()
+    for ob in moved:
+        ob.matrix_world = placement @ ob.matrix_world
+    print(f'[cube] {key}: {len(moved)} {FACES[key][2]} on face {tuple(FACES[key][0])}', flush=True)
 ROAD_Y0, ROAD_Y1 = FRONT - 2.6, FRONT - 9.6   # pavement in front of the lots, then the road
 
-# ================================================================ GROUND: pavement, road, back alley
+# ================================================================ GROUND: the cube the six places stand on
 OX = 0.0
-box('pavement', (STREET_W + 4, 2.6, 0.28), (0, FRONT - 1.3 - T, -0.16), 'GROUND', M['concrete2'])
-box('kerb', (STREET_W + 4, 0.16, 0.14), (0, ROAD_Y0 - T, -0.1), 'GROUND', M['kerb'])
-box('road', (STREET_W + 12, ROAD_Y0 - ROAD_Y1, 0.24), (0, (ROAD_Y0 + ROAD_Y1)/2 - T, -0.2), 'GROUND', M['asphalt'])
-box('kerbFar', (STREET_W + 12, 0.16, 0.14), (0, ROAD_Y1 - T, -0.1), 'GROUND', M['kerb'])
-box('pavementFar', (STREET_W + 12, 1.8, 0.28), (0, ROAD_Y1 - T - 0.9, -0.16), 'GROUND', M['concrete2'])
-for i in range(int(STREET_W // 2.6)):
-    box(f'roadDash{i}', (1.4, 0.14, 0.012), (-STREET_W/2 + 1.3 + i * 2.6, (ROAD_Y0 + ROAD_Y1)/2 - T, -0.074), 'GROUND', M['white'])
-for i in range(9):
-    box(f'zebra{i}', (0.5, 3.6, 0.012), (LOT_X['BANK'] + PITCH/2 - 2.4 + i * 0.6, (ROAD_Y0 + ROAD_Y1)/2 - T, -0.074), 'GROUND', M['white'])
-box('alley', (STREET_W + 4, 3.0, 0.28), (0, BACK + T + 1.5, -0.16), 'GROUND', M['concrete2'])
+# One solid block. The faces are the ground of each diorama, so this is the
+# only "floor" in the scene and every lot's own floor slab sits flush on it.
+# Six frames rather than one block with holes in it. A frame is four slabs
+# round an opening, which is a boolean the hard way but without the boolean:
+# the shape is trivially correct and it bakes without the seams a cut solid
+# leaves along its cut edges.
+def _slab(name, size, centre, x, y, z, coll, material):
+    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=Vector(size), verts=bm.verts)
+    made = bmesh.ops.bevel(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
+                           offset=CHAMFER, offset_type='OFFSET', segments=CHAMFER_SEG,
+                           profile=0.5, affect='EDGES', clamp_overlap=True)
+    for f in made['faces']: f.smooth = True
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    me.materials.append(material)
+    ob = bpy.data.objects.new(name, me)
+    rot = Matrix(((x.x, y.x, z.x, 0.0), (x.y, y.y, z.y, 0.0), (x.z, y.z, z.z, 0.0), (0.0, 0.0, 0.0, 1.0)))
+    ob.matrix_world = Matrix.Translation(centre) @ rot
+    COLL[coll].objects.link(ob)
+    return ob
+
+WALL_T = 0.5
+for _key in FACES:
+    _n, _t, _x, _y, _z = _basis(_key)
+    _r = _x                      # across the face
+    _up = _z if FACES[_key][2] == 'recess' else _y
+    if FACES[_key][2] == 'stand':
+        # No opening to frame: this face is the ground the place stands on.
+        _slab(f'{_key}Deck', (CUBE, CUBE, WALL_T), _n * (HALF - WALL_T / 2), _r, _up, _n, 'GROUND', M['slab'])
+        continue
+    _oh = OPENING[_key]
+    _mid = _n * (HALF - WALL_T / 2)
+    _side = (CUBE - OPEN_W) / 2
+    _band = (CUBE - _oh) / 2
+    for _nm, _size, _off in (
+            (f'{_key}FrameTop',   (CUBE, _band, WALL_T), _up * (_oh / 2 + _band / 2)),
+            (f'{_key}FrameBottom',(CUBE, _band, WALL_T), -_up * (_oh / 2 + _band / 2)),
+            (f'{_key}FrameLeft',  (_side, _oh, WALL_T),  -_r * (OPEN_W / 2 + _side / 2)),
+            (f'{_key}FrameRight', (_side, _oh, WALL_T),  _r * (OPEN_W / 2 + _side / 2))):
+        _slab(_nm, _size, _mid + _off, _r, _up, _n, 'GROUND', M['slab'])
+    # A reveal round the opening: the frame is half a metre thick and saying so
+    # is what stops the cube reading as printed cardboard.
+    _slab(f'{_key}Reveal', (OPEN_W + 0.36, _oh + 0.36, 0.14),
+          _n * (HALF + 0.07), _r, _up, _n, 'GROUND', M['concrete2'])
 
 # ================================================================ SHELL per lot (four buildings) — the beach lot has no shell
 def shell(name, h, wallcol, band, pillar):
@@ -403,6 +547,8 @@ def exterior(name, h, extras):
     if 'mural' in extras:
         for i, (yy, zz, col) in enumerate([(-2.4, 1.0, 'pink'), (-2.4, 2.4, 'blue'), (-1.4, 1.7, 'yellow'), (2.6, 1.4, 'orange'), (2.6, 2.7, 'green')]):
             plane(f'{name}mural{i}', 0.9, 1.1, (XL - 0.02, yy, zz), 'EXTERIOR', M[col], rot=(0, 0, -math.pi/2))
+
+_fresh()   # everything above is the cube itself and stays where it is
 
 # ================================================================ LOT 0 — GARAGE
 OX = LOT_X['GARAGE']; H = 4.0; G = 'GARAGE'; Z = 0.0
@@ -556,6 +702,8 @@ for nm, dims, loc in (('garageScreenHitBox', (1.2, 0.3, 0.7), (RX2, RY2 + 0.22, 
                       ('easelHitBox', (0.7, 0.3, 0.9), (1.9, FRONT - 0.9, 0.5))):
     box(nm, dims, loc, 'HITBOX', M['hitbox'])
 
+face('GARAGE', 4.0)
+
 # ================================================================ LOT 1 — RAIFFEISEN BANK
 OX = LOT_X['BANK']; H = 3.6; G = 'BANK'
 shell(G, H, 'wallBankGrey', 'black', 'wallBankGrey')
@@ -622,6 +770,8 @@ box('atmOutCashSlot', (0.42, 0.03, 0.07), (AX, AY - 0.315, 0.45), G, M['black'])
 box('atmOutStep', (1.1, 0.8, 0.04), (AX, AY - 0.1, 0.0), G, M['kerb'])
 light('b_atm', 'POINT', (AX, AY - 0.9, 1.7), 30, (1.0, 0.85, 0.5))
 box('atmOutHitBox', (1.0, 0.8, 2.3), (AX, AY - 0.05, 1.05), 'HITBOX', M['hitbox'])
+
+face('BANK', 3.6)
 
 # ================================================================ LOT 2 — MILANO
 OX = LOT_X['MILANO']; H = 3.8; G = 'MILANO'
@@ -700,6 +850,8 @@ box('arcadeLEDred', (0.03, 0.02, 0.03), (CX + 0.15, CY - 0.365, 0.66), 'EMISSIVE
 light('m_arcade', 'POINT', (CX, CY - 0.9, 1.7), 30, (1.0, 0.35, 0.85))
 box('arcadeHitBox', (0.8, 0.9, 2.4), (CX, CY - 0.1, 1.2), 'HITBOX', M['hitbox'])
 
+face('MILANO', 3.8)
+
 # ================================================================ LOT 3 — FARMACIA
 OX = LOT_X['FARMACIA']; H = 3.4; G = 'FARMACIA'
 shell(G, H, 'wallMint', 'pharmaGreen', 'wallMint')
@@ -741,17 +893,21 @@ light('f_front', 'AREA', (0, FRONT - 2.5, 2.0), 160, (0.5, 1.0, 0.7), size=5.0, 
 exterior('F', H, ['ac', 'billboard', 'utility'])
 box('pharmaScreenHitBox', (0.7, 0.3, 0.5), (1.5, BACK - 1.75, 1.3), 'HITBOX', M['hitbox'])
 
+face('FARMACIA', 3.4)
+
 # ================================================================ LOT 4 — BAR MARTIRI, Spille (beach bar: hut, deck, sunbeds, umbrellas, pines, sea)
 OX = LOT_X['BEACH']; G = 'BEACH'
-SAND_D = D + 2*T + 8.0
-# sand pad reaching back to the sea, sea planes behind, a foam line where they meet
-box('sand', (W + 2*T + GAP, SAND_D, 0.3), (0, SAND_D/2 + FRONT - T, -0.15), G, M['sand'])
-box('sandDune', (W + 2*T + GAP, 1.4, 0.5), (0, BACK + T + 0.7, -0.05), G, M['sand'])
-box('sea', (W + 2*T + GAP + 14.0, 6.0, 0.22), (6.0, FRONT - T + SAND_D + 3.0, -0.19), G, M['sea'])
-box('seaDeep', (W + 2*T + GAP + 18.0, 6.0, 0.2), (8.0, FRONT - T + SAND_D + 9.0, -0.2), G, M['seaDeep'])
-box('sandSide', (8.0, SAND_D + 4.0, 0.3), (W/2 + T + GAP/2 + 4.0, SAND_D/2 + FRONT - T + 2.0, -0.15), G, M['sand'])
+# The beach was authored as the open end of a street, so its sea ran 30 units
+# wide and 9 deep into empty space. A face is 12 across and the room next door
+# starts at the edge of it, so the horizon has to come in: sand to a foam line,
+# then two bands of water, all inside the plot. FACE_W leaves the lip visible.
+FACE_W = 11.0
+SAND_D = 7.25
+box('sand', (FACE_W, SAND_D, 0.3), (0, SAND_D/2 + FRONT - T, -0.15), G, M['sand'])
+box('sea', (FACE_W, 1.6, 0.22), (0, 4.3, -0.19), G, M['sea'])
+box('seaDeep', (FACE_W, 1.0, 0.2), (0, 5.5, -0.2), G, M['seaDeep'])
 for i in range(6):
-    box(f'foam{i}', (1.3 + (i % 2) * 0.5, 0.25, 0.03), (-4.5 + i * 2.1, FRONT - T + SAND_D + 0.15, -0.07), G, M['foam'])
+    box(f'foam{i}', (1.3 + (i % 2) * 0.5, 0.25, 0.03), (-4.5 + i * 2.1, 3.55, -0.07), G, M['foam'])
 # wooden deck + the bar hut with a straw roof
 box('deck', (7.0, 5.0, 0.16), (0, 0.5, 0.08), G, M['woodPale'])
 for i in range(14):
@@ -818,9 +974,20 @@ light('s_front', 'AREA', (0, FRONT - 3.0, 3.0), 250, (1.0, 0.6, 0.4), size=6.0, 
 for nm, dims, loc in (('barScreenHitBox', (0.3, 1.0, 0.9), (-2.0, 1.5, 1.9)), ('barHitBox', (4.4, 2.8, 2.6), (0, 1.9, 1.5))):
     box(nm, dims, loc, 'HITBOX', M['hitbox'])
 
-# ================================================================ STREET furniture: sign post (menu), lamp posts, bench, bins, hydrant, cables
+face('BEACH', 2.6)
+
+# ================================================================ FACE 5 — PIAZZA: the way in, and the directory
+# The sixth face is the one that is not a business: a small square with the
+# board that names the other five, the billboard that greets you, and the
+# street furniture that used to be spread down a road nobody stands on any
+# more. Same local frame as every lot, so face() places it like the rest.
 OX = 0.0
-PX, PY = LOT_X['GARAGE'] - PITCH/2 - 0.6, ROAD_Y0 - 0.9
+box('piazzaFloor', (W + 2*T, D + 2*T, 0.18), (0, 0, 0.09), 'EXTERIOR', M['concrete2'])
+box('piazzaInlay', (5.4, 3.2, 0.04), (0, -0.4, 0.2), 'EXTERIOR', M['concrete'])
+
+# ---- the directory. These six hitbox names are the site's menu: renaming one
+#      silently removes a destination, so they are spelled out rather than built.
+PX, PY = -3.15, -0.9
 cyl('signPole', 0.06, 4.0, (PX, PY, 2.0), 'EXTERIOR', M['steelDark'], seg=10)
 box('signPoleBase', (0.5, 0.5, 0.1), (PX, PY, 0.05), 'EXTERIOR', M['steelDark'])
 box('poleLight', (0.14, 0.14, 0.2), (PX, PY, 4.1), 'EMISSIVE', E['neonYellow'])
@@ -837,127 +1004,116 @@ for key, label, col, z, side in signs:
     text_mesh(f'{key}White', label, 0.15 if len(label) > 8 else 0.16, (cx, PY - 0.065, z - 0.06), 'SIGNS', M['white'], extrude=0.004, rot=(math.pi/2, 0, 0))
     box(f'{key}HitBox', (1.1, 0.25, 0.4), (cx, PY, z), 'HITBOX', M['hitbox'])
     box(f'{key}Tip', (0.18, 0.08, 0.34), (cx + side * 0.6, PY, z), 'SIGNS', M['black'], rot=(0, math.radians(45), 0))
-for i, name in enumerate(('GARAGE', 'MILANO', 'BEACH')):
-    lx = LOT_X[name] + PITCH/2 - 0.3
-    cyl(f'lampPole{i}', 0.06, 4.2, (lx, ROAD_Y0 - 0.5, 2.1), 'EXTERIOR', M['steelDark'], seg=10)
-    cyl(f'lampArm{i}', 0.035, 1.3, (lx, ROAD_Y0 - 0.5, 4.0), 'EXTERIOR', M['steelDark'], seg=8, rot=(0, math.pi/2, 0))
-    sphere(f'lampGlobeL{i}', 0.24, (lx - 0.65, ROAD_Y0 - 0.5, 4.05), 'EMISSIVE', E['lampLight'])
-    sphere(f'lampGlobeR{i}', 0.24, (lx + 0.65, ROAD_Y0 - 0.5, 4.05), 'EMISSIVE', E['lampLight'])
-    light(f'streetLamp{i}', 'POINT', (lx, ROAD_Y0 - 0.5, 3.9), 220, (1.0, 0.9, 0.7))
-for i, name in enumerate(('BANK', 'FARMACIA')):
-    bx = LOT_X[name] - 2.0
-    box(f'bench{i}', (1.4, 0.45, 0.06), (bx, ROAD_Y0 + 0.9, 0.45), 'EXTERIOR', M['wood'])
-    for k in (-1, 1):
-        box(f'benchLeg{i}{k}', (0.06, 0.4, 0.42), (bx + k * 0.6, ROAD_Y0 + 0.9, 0.21), 'EXTERIOR', M['steelDark'])
-    cyl(f'bin{i}', 0.22, 0.8, (bx + 1.6, ROAD_Y0 + 0.9, 0.4), 'EXTERIOR', M['green'], seg=12)
-cyl('hydrant', 0.12, 0.6, (LOT_X['MILANO'] + 3.0, ROAD_Y0 + 0.7, 0.3), 'EXTERIOR', M['red'], seg=10)
-sphere('hydrantCap', 0.14, (LOT_X['MILANO'] + 3.0, ROAD_Y0 + 0.7, 0.62), 'EXTERIOR', M['red'], seg=10, rings=6)
-# a parked car on the road in front of the bank
-CPX, CPY = LOT_X['BANK'] + 1.0, (ROAD_Y0 + ROAD_Y1)/2 - T + 1.6
-box('parkedBody', (3.8, 1.7, 0.55), (CPX, CPY, 0.55), 'EXTERIOR', M['orange'])
-box('parkedCabin', (2.0, 1.5, 0.55), (CPX - 0.2, CPY, 1.1), 'EXTERIOR', M['orange'])
-box('parkedGlass', (1.8, 1.52, 0.4), (CPX - 0.2, CPY, 1.12), 'EXTERIOR', M['glass'])
-for i, (wx, wy) in enumerate([(1.3, -0.9), (1.3, 0.9), (-1.3, -0.9), (-1.3, 0.9)]):
-    cyl(f'parkedTyre{i}', 0.34, 0.24, (CPX + wx, CPY + wy, 0.34), 'EXTERIOR', M['rubber'], seg=16, rot=(math.pi/2, 0, 0))
-box('parkedHeadL', (0.06, 0.28, 0.12), (CPX + 1.92, CPY - 0.55, 0.65), 'EMISSIVE', E['tubeLight'])
-box('parkedHeadR', (0.06, 0.28, 0.12), (CPX + 1.92, CPY + 0.55, 0.65), 'EMISSIVE', E['tubeLight'])
-# overhead cables between the lamp posts
-for i in range(2):
-    x0 = LOT_X[('GARAGE', 'MILANO')[i]] + PITCH/2 - 0.3
-    x1 = LOT_X[('MILANO', 'BEACH')[i]] + PITCH/2 - 0.3
-    cyl(f'cable{i}', 0.012, x1 - x0, ((x0 + x1)/2, ROAD_Y0 - 0.5, 3.85), 'EXTERIOR', M['black'], seg=4, rot=(0, math.pi/2, 0))
 
-# ---- more street: a traffic light at the crossing (the three lamps are swapped at runtime), a bus shelter on the far
-#      pavement, bikes racked at the pharmacy, manholes, a dumpster in the alley, a parking sign by the car, potted
-#      plants at the pharmacy door, and bunting on the first cable
-TLX, TLY = LOT_X['BANK'] + PITCH/2 + 2.9, ROAD_Y0 + 0.3
-cyl('trafficPole', 0.06, 3.3, (TLX, TLY, 1.65), 'EXTERIOR', M['steelDark'], seg=10)
-box('trafficPoleBase', (0.36, 0.36, 0.08), (TLX, TLY, 0.04), 'EXTERIOR', M['steelDark'])
-box('trafficHead', (0.34, 0.3, 0.92), (TLX, TLY, 3.05), 'EXTERIOR', M['black'])
-for nm, z, em in (('trafficRed', 3.33, 'redLED'), ('trafficAmber', 3.05, 'neonOrange'), ('trafficGreen', 2.77, 'greenLED')):
-    cyl(nm, 0.1, 0.04, (TLX, TLY - 0.16, z), 'EMISSIVE', E[em], seg=12, rot=(math.pi/2, 0, 0))
-    box(nm + 'Hood', (0.26, 0.14, 0.03), (TLX, TLY - 0.2, z + 0.12), 'EXTERIOR', M['black'])
-BSX, BSY = LOT_X['MILANO'] + PITCH/2, ROAD_Y1 - T - 0.9
-box('busShelterRoof', (3.2, 1.3, 0.08), (BSX, BSY, 2.45), 'EXTERIOR', M['steelDark'])
-box('busShelterBack', (3.1, 0.04, 2.0), (BSX, BSY - 0.55, 1.45), 'EXTERIOR', M['glass'])
-for i, x in enumerate((-1.55, 1.55)):
-    cyl(f'busShelterPost{i}', 0.04, 2.45, (BSX + x, BSY - 0.55, 1.225), 'EXTERIOR', M['steelDark'], seg=8)
-    cyl(f'busShelterPostF{i}', 0.04, 2.45, (BSX + x, BSY + 0.55, 1.225), 'EXTERIOR', M['steelDark'], seg=8)
-box('busBench', (2.2, 0.4, 0.06), (BSX, BSY - 0.25, 0.5), 'EXTERIOR', M['wood'])
+# ---- a lamp, so the square has its own light rather than borrowing the washes
+cyl('lampPole0', 0.06, 4.2, (3.5, -2.4, 2.1), 'EXTERIOR', M['steelDark'], seg=10)
+cyl('lampArm0', 0.035, 1.3, (3.5, -2.4, 4.0), 'EXTERIOR', M['steelDark'], seg=8, rot=(0, math.pi/2, 0))
+sphere('lampGlobeL0', 0.24, (2.85, -2.4, 4.05), 'EMISSIVE', E['lampLight'])
+sphere('lampGlobeR0', 0.24, (4.15, -2.4, 4.05), 'EMISSIVE', E['lampLight'])
+light('streetLamp0', 'POINT', (3.5, -2.4, 3.9), 220, (1.0, 0.9, 0.7))
+
+# ---- the traffic light. Its three lamps are swapped at runtime, so the names
+#      trafficRed / trafficAmber / trafficGreen are load-bearing.
+TLX, TLY = 4.1, 1.2
+cyl('trafficPole', 0.07, 3.2, (TLX, TLY, 1.6), 'EXTERIOR', M['steelDark'], seg=10)
+box('trafficBody', (0.34, 0.3, 1.0), (TLX, TLY - 0.2, 3.0), 'EXTERIOR', M['black'], chamfer=0.06)
+for i, (nm, dz) in enumerate((('trafficRed', 0.32), ('trafficAmber', 0.0), ('trafficGreen', -0.32))):
+    cyl(nm, 0.1, 0.06, (TLX, TLY - 0.37, 3.0 + dz), 'EMISSIVE', E['redLED'], seg=12, rot=(math.pi/2, 0, 0))
+
+# ---- somewhere to sit, something to throw away, something parked
+box('bench0', (1.6, 0.45, 0.06), (0.4, -2.6, 0.55), 'EXTERIOR', M['wood'])
 for k in (-1, 1):
-    box(f'busBenchLeg{k}', (0.06, 0.36, 0.47), (BSX + k * 0.95, BSY - 0.25, 0.235), 'EXTERIOR', M['steelDark'])
-box('busPanel', (0.6, 0.03, 0.9), (BSX - 1.2, BSY - 0.5, 1.5), 'EXTERIOR', M['white'])
-cyl('busSignPole', 0.03, 2.9, (BSX + 1.9, BSY + 0.4, 1.45), 'EXTERIOR', M['steelDark'], seg=8)
-box('busSign', (0.42, 0.03, 0.42), (BSX + 1.9, BSY + 0.4, 2.7), 'EXTERIOR', M['yellow'])
-text_mesh('busSignText', 'BUS', 0.16, (BSX + 1.9, BSY + 0.38, 2.64), 'EXTERIOR', M['black'], extrude=0.004, rot=(math.pi/2, 0, 0))
-BKX, BKY = LOT_X['FARMACIA'] + 2.4, ROAD_Y0 + 0.9
-for i in range(2):
-    rx = BKX + i * 0.9
-    for k in (-1, 1):
-        cyl(f'bikeRack{i}{k}', 0.025, 0.75, (rx + k * 0.3, BKY, 0.375), 'EXTERIOR', M['steelDark'], seg=8)
-    cyl(f'bikeRackTop{i}', 0.025, 0.66, (rx, BKY, 0.75), 'EXTERIOR', M['steelDark'], seg=8, rot=(0, math.pi/2, 0))
-for i, col in enumerate(('blue', 'red')):
-    bx, by = BKX + 0.45 + i * 0.9, BKY + 0.35
-    for k, dy in enumerate((-0.5, 0.5)):
-        cyl(f'bikeWheel{i}{k}', 0.32, 0.03, (bx, by + dy, 0.33), 'EXTERIOR', M['rubber'], seg=16, rot=(0, math.pi/2, 0))
-        cyl(f'bikeHub{i}{k}', 0.05, 0.05, (bx, by + dy, 0.33), 'EXTERIOR', M['hub'], seg=8, rot=(0, math.pi/2, 0))
-    box(f'bikeFrameA{i}', (0.03, 0.55, 0.03), (bx, by + 0.02, 0.62), 'EXTERIOR', M[col], rot=(math.radians(-35), 0, 0))
-    box(f'bikeFrameB{i}', (0.03, 0.03, 0.55), (bx, by - 0.12, 0.5), 'EXTERIOR', M[col], rot=(math.radians(15), 0, 0))
-    box(f'bikeFrameC{i}', (0.03, 0.03, 0.5), (bx, by + 0.42, 0.55), 'EXTERIOR', M[col], rot=(math.radians(-20), 0, 0))
-    box(f'bikeSaddle{i}', (0.08, 0.2, 0.05), (bx, by - 0.25, 0.8), 'EXTERIOR', M['black'])
-    box(f'bikeBar{i}', (0.42, 0.03, 0.03), (bx, by + 0.5, 0.85), 'EXTERIOR', M['steel'])
-for i, x in enumerate((LOT_X['GARAGE'] + 2.0, LOT_X['MILANO'] - 3.5, LOT_X['FARMACIA'] + 4.0)):
-    cyl(f'manhole{i}', 0.32, 0.02, (x, (ROAD_Y0 + ROAD_Y1)/2 - T + 2.2 - (i % 2) * 4.4, -0.07), 'EXTERIOR', M['steelDark'], seg=14)
-DX, DY = LOT_X['BANK'] + 2.5, BACK + T + 1.4
-box('dumpsterBody', (1.5, 0.9, 1.0), (DX, DY, 0.55), 'EXTERIOR', M['green'])
-box('dumpsterLid', (1.54, 0.94, 0.08), (DX, DY, 1.09), 'EXTERIOR', M['pineDark'])
+    box(f'benchLeg{k}', (0.1, 0.42, 0.5), (0.4 + k * 0.65, -2.6, 0.3), 'EXTERIOR', M['steelDark'])
+box('benchBack', (1.6, 0.07, 0.42), (0.4, -2.82, 0.79), 'EXTERIOR', M['wood'])
+cyl('bin0', 0.26, 0.8, (1.9, -2.6, 0.5), 'EXTERIOR', M['steelDark'], seg=12)
+cyl('binLid0', 0.29, 0.07, (1.9, -2.6, 0.93), 'EXTERIOR', M['steel'], seg=12)
+DX, DY = 3.3, 2.5
+box('dumpsterBody', (1.5, 0.9, 1.0), (DX, DY, 0.6), 'EXTERIOR', M['green'], chamfer=0.06)
+box('dumpsterLid', (1.54, 0.94, 0.08), (DX, DY, 1.14), 'EXTERIOR', M['pineDark'])
 for i, (wx, wy) in enumerate([(-0.6, -0.35), (0.6, -0.35), (-0.6, 0.35), (0.6, 0.35)]):
-    cyl(f'dumpsterWheel{i}', 0.08, 0.06, (DX + wx, DY + wy, 0.08), 'EXTERIOR', M['rubber'], seg=8, rot=(math.pi/2, 0, 0))
-for i in range(3):
-    box(f'binBag{i}', (0.5, 0.45, 0.4), (DX + 1.2 + (i % 2) * 0.4, DY - 0.2 + (i // 2) * 0.4, 0.2 + (0.35 if i == 2 else 0.0)), 'EXTERIOR', M['black'])
-PSX, PSY = LOT_X['BANK'] + 3.6, ROAD_Y0 + 0.35
-cyl('parkSignPole', 0.03, 2.4, (PSX, PSY, 1.2), 'EXTERIOR', M['steelDark'], seg=8)
-box('parkSign', (0.44, 0.03, 0.44), (PSX, PSY, 2.5), 'EXTERIOR', M['blue'])
-text_mesh('parkSignText', 'P', 0.28, (PSX, PSY - 0.02, 2.4), 'EXTERIOR', M['white'], extrude=0.004, rot=(math.pi/2, 0, 0))
-for i, x in enumerate((LOT_X['FARMACIA'] - 3.9, LOT_X['FARMACIA'] - 2.1)):
-    cyl(f'pharmaPot{i}', 0.18, 0.45, (x, FRONT - 0.5, 0.2), 'EXTERIOR', M['wallTerracotta'], seg=10, r2=0.22)
-    sphere(f'pharmaPlant{i}', 0.32, (x, FRONT - 0.5, 0.65), 'EXTERIOR', M['pine'], seg=8, rings=6)
-x0 = LOT_X['GARAGE'] + PITCH/2 - 0.3; x1 = LOT_X['MILANO'] + PITCH/2 - 0.3
-for i in range(int((x1 - x0) / 0.75)):
-    pennant(f'pennant{i}', 0.3, 0.34, (x0 + 0.55 + i * 0.75, ROAD_Y0 - 0.5, 3.85 - 0.19), 'EXTERIOR', M[('pink', 'yellow', 'blue', 'green', 'orange')[i % 5]])
+    cyl(f'dumpsterWheel{i}', 0.08, 0.06, (DX + wx, DY + wy, 0.13), 'EXTERIOR', M['rubber'], seg=8, rot=(math.pi/2, 0, 0))
+for i, col in enumerate(('red', 'blue')):
+    bx, by = -1.9 + i * 0.9, 2.4
+    for k, dy in enumerate((-0.5, 0.5)):
+        cyl(f'bikeWheel{i}{k}', 0.32, 0.03, (bx, by + dy, 0.42), 'EXTERIOR', M['rubber'], seg=16, rot=(0, math.pi/2, 0))
+        cyl(f'bikeHub{i}{k}', 0.05, 0.05, (bx, by + dy, 0.42), 'EXTERIOR', M['hub'], seg=8, rot=(0, math.pi/2, 0))
+    box(f'bikeFrameA{i}', (0.03, 0.55, 0.03), (bx, by + 0.02, 0.71), 'EXTERIOR', M[col], rot=(math.radians(-35), 0, 0))
+    box(f'bikeFrameB{i}', (0.03, 0.03, 0.55), (bx, by - 0.12, 0.59), 'EXTERIOR', M[col], rot=(math.radians(15), 0, 0))
+    box(f'bikeSaddle{i}', (0.08, 0.2, 0.05), (bx, by - 0.25, 0.89), 'EXTERIOR', M['black'])
+    box(f'bikeBar{i}', (0.42, 0.03, 0.03), (bx, by + 0.5, 0.94), 'EXTERIOR', M['steel'])
+for i, x in enumerate((-4.0, 4.0)):
+    cyl(f'piazzaPot{i}', 0.22, 0.5, (x, -3.0, 0.34), 'EXTERIOR', M['wallTerracotta'], seg=12, r2=0.27)
+    sphere(f'piazzaPlant{i}', 0.38, (x, -3.0, 0.86), 'EXTERIOR', M['pine'], seg=8, rings=6)
 
-# ---- the billboard on the bank's roof: the first screen's name, role and way in, painted at runtime.
-#      Nothing here is baked: `heroScreen` is a SCREENS plane and the frame and posts wear a matcap
-#      (DYNAMIC), so the words can change without an atlas changing.
-BBX, BBY, BBZ = LOT_X['BANK'], YB - 0.9, 3.6 + 0.3
+# ---- the billboard: the visitor's name, role and way in, painted at runtime.
+#      Nothing here is baked — heroScreen is a SCREENS plane and the frame and
+#      posts wear a matcap, so the words change without an atlas changing.
+BBX, BBY, BBZ = 0.0, 3.0, 0.0
 for i, x in enumerate((-3.4, 3.4)):
     cyl(f'heroPost{i}', 0.09, 2.6, (BBX + x, BBY, BBZ + 1.3), 'DYNAMIC', M['steelDark'], seg=10)
-box('heroFrame', (8.3, 0.14, 3.9), (BBX, BBY, BBZ + 3.0), 'DYNAMIC', M['black'])
-plane('heroScreen', 8.0, 3.6, (BBX, BBY - 0.09, BBZ + 3.0), 'SCREENS', M['screenOff'])
-box('heroHitBox', (8.4, 0.5, 4.0), (BBX, BBY, BBZ + 3.0), 'HITBOX', M['hitbox'])
+box('heroFrame', (8.3, 0.14, 3.9), (BBX, BBY, BBZ + 4.5), 'DYNAMIC', M['black'])
+plane('heroScreen', 8.0, 3.6, (BBX, BBY - 0.09, BBZ + 4.5), 'SCREENS', M['screenOff'])
+box('heroHitBox', (8.4, 0.5, 4.0), (BBX, BBY, BBZ + 4.5), 'HITBOX', M['hitbox'])
+
+face('PIAZZA', 3.4)
 
 # ================================================================ world, washes, cameras
 OX = 0.0
 world = bpy.data.worlds.get('World') or bpy.data.worlds.new('World')
 scene.world = world; world.use_nodes = True
 bg = world.node_tree.nodes['Background']
-bg.inputs['Color'].default_value = (0.012, 0.012, 0.045, 1); bg.inputs['Strength'].default_value = 1.0
-light('streetPink', 'AREA', (LOT_X['GARAGE'] - 6, FRONT - 6, 7), 700, (1.0, 0.4, 0.8), size=8.0, rot=(math.radians(-50), 0, math.radians(-30)))
-light('streetCyan', 'AREA', (LOT_X['FARMACIA'] + 6, FRONT - 6, 9), 700, (0.3, 0.8, 1.0), size=8.0, rot=(math.radians(-50), 0, math.radians(30)))
-light('washBack', 'AREA', (0.0, YB + 6.0, 6.0), 900, (0.3, 0.6, 1.0), size=14.0, rot=(math.radians(-90), 0, 0))
-light('washTop', 'AREA', (0.0, 0.0, 12.0), 500, (0.9, 0.8, 1.0), size=30.0)
+bg.inputs['Color'].default_value = (0.020, 0.024, 0.070, 1); bg.inputs['Strength'].default_value = 2.2
+# The washes have to work on a solid rather than on a row. A street could be
+# lit from the front because it only had a front; a cube has six outsides and
+# any face left unlit bakes black, so there is one large soft source standing
+# off each axis. Pink and cyan stay opposed for the colour separation the look
+# depends on, and the remaining four are dimmer fill: enough that a face is
+# never unlit, not so much that everything flattens to the same value.
+WASH = HALF + 9.0
+for _nm, _pos, _rot, _energy, _col, _size in (
+        ('washPink',  (-WASH, -WASH, 7.0),  (math.radians(-52), 0, math.radians(-38)), 4200, (1.0, 0.40, 0.80), 12.0),
+        ('washCyan',  (WASH, -WASH, 8.0),   (math.radians(-52), 0, math.radians(38)),  4200, (0.30, 0.80, 1.00), 12.0),
+        ('washTop',   (0.0, 0.0, WASH),     (0, 0, 0),                                 3000, (0.90, 0.85, 1.00), 22.0),
+        ('washUnder', (0.0, 0.0, -WASH),    (math.radians(180), 0, 0),                 2200, (0.45, 0.55, 0.95), 22.0),
+        ('washBack',  (0.0, WASH, 5.0),     (math.radians(-90), 0, 0),                 3000, (0.35, 0.60, 1.00), 16.0),
+        ('washLeft',  (-WASH, 3.0, 3.0),    (math.radians(-90), 0, math.radians(-90)), 2600, (1.00, 0.75, 0.55), 14.0),
+        ('washRight', (WASH, 3.0, 3.0),     (math.radians(-90), 0, math.radians(90)),  2600, (0.70, 0.80, 1.00), 14.0)):
+    light(_nm, 'AREA', _pos, _energy, _col, size=_size, rot=_rot)
 
-tgt = bpy.data.objects.new('camTarget', None); scene.collection.objects.link(tgt); tgt.location = (0.0, 0.0, 1.8)
+# A fill standing off each opening, aimed in.
+#
+# On the street the washes fell straight onto the open shopfronts. Recessed
+# behind half a metre of frame they no longer reach, and an interior lit only
+# by its own lamps bakes to an atlas that is black three metres in — which is
+# most of the room. These sit outside each opening and throw light back into
+# it, doing the job the sky used to do for a building with a front on a road.
+#
+# Named faceFill* because lighting.py has to leave them alone: they are not
+# shop lights that go out in daylight, they are the daylight.
+for _key, _tint in (('GARAGE', (1.00, 0.72, 0.95)), ('BANK', (1.00, 0.94, 0.78)),
+                    ('MILANO', (1.00, 0.86, 0.86)), ('FARMACIA', (0.80, 1.00, 0.90))):
+    _n, _t, _x, _y, _z = _basis(_key)
+    # Just INSIDE the opening, not outside it. An area light emits from one
+    # side only, so from here it reaches the back of the room and cannot touch
+    # the facade at all. Outside, it washed the cube's outer walls to near
+    # white and took the night with it.
+    _at = _n * (HALF - 0.62)
+    _look = Vector((0.0, 0.0, -1.0)).rotation_difference(-_n).to_euler()
+    light(f'faceFill{_key}', 'AREA', tuple(_at), 260, _tint, size=6.0, rot=tuple(_look))
+
+tgt = bpy.data.objects.new('camTarget', None); scene.collection.objects.link(tgt); tgt.location = (0.0, 0.0, 0.0)
 def camera(name, loc, lens):
     cd = bpy.data.cameras.new(name); cd.lens = lens
     cam = bpy.data.objects.new(name, cd); cam.location = loc; scene.collection.objects.link(cam)
     c = cam.constraints.new('TRACK_TO'); c.target = tgt; c.track_axis = 'TRACK_NEGATIVE_Z'; c.up_axis = 'UP_Y'
     return cam
-cam = camera('Camera', (-14.0, -42.0, 16.0), 32)
-cam2 = camera('CameraBeach', (LOT_X['BEACH'] - 6.0, -16.0, 6.0), 28)
-cam3 = camera('CameraBack', (26.0, 30.0, 14.0), 30)
-cam4 = camera('CameraAtm', (LOT_X['BANK'] - 2.2, -9.0, 2.4), 45)
-cam5 = camera('CameraArcade', (LOT_X['MILANO'] + 0.9, -8.6, 2.2), 45)
+# The wide shot is a three-quarter corner: the only angle that shows three
+# faces at once, which is the whole reason the places are on a cube.
+cam = camera('Camera', (-26.0, -30.0, 22.0), 34)
+cam2 = camera('CameraBeach', (2.0, -14.0, 26.0), 34)
+cam3 = camera('CameraBack', (28.0, 26.0, 18.0), 34)
+cam4 = camera('CameraAtm', (24.0, -12.0, 9.0), 42)
+cam5 = camera('CameraArcade', (-10.0, -24.0, 9.0), 42)
 scene.camera = cam
 for ob in COLL['HITBOX'].objects:
     ob.display_type = 'WIRE'; ob.hide_render = True

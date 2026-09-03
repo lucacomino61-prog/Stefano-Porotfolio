@@ -18,7 +18,7 @@
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from 'react'
 import {
   BackSide,
   Box3,
@@ -53,9 +53,10 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { Reflector } from 'three/addons/objects/Reflector.js'
 
+import { currentTheme, subscribeTheme, type Theme } from '@/lib/theme'
 import { cinema } from '@/lib/motion/cinema'
 import { loadingState, setSceneProgress } from '@/lib/motion/loading'
-import { SCENE } from '@/lib/motion/sceneAssets'
+import { SCENE, sheetPath } from '@/lib/motion/sceneAssets'
 import { damp } from '@/lib/motion/pointer'
 import { MACHINE_MESH, type Billboard, type Machine, type ScreenView } from '@/lib/screen'
 import type { Project } from '@/lib/projects'
@@ -68,29 +69,33 @@ const DRACO = '/draco/'
 /**
  * The wide shot, fitted to the frame.
  *
- * The street is sixty metres wide and five tall. On a landscape frame the
- * whole row fits across, seen from the left, above and in front. A portrait
- * frame cannot hold the row without making it a thread across the middle, so
- * there the camera stands over the garage and the bank, tilted down, and the
- * rest of the street is a swipe away. Both are solved from the field of view
- * and the aspect rather than typed, so a resize re-fits instead of re-guessing.
+ * This framed a sixty-metre row from the left. The places are on a cube now —
+ * fourteen on a side, centred on the origin, corner-to-corner about twelve from
+ * the middle — so the shot is a three-quarter corner view instead: the only
+ * angle that shows three faces at once, which is the entire reason for putting
+ * them on a cube. Portrait stands off further and higher, because a cube seen
+ * through a narrow frame needs the height more than it needs the width.
+ *
+ * Still solved from the field of view and the aspect rather than typed, so a
+ * resize re-fits instead of re-guessing.
  */
 type Shot = { position: Vector3; target: Vector3 }
+
+const CUBE_RADIUS = 13.4
 
 function homeFor(aspect: number, fov: number): Shot {
   const portrait = aspect < 1
   const tangent = Math.tan((fov * Math.PI) / 360)
-  const halfWidth = portrait ? 11 : 33
-  const distance = Math.max(halfWidth / (tangent * aspect), 11 / tangent) * 1.08
-  // Portrait looks at the seam between the garage and the bank, so both lots
-  // and the reception monitor inside the garage are in the frame.
-  const target = portrait ? new Vector3(-18, 0.5, 0) : new Vector3(-2, 1.5, 0)
-  const bearing = (portrait ? new Vector3(-0.22, 0.62, 0.75) : new Vector3(-0.34, 0.18, 0.92)).normalize()
+  // Fit the whole cube both ways round: vertically by the field of view, and
+  // horizontally by the same divided by the aspect, whichever needs more room.
+  const distance = Math.max(CUBE_RADIUS / tangent, CUBE_RADIUS / (tangent * aspect)) * (portrait ? 1.12 : 1.02)
+  const target = new Vector3(0, 0, 0)
+  const bearing = (portrait ? new Vector3(-0.62, 0.66, 0.86) : new Vector3(-0.78, 0.46, 1.0)).normalize()
   return { position: target.clone().addScaledVector(bearing, distance), target }
 }
 
 /** Where the wide shot looks before the first frame has been measured. */
-const HOME_LOOK = new Vector3(-2.0, 1.5, 0)
+const HOME_LOOK = new Vector3(0, 0, 0)
 
 /**
  * The panel.
@@ -152,6 +157,15 @@ const ENTER_LIFT = 0.32
  * one void. A colour needs light on it to read as a colour.
  */
 const ROOM_VOID = '#04050c'
+/**
+ * The same void at noon.
+ *
+ * Swapping eight atlases turns the cube's surfaces over and leaves it hanging
+ * in a starfield, which is a lit building at midnight — the one thing the day
+ * sheet is not. The sky has to turn over with it or the switch only half
+ * happens, and half a change of hour reads as a bug rather than as daylight.
+ */
+const DAY_VOID = '#aebfd8'
 
 const SCREEN_W = 2048
 const SCREEN_H = 1152
@@ -513,7 +527,7 @@ const zoom = {
   parked: null as string | null,
 }
 /** The fitted wide shot for the current frame. TowerScene writes it on every resize. */
-let home: Shot = { position: new Vector3(-26, 14, 66), target: HOME_LOOK.clone() }
+let home: Shot = { position: new Vector3(-22, 13, 28), target: HOME_LOOK.clone() }
 
 function setHome(shot: Shot): void {
   home = shot
@@ -727,6 +741,15 @@ const WAKES: Record<string, string> = {
   easelHitBox: 'easelFrontGraphic',
   barScreenHitBox: 'barScreen',
 }
+/**
+ * The tubes that are on their way out.
+ *
+ * A neon street where every tube burns at exactly its nominal value reads as a
+ * render of a neon street. Real ones fail unevenly: a starter that misses, a
+ * tube that stutters twice and catches. Four of them here do that and the rest
+ * are steady, because the effect only works while it is the exception.
+ */
+const FLICKER = /^(neonPink|neonWhiteMilano|neonGreenFarmacia|neonOrangeBar)$/
 const WHITE = new Color('#ffffff')
 const TRAFFIC_ON = { red: PALETTE.red, amber: PALETTE.orange, green: PALETTE.led } as const
 /** Dark enough to fall under the bloom threshold: an unlit lamp, not a dim one. */
@@ -738,21 +761,126 @@ const TRAFFIC_OFF = '#0a0a0c'
  * whichever prop was under the pointer; the building's own surfaces would
  * otherwise hide the invisible hitboxes from most angles.
  */
-const LOT_PITCH = 12.1
-const LOTS: readonly { key: string; view: ScreenView; centre: number; size: [number, number, number]; zShift: number }[] = [
-  { key: 'garage', view: 'home', centre: -2 * LOT_PITCH, size: [10.5, 4.8, 9], zShift: 0 },
-  { key: 'bank', view: 'process', centre: -1 * LOT_PITCH, size: [10.5, 4.4, 9], zShift: 0 },
-  { key: 'milano', view: 'about', centre: 0, size: [10.5, 4.6, 10], zShift: 0.5 },
-  { key: 'farmacia', view: 'contact', centre: 1 * LOT_PITCH, size: [10.5, 4.2, 9], zShift: 0 },
-  { key: 'bar', view: 'work', centre: 2 * LOT_PITCH, size: [13, 5.5, 18], zShift: -4 },
+/**
+ * The five places, addressed by the mesh each one bakes down to.
+ *
+ * These used to carry a hand-measured centre and size along a street: lots at
+ * a fixed pitch on the x axis, so "which lot is this?" was `Math.abs(x - c)`.
+ * The places are on the six faces of a cube now — two of them are above and
+ * below the camera — and every one of those numbers became a fiction. Worse,
+ * they were a *quiet* fiction: a click still resolved to some lot, just not the
+ * one under the pointer.
+ *
+ * So nothing is measured here any more. Each place is named by its joined mesh
+ * and its bounds are read from the geometry, which is generated by the same
+ * script that decides where the faces are. Move a place in Blender and this
+ * follows it; there is no second copy of the layout to keep in step.
+ */
+const LOTS: readonly { key: string; view: ScreenView; mesh: string }[] = [
+  { key: 'garage', view: 'home', mesh: 'garageJoined' },
+  { key: 'bank', view: 'process', mesh: 'bankJoined' },
+  { key: 'milano', view: 'about', mesh: 'milanoJoined' },
+  { key: 'farmacia', view: 'contact', mesh: 'farmaciaJoined' },
+  { key: 'bar', view: 'work', mesh: 'beachJoined' },
 ]
-function lotByX(x: number) {
-  return LOTS.reduce((best, lot) => (Math.abs(lot.centre - x) < Math.abs(best.centre - x) ? lot : best), LOTS[0])
-}
 function lotBox(lot: (typeof LOTS)[number], root: Object3D): Box3 {
-  const [w, h, d] = lot.size
-  const box = new Box3(new Vector3(lot.centre - w / 2, 0, -d / 2 + lot.zShift), new Vector3(lot.centre + w / 2, h, d / 2 + lot.zShift))
-  return box.applyMatrix4(root.matrixWorld)
+  const mesh = root.getObjectByName(lot.mesh)
+  return new Box3().setFromObject(mesh ?? root)
+}
+/**
+ * Which place a click landed in, by where it landed rather than by what it hit.
+ * `distanceToPoint` is zero inside a box, so a hit on a lot's own geometry
+ * resolves to that lot outright, and a hit on something loose — a sign, a bin,
+ * the frame around an opening — resolves to whichever place it is nearest.
+ */
+function lotAtPoint(point: Vector3, root: Object3D) {
+  let best = LOTS[0]
+  let nearest = Infinity
+  for (const lot of LOTS) {
+    const distance = lotBox(lot, root).distanceToPoint(point)
+    if (distance < nearest) {
+      nearest = distance
+      best = lot
+    }
+  }
+  return best
+}
+
+/**
+ * Which sheet the page is on, as something the scene can re-render against.
+ *
+ * The switch keeps no React state on purpose — the attribute on the root
+ * element is the one copy of the truth — so this watches that attribute rather
+ * than introducing a second copy that could drift out of step with the CSS.
+ * The server snapshot is the night sheet because that is what the boot script
+ * writes before React sees anything, and returning the same string every time
+ * is what keeps hydration quiet.
+ */
+function useTheme(): Theme {
+  return useSyncExternalStore(subscribeTheme, currentTheme, () => 'dark' as Theme)
+}
+
+/**
+ * Turn the street over between the two bakes.
+ *
+ * Both sheets exist as complete sets of atlases — the same geometry, once under
+ * neon and once under a sun — so changing the hour is changing which eight
+ * images the same eight meshes are wearing. Loading is imperative rather than
+ * through useLoader because suspending here would unmount the scene and throw
+ * the visitor back to the loading screen to change a light switch.
+ *
+ * The dip is the point. Swapping the maps on the frame they arrive reads as a
+ * glitch — every surface in the scene changes value at once, which nothing
+ * physical does. Driving the materials down first, swapping in the dark, and
+ * bringing them back up reads as the lights being changed over, and it hides
+ * the fact that the eight images do not finish decoding on the same frame.
+ */
+function useSheetSwap(dressed: Dressed, theme: Theme, level: RefObject<number>) {
+  const owned = useRef<Texture[]>([])
+  useEffect(() => {
+    let cancelled = false
+    const urls = dressed.baked.map(({ key }) => sheetPath(key, theme))
+    // Nothing to fetch on the first pass: the night set is already mounted.
+    if (urls.every((url, i) => dressed.baked[i].material.map?.userData.url === url)) return
+    level.current = 0.001            // tell the frame loop to take the lights down
+    const loader = new TextureLoader()
+    Promise.all(urls.map((url) => loader.loadAsync(url).then((texture) => {
+      texture.flipY = false
+      texture.colorSpace = SRGBColorSpace
+      texture.anisotropy = 4
+      texture.userData.url = url
+      return texture
+    })))
+      .then((textures) => {
+        if (cancelled) {
+          textures.forEach((t) => t.dispose())
+          return
+        }
+        // Only ever dispose what this effect loaded. The first set belongs to
+        // useLoader's cache, and freeing that would empty the cache entry the
+        // next switch back is counting on.
+        const previous = owned.current
+        textures.forEach((texture, index) => {
+          dressed.baked[index].material.map = texture
+          dressed.baked[index].material.needsUpdate = true
+        })
+        owned.current = textures
+        previous.forEach((texture) => texture.dispose())
+        level.current = 1
+      })
+      .catch(() => {
+        // A sheet that will not load is not worth blacking the scene out for.
+        level.current = 1
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [dressed, theme, level])
+
+  useEffect(() => () => {
+    owned.current.forEach((texture) => texture.dispose())
+    owned.current = []
+  }, [])
 }
 
 /** A sphere-shaded gradient drawn once: the matcap for the moving metal parts. */
@@ -794,6 +922,10 @@ type MachineFrame = { position: Vector3; quaternion: Quaternion; w: number; h: n
 type Dressed = {
   root: Group
   hitboxes: Mesh[]
+  /** Neon with a fault, and the colour it sits at when it is behaving. */
+  flicker: { material: MeshBasicMaterial; base: Color; phase: number }[]
+  /** The eight atlas-wearing meshes, so the sheet can be changed under them. */
+  baked: { key: keyof typeof SCENE; material: MeshBasicMaterial }[]
   fans: Mesh[]
   vault: Mesh[]
   dishPivot: Group | null
@@ -810,6 +942,8 @@ function dress(scene: Group, atlases: Record<string, Texture>, painters: Record<
   const matcapDark = makeMatcap('#1c1f26', '#6a6f78', PALETTE.blue)
   const hitboxMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
   const hitboxes: Mesh[] = []
+  const flicker: Dressed['flicker'] = []
+  const baked: Dressed['baked'] = []
   const fans: Mesh[] = []
   const vault: Mesh[] = []
   const machines: Record<Machine, MachineFrame | null> = { monitor: null, arcade: null, atm: null }
@@ -822,7 +956,9 @@ function dress(scene: Group, atlases: Record<string, Texture>, painters: Record<
     if (!(object instanceof Mesh)) return
     const name = object.name
     if (BAKED[name]) {
-      object.material = new MeshBasicMaterial({ map: atlases[BAKED[name]], toneMapped: false })
+      const material = new MeshBasicMaterial({ map: atlases[BAKED[name]], toneMapped: false })
+      object.material = material
+      baked.push({ key: BAKED[name], material })
       return
     }
     const emissive = EMISSIVE_RULES.find(([pattern]) => pattern.test(name))
@@ -832,6 +968,13 @@ function dress(scene: Group, atlases: Record<string, Texture>, painters: Record<
       object.layers.enable(BLOOM_LAYER)
       const lamp = name.match(/^traffic(Red|Amber|Green)$/)
       if (lamp) traffic[lamp[1].toLowerCase() as 'red' | 'amber' | 'green'] = material
+      if (FLICKER.test(name)) {
+        // The phase is derived from the name so each tube fails on its own
+        // schedule and the same tube fails the same way on every reload.
+        let phase = 0
+        for (let i = 0; i < name.length; i += 1) phase = (phase * 31 + name.charCodeAt(i)) % 1000
+        flicker.push({ material, base: material.color.clone(), phase: phase / 1000 * 10 })
+      }
       return
     }
     const machine = MACHINE_BY_MESH[name]
@@ -910,7 +1053,7 @@ function dress(scene: Group, atlases: Record<string, Texture>, painters: Record<
     }
   }
 
-  return { root, hitboxes, fans, vault, dishPivot, machines, live, signs, traffic }
+  return { root, hitboxes, flicker, baked, fans, vault, dishPivot, machines, live, signs, traffic }
 }
 
 function hitboxFor(object: Object3D): Mesh | undefined {
@@ -977,6 +1120,9 @@ function useAtlases(): Record<string, Texture> {
       texture.colorSpace = SRGBColorSpace
       texture.anisotropy = 4
       texture.needsUpdate = true
+      // What this texture is, so the sheet swap can recognise the set already
+      // on the meshes and not re-fetch eight images to change nothing.
+      texture.userData.url = urls[index]
       out[keys[index]] = texture
     })
     return out
@@ -1094,10 +1240,20 @@ function TowerModel({
   const hovered = useRef<string | null>(null)
   const clock = useRef(0)
   const arcadeAttract = useMemo(() => makeArcadeAttract(), [])
+  /** 1 in normal light, near 0 while the sheet is being changed under us. */
+  const sheet = useRef(1)
+  useSheetSwap(dressed, useTheme(), sheet)
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const t = (clock.current += dt)
+    // The lights coming up, or going down while the other sheet loads. Slower
+    // than the hover ramps below on purpose: this is a room changing its hour,
+    // not a control answering a pointer.
+    for (const { material } of dressed.baked) {
+      material.color.setScalar(damp(material.color.r, sheet.current, 5, dt * 1000))
+    }
+
     for (const fan of dressed.fans) fan.rotation.z -= dt * 6
     for (const part of dressed.vault) part.rotation.x += dt * 0.6
     if (dressed.dishPivot) dressed.dishPivot.rotation.y += dt * 0.35
@@ -1125,6 +1281,20 @@ function TowerModel({
       sign.material.userData.lift = lift
       sign.material.color.copy(sign.base).lerp(WHITE, lift)
     })
+
+    // The failing tubes. Three sines at unrelated rates give a pattern that
+    // does not repeat on any interval an eye can learn, and the threshold keeps
+    // it off most of the time — a tube that strobes steadily is a disco, a tube
+    // that drops out twice a minute is a tube that needs replacing. The damp is
+    // fast but not instant, because a real one takes a moment to catch.
+    for (const tube of dressed.flicker) {
+      const at = t * 2.1 + tube.phase
+      const stutter = Math.sin(at * 7.3) * Math.sin(at * 3.1) * Math.sin(at * 1.7)
+      const goal = stutter > 0.62 ? 0.22 : 1
+      const now = damp((tube.material.userData.burn as number | undefined) ?? 1, goal, 24, dt * 1000)
+      tube.material.userData.burn = now
+      tube.material.color.copy(tube.base).multiplyScalar(now)
+    }
 
     // The traffic light runs its cycle: red, green, amber, and round again.
     const phase = t % 12
@@ -1171,8 +1341,7 @@ function TowerModel({
     }
     // which lot: a sign board names it, anything else is located by where it was hit
     const signed = hit && hit.name.match(/^(garage|bank|milano|farmacia|bar)HitBox$/)
-    const local = dressed.root.worldToLocal(event.point.clone())
-    const lot = signed ? LOTS.find((l) => l.key === signed[1])! : lotByX(local.x)
+    const lot = signed ? LOTS.find((l) => l.key === signed[1])! : lotAtPoint(event.point, dressed.root)
     if (zoom.parked === lot.key) {
       onView(lot.view)
       onEnter('monitor')
@@ -1258,6 +1427,8 @@ function TowerModel({
  * reflective, and the frame rate is the thing that gets kept.
  */
 function Night({ reflective }: { reflective: boolean }) {
+  const theme = useTheme()
+  const day = theme === 'light'
   const stars = useMemo(() => {
     const n = 1400
     const position = new Float32Array(n * 3)
@@ -1278,6 +1449,8 @@ function Night({ reflective }: { reflective: boolean }) {
     const points = new Points(geometry, new PointsMaterial({ size: 0.7, vertexColors: true, transparent: true, opacity: 0.85 }))
     return points
   }, [])
+  // Stars are the one thing daylight simply removes rather than recolours.
+  stars.visible = !day
   const mirror = useMemo(() => {
     if (!reflective) return null
     const reflector = new Reflector(new CircleGeometry(70, 64), {
@@ -1294,6 +1467,7 @@ function Night({ reflective }: { reflective: boolean }) {
   const floor = useMemo(() => {
     if (reflective) return null
     const plane = new Mesh(new CircleGeometry(70, 64), new MeshBasicMaterial({ color: '#0a0c11' }))
+    plane.userData.night = '#0a0c11'
     plane.rotation.x = -Math.PI / 2
     plane.position.y = -0.05
     return plane
@@ -1310,24 +1484,36 @@ function Night({ reflective }: { reflective: boolean }) {
     canvas.width = 2
     canvas.height = 256
     const context = canvas.getContext('2d')!
-    const gradient = context.createLinearGradient(0, 0, 0, 256)
-    gradient.addColorStop(0, ROOM_VOID)
-    gradient.addColorStop(0.55, '#070a18')
-    gradient.addColorStop(0.72, '#101a3c')
-    gradient.addColorStop(0.8, '#0a1028')
-    gradient.addColorStop(1, ROOM_VOID)
-    context.fillStyle = gradient
-    context.fillRect(0, 0, 2, 256)
+    // Both hours are painted into the same strip, one above the other, and the
+    // drum's UVs are shifted to choose between them. One texture, two skies,
+    // and changing the hour costs a repaint of nothing at all.
+    const paint = (top: number, stops: [number, string][]) => {
+      const gradient = context.createLinearGradient(0, top, 0, top + 128)
+      for (const [at, hex] of stops) gradient.addColorStop(at, hex)
+      context.fillStyle = gradient
+      context.fillRect(0, top, 2, 128)
+    }
+    paint(0, [[0, DAY_VOID], [0.5, '#c6d6ea'], [0.74, '#e6eef7'], [0.86, '#cfdcec'], [1, '#9fb2cd']])
+    paint(128, [[0, ROOM_VOID], [0.55, '#070a18'], [0.72, '#101a3c'], [0.8, '#0a1028'], [1, ROOM_VOID]])
     const texture = new CanvasTexture(canvas)
     texture.colorSpace = SRGBColorSpace
+    texture.repeat.set(1, 0.5)
     const drum = new Mesh(
       new CylinderGeometry(300, 300, 260, 48, 1, true),
       new MeshBasicMaterial({ map: texture, side: BackSide, fog: false, depthWrite: false }),
     )
-    // the horizon band lands a little above the road, where the buildings meet the night
+    // the horizon band lands a little above the cube, where it meets the night
     drum.position.y = 74
     return drum
   }, [])
+  // Which half of the strip the drum is wearing. UV origin is the bottom, so
+  // the night half — painted second, lower down the canvas — is offset 0.
+  const skyMap = (sky.material as MeshBasicMaterial).map
+  if (skyMap) {
+    skyMap.offset.y = day ? 0.5 : 0
+    skyMap.needsUpdate = true
+  }
+  if (floor) (floor.material as MeshBasicMaterial).color.set(day ? '#93a6c2' : (floor.userData.night as string))
   useEffect(() => () => {
     stars.geometry.dispose()
     ;(stars.material as PointsMaterial).dispose()
@@ -1459,6 +1645,7 @@ export function TowerScene({
   onEnter: (machine: Machine) => void
   onView: (view: ScreenView) => void
 }) {
+  const theme = useTheme()
   /** The three live screens, registered as they mount; the rig and the projection follow `machine`. */
   const machines = useRef<Machines>({ monitor: null, arcade: null, atm: null })
   const mirror = useRef<Object3D>(null)
@@ -1497,7 +1684,7 @@ export function TowerScene({
         minPolarAngle={0.2}
         maxPolarAngle={1.5}
       />
-      <color attach="background" args={[ROOM_VOID]} />
+      <color attach="background" args={[theme === 'light' ? DAY_VOID : ROOM_VOID]} />
       <group ref={mirror as RefObject<Group>}>
         <Night reflective={!compact} />
       </group>
