@@ -1,0 +1,14 @@
+{
+  "name": "Luca Comino",
+  "shortName": "l. comino",
+  "shop": "LUCA'S RAMEN",
+  "roles": ["Web & 3D developer", "Advisory & consulting", "Designer"],
+  "signs": {
+    "projects": "projects",
+    "about": "about me",
+    "articles": "articles",
+    "credits": "credits"
+  },
+  "kanji": "ラーメン",
+  "open": "営業中"
+}

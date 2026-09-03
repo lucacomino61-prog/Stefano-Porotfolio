@@ -1,0 +1,147 @@
+{
+ "palette": {
+  "pink": {
+   "color": "#ff2f9c",
+   "gain": 1.0
+  },
+  "cyan": {
+   "color": "#28e7ff",
+   "gain": 1.0
+  },
+  "green": {
+   "color": "#41ff8f",
+   "gain": 1.0
+  },
+  "yellow": {
+   "color": "#ffd23a",
+   "gain": 1.0
+  },
+  "orange": {
+   "color": "#ff8c2a",
+   "gain": 0.9
+  },
+  "red": {
+   "color": "#ff3b5c",
+   "gain": 0.9
+  },
+  "blue": {
+   "color": "#3d6bff",
+   "gain": 0.9
+  },
+  "white": {
+   "color": "#f2f4ff",
+   "gain": 0.45
+  },
+  "globe": {
+   "color": "#ffe4fb",
+   "gain": 1.0
+  },
+  "lantern": {
+   "color": "#ffe3a8",
+   "gain": 0.8
+  },
+  "holo": {
+   "color": "#3cf5ff",
+   "gain": 1.0
+  },
+  "platePink": {
+   "color": "#ff2f7a",
+   "gain": 0.9
+  },
+  "plateCyan": {
+   "color": "#27dcff",
+   "gain": 0.9
+  },
+  "plateGreen": {
+   "color": "#45ff96",
+   "gain": 0.9
+  },
+  "plateOrange": {
+   "color": "#ff9d2a",
+   "gain": 0.9
+  },
+  "plateRed": {
+   "color": "#ff3a5f",
+   "gain": 0.9
+  },
+  "plateWhite": {
+   "color": "#f8f6ff",
+   "gain": 0.5
+  },
+  "vendGlow": {
+   "color": "#dcf6ff",
+   "gain": 0.7
+  },
+  "vendHeader": {
+   "color": "#8fe9ff",
+   "gain": 0.6
+  },
+  "ledCyan": {
+   "color": "#5df3ff",
+   "gain": 0.9
+  },
+  "ledRed": {
+   "color": "#ff4a5a",
+   "gain": 0.9
+  },
+  "ledGreen": {
+   "color": "#5cff8a",
+   "gain": 0.9
+  },
+  "ledWhite": {
+   "color": "#ffffff",
+   "gain": 0.8
+  }
+ },
+ "objects": {
+  "neonKanji": "green",
+  "lantern0": "lantern",
+  "lantern1": "lantern",
+  "neonFrame": "cyan",
+  "neonName": "pink",
+  "neonOpen": "yellow",
+  "arcadeBtnA": "ledGreen",
+  "arcadeBtnB": "ledCyan",
+  "arcadeCoin": "ledRed",
+  "arcadeRimL": "cyan",
+  "arcadeRimR": "cyan",
+  "arcadeRimT": "cyan",
+  "vendHeader": "vendHeader",
+  "vendBtn_prev": "plateWhite",
+  "vendBtn_next": "plateWhite",
+  "vendGlow": "vendGlow",
+  "portalStrip": "cyan",
+  "holoRing": "holo",
+  "ringLamp0": "white",
+  "ringLamp1": "white",
+  "ringLamp2": "white",
+  "ringLamp3": "white",
+  "fluoTube0": "white",
+  "fluoTube1": "white",
+  "fluoTube2": "white",
+  "fluoTube3": "white",
+  "neonBowl": "cyan",
+  "neonBowlRim": "cyan",
+  "neonChop0": "pink",
+  "neonChop1": "pink",
+  "neonSteam0": "pink",
+  "neonSteam1": "pink",
+  "neonSteam2": "pink",
+  "poleTip": "ledCyan",
+  "globe0": "globe",
+  "globe1": "globe",
+  "poleLed0": "ledCyan",
+  "poleLed1": "ledRed",
+  "poleLed2": "ledGreen",
+  "poleLed3": "ledWhite",
+  "poleLed4": "ledGreen",
+  "poleLed5": "ledRed",
+  "plate_projects": "platePink",
+  "plate_articles": "plateRed",
+  "plate_about": "plateCyan",
+  "plate_credits": "plateOrange",
+  "plate_name": "platePink",
+  "plate_green": "plateGreen",
+  "greenDot": "ledRed"
+ }
+}

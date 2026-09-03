@@ -1,0 +1,196 @@
+import { PerspectiveCamera, Raycaster, Vector2, Vector3, type Object3D } from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+/**
+ * How the shop is looked at, after the reference's Camera and Controller.
+ *
+ * One orbit, no pan, kept between two distances and two tilts so the floor's
+ * edge and the underside never show. Five places the camera can be: the
+ * default view, the vending machine (projects), the big screen (about), the
+ * arcade (credits) and a high view from the far side (the name tag). Each
+ * has its own limits; a flight of 1.5 s with a quadratic ease moves between
+ * them, and the controls get the camera back with the new limits when it
+ * lands. Hovering a live click target lights it and changes the cursor; a
+ * click that did not drag is handed to the page, which decides what it means
+ * in the current mode.
+ */
+export type Mode = 'default' | 'projects' | 'about' | 'credits' | 'name'
+
+export type View = {
+  position: Vector3
+  target: Vector3
+  distance: [number, number]
+  polar: [number, number]
+  azimuth: [number, number] | null
+}
+
+const v = (x: number, y: number, z: number) => new Vector3(x, y, z)
+export const VIEWS: Record<Mode, View> = {
+  default: { position: v(-11.1, -1, -7.6), target: v(0, 0, -1), distance: [7, 16], polar: [0.63, 1.73], azimuth: null },
+  projects: { position: v(1.15, -1.05, 5.25), target: v(1.15, -1.05, 3.06), distance: [1.6, 3.2], polar: [1.26, 1.67], azimuth: [-0.31, 0.31] },
+  about: { position: v(0.68, 3.35, 3.15), target: v(0.68, 3.35, 0.52), distance: [1.2, 3.0], polar: [0.94, 2.04], azimuth: [-0.63, 0.63] },
+  credits: { position: v(-0.58, -1.12, 4.5), target: v(-0.58, -1.18, 2.85), distance: [1.0, 2.4], polar: [0.94, 2.04], azimuth: [-0.63, 0.63] },
+  name: { position: v(-10.2, 6.3, 3.8), target: v(0, 0, -1), distance: [7, 16], polar: [0.63, 1.73], azimuth: null },
+}
+export const INTRO_FROM = v(15.9, 6.8, -11.4)
+
+export type Interaction = {
+  controls: OrbitControls
+  mode: Mode
+  hovered: string | null
+  flying: boolean
+  flyTo: (mode: Mode, duration?: number) => void
+  intro: () => void
+  setLive: (names: string[]) => void
+  update: (dt: number) => void
+}
+
+function ease(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+}
+
+export function createInteraction(
+  camera: PerspectiveCamera,
+  dom: HTMLElement,
+  hitboxes: Map<string, Object3D>,
+  callbacks: { onHover: (name: string | null) => void; onClick: (name: string | null) => void; onArrive: (mode: Mode) => void },
+  options: { reducedMotion: boolean },
+): Interaction {
+  const controls = new OrbitControls(camera, dom)
+  controls.enableDamping = true
+  controls.dampingFactor = 0.05
+  controls.rotateSpeed = 1.2
+  controls.zoomSpeed = 0.8
+  controls.enablePan = false
+  controls.target.copy(VIEWS.default.target)
+  camera.position.copy(INTRO_FROM)
+  camera.lookAt(controls.target)
+
+  const raycaster = new Raycaster()
+  const pointer = new Vector2()
+  let pointerDirty = false
+  let downAt: { x: number; y: number; time: number } | null = null
+  let live: Object3D[] = []
+
+  const state: Interaction = {
+    controls,
+    mode: 'default',
+    hovered: null,
+    flying: false,
+    flyTo,
+    intro,
+    setLive,
+    update,
+  }
+
+  let flight: { from: Vector3; fromTarget: Vector3; to: Vector3; toTarget: Vector3; t: number; duration: number; mode: Mode } | null = null
+
+  function applyLimits(view: View): void {
+    controls.minDistance = view.distance[0]
+    controls.maxDistance = view.distance[1]
+    controls.minPolarAngle = view.polar[0]
+    controls.maxPolarAngle = view.polar[1]
+    controls.minAzimuthAngle = view.azimuth ? view.azimuth[0] : -Infinity
+    controls.maxAzimuthAngle = view.azimuth ? view.azimuth[1] : Infinity
+  }
+
+  /** phones held upright see less of the width, so the close views stand a little further back */
+  function fitted(view: View): Vector3 {
+    const aspect = camera.aspect
+    const k = aspect < 1 ? 1.45 : aspect < 1.4 ? 1.15 : 1
+    return view.target.clone().add(view.position.clone().sub(view.target).multiplyScalar(k))
+  }
+
+  function flyTo(mode: Mode, duration = 1.5): void {
+    const view = VIEWS[mode]
+    flight = {
+      from: camera.position.clone(),
+      fromTarget: controls.target.clone(),
+      to: fitted(view),
+      toTarget: view.target.clone(),
+      t: 0,
+      duration: options.reducedMotion ? 0.001 : duration,
+      mode,
+    }
+    controls.enabled = false
+    state.flying = true
+    state.mode = mode
+    setHover(null)
+  }
+
+  function intro(): void {
+    camera.position.copy(INTRO_FROM)
+    controls.target.copy(VIEWS.default.target)
+    flyTo('default', 2.6)
+  }
+
+  function setLive(names: string[]): void {
+    live = names.map((n) => hitboxes.get(n)).filter((o): o is Object3D => !!o)
+    pointerDirty = true
+  }
+
+  function pick(): string | null {
+    if (!live.length) return null
+    raycaster.setFromCamera(pointer, camera)
+    const hits = raycaster.intersectObjects(live, false)
+    return hits.length ? hits[0].object.name : null
+  }
+
+  function setHover(name: string | null): void {
+    if (name === state.hovered) return
+    state.hovered = name
+    dom.style.cursor = name ? 'pointer' : ''
+    callbacks.onHover(name)
+  }
+
+  const onMove = (event: PointerEvent) => {
+    const rect = dom.getBoundingClientRect()
+    pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
+    pointerDirty = true
+  }
+  const onDown = (event: PointerEvent) => {
+    downAt = { x: event.clientX, y: event.clientY, time: performance.now() }
+  }
+  const onUp = (event: PointerEvent) => {
+    if (!downAt) return
+    const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y)
+    const quick = performance.now() - downAt.time < 700
+    downAt = null
+    if (moved > 8 || !quick || state.flying) return
+    onMove(event)
+    callbacks.onClick(pick())
+  }
+  const onLeave = () => setHover(null)
+  dom.addEventListener('pointermove', onMove)
+  dom.addEventListener('pointerdown', onDown)
+  dom.addEventListener('pointerup', onUp)
+  dom.addEventListener('pointerleave', onLeave)
+
+  function update(dt: number): void {
+    if (flight) {
+      flight.t = Math.min(1, flight.t + dt / flight.duration)
+      const k = ease(flight.t)
+      camera.position.lerpVectors(flight.from, flight.to, k)
+      controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k)
+      camera.lookAt(controls.target)
+      if (flight.t >= 1) {
+        const landed = flight.mode
+        flight = null
+        applyLimits(VIEWS[landed])
+        controls.enabled = true
+        controls.update()
+        state.flying = false
+        pointerDirty = true
+        callbacks.onArrive(landed)
+      }
+      return
+    }
+    if (pointerDirty) {
+      pointerDirty = false
+      setHover(pick())
+    }
+    controls.update()
+  }
+
+  return state
+}
