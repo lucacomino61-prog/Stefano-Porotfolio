@@ -58,6 +58,9 @@ def font(fn):
     p = os.path.join(WINFONTS, fn)
     return bpy.data.fonts.load(p) if os.path.exists(p) else bpy.data.fonts[0]
 FONT = {'sign': font('consolab.ttf'), 'neon': font('comicbd.ttf'), 'kanji': font('msgothic.ttc'), 'floor': font('segoeuib.ttf')}
+def face_for(body):
+    # kana and kanji need the gothic face; Latin words read better in the rounded one
+    return 'kanji' if any(ord(ch) > 0x2fff for ch in body) else 'neon'
 
 # ---------------------------------------------------------------- materials
 def srgb(hex_):
@@ -109,17 +112,17 @@ def mat_wood(name, tones):
     return m
 
 M = {k: mat(k, *v) for k, v in {
-    'wall':        ('#4a3ea8', 0.85),
-    'wallDark':    ('#352b86', 0.85),
-    'wallBlue':    ('#3546a8', 0.85),
-    'brick':       ('#2d2470', 0.9),
-    'roof':        ('#3b3595', 0.85),
-    'trim':        ('#241f5c', 0.8),
+    'wall':        ('#f1ebdd', 0.85),
+    'wallDark':    ('#2a8fa3', 0.85),
+    'wallBlue':    ('#56c4d8', 0.85),
+    'brick':       ('#d8c7a6', 0.9),
+    'roof':        ('#b28a52', 0.85),
+    'trim':        ('#1f6d7c', 0.8),
     'orange':      ('#e8712f', 0.6),
     'red':         ('#d8323c', 0.55),
     'redDark':     ('#a6202c', 0.6),
-    'fabric':      ('#5136d8', 0.95),
-    'fabricLight': ('#7d66ee', 0.95),
+    'fabric':      ('#2fb3c9', 0.95),
+    'fabricLight': ('#f2efe6', 0.95),
     'metal':       ('#8f9bc4', 0.35, 0.6),
     'metalDark':   ('#4c527a', 0.45, 0.5),
     'pipe':        ('#a9b3d6', 0.3, 0.7),
@@ -142,8 +145,8 @@ M = {k: mat(k, *v) for k, v in {
     'text':        ('#f4f2ff', 0.6),
     'ink':         ('#0a0812', 0.7),
 }.items()}
-M['wood'] = mat_wood('wood', ('#c98a52', '#e6b27a'))
-M['woodDark'] = mat_wood('woodDark', ('#7a4b2a', '#a86c3f'))
+M['wood'] = mat_wood('wood', ('#c9a86a', '#e6cd93'))
+M['woodDark'] = mat_wood('woodDark', ('#8a6a3c', '#b08f55'))
 
 # neon and lamps: hex colour the runtime paints, bake emission strength, runtime gain,
 # and whether the runtime blooms it (the white lamps and the sign plates are painted flat and crisp)
@@ -328,14 +331,14 @@ for i, yy in enumerate((-1.25, -0.55)):
         col = ['green', 'white', 'yellow', 'red', 'cream', 'teal', 'orange'][(i * 3 + j) % 7]
         cy(f'bottle{i}_{j}', 0.055, 0.34 - (j % 3) * 0.06, BX0 - 0.14, yy + 0.2, -2.85 + j * 0.5, 'SHOP', M[col], seg=10)
 # the kanji in green neon on the back wall, and the pots
-glow(text('neonKanji', LABELS['kanji'], 'kanji', 0.62, BX0 - 0.03, -0.78, -1.0, 'EMISSIVE', EM['green'], facing='-x', tube=0.018), 'green')
+glow(text('neonKanji', LABELS['kanji'], face_for(LABELS['kanji']), 0.62, BX0 - 0.03, -0.78, -1.0, 'EMISSIVE', EM['orange'], facing='-x', tube=0.018), 'orange')
 cy('pot', 0.26, 0.3, -2.1, -1.5, -3.3, 'SHOP', M['metalDark'], seg=18)
 cy('potLid', 0.28, 0.05, -2.1, -1.33, -3.3, 'SHOP', M['metal'], seg=18)
 # bowls, cups and chopsticks on the counter
 for i, zc in enumerate((-2.3, 0.4)):
-    cy(f'bowl{i}', 0.21, 0.15, -2.95, -1.58, zc, 'SHOP', M['red'], seg=18, r2=0.12)
-    cy(f'bowlSoup{i}', 0.17, 0.02, -2.95, -1.51, zc, 'SHOP', M['cream'], seg=16)
-    bx(f'chopsticks{i}', 0.02, 0.015, 0.45, -2.85, -1.5, zc + 0.05, 'SHOP', M['woodDark'], yaw=0.3, bevel=False)
+    cy(f'cup{i}', 0.08, 0.2, -2.95, -1.56, zc, 'SHOP', M['white'], seg=14, r2=0.11)
+    sph(f'scoop{i}', 0.1, -2.95, -1.4, zc, 'SHOP', M['red'] if i else M['cream'], seg=14)
+    cy(f'straw{i}', 0.012, 0.36, -2.9, -1.36, zc + 0.06, 'SHOP', M['orange'], seg=6, rot=(0.35, 0, 0))
 cy('cup', 0.07, 0.17, -3.2, -1.57, -0.9, 'SHOP', M['white'], seg=12)
 cy('bottleSake', 0.065, 0.36, -2.75, -1.48, -1.4, 'SHOP', M['green'], seg=12)
 cy('bottleSakeNeck', 0.03, 0.12, -2.75, -1.26, -1.4, 'SHOP', M['green'], seg=10)
@@ -355,7 +358,7 @@ n_slats = 6
 for i in range(n_slats):
     zc = BZ0 + (i + 0.5) * DD / n_slats
     bx(f'awning{i}', slab_len, 0.07, DD / n_slats - 0.05, (A_TOP + A_OUT) / 2, (A_Y0 + A_Y1) / 2, zc, 'SHOP',
-       M['wallBlue'] if i % 2 else M['fabric'], rot=(0, -tilt, 0))
+       M['wallBlue'] if i % 2 else M['white'], rot=(0, -tilt, 0))
 bx('awningBeam', 0.12, 0.12, DD + 0.1, A_OUT + 0.1, A_Y1 + 0.02, (BZ0 + BZ1) / 2, 'SHOP', M['trim'])
 # paper lanterns hanging under the awning
 for i, zc in enumerate((-2.0, 0.1)):
@@ -370,10 +373,10 @@ bx('signBox', 0.45, 1.05, SIGN_W, SX + 0.2, SY, SZ, 'MACHINES', M['black'])
 bx('signBoxBack', 0.5, 1.2, SIGN_W + 0.15, SX + 0.3, SY, SZ, 'MACHINES', M['trim'])
 fx = SX - 0.03
 hw = SIGN_W / 2 - 0.15
-glow(tube('neonFrame', [(fx, SY - 0.4, SZ - hw), (fx, SY - 0.4, SZ + hw), (fx, SY + 0.4, SZ + hw), (fx, SY + 0.4, SZ - hw)], 0.018, 'EMISSIVE', EM['cyan'], cyclic=True), 'cyan')
+glow(tube('neonFrame', [(fx, SY - 0.4, SZ - hw), (fx, SY - 0.4, SZ + hw), (fx, SY + 0.4, SZ + hw), (fx, SY + 0.4, SZ - hw)], 0.018, 'EMISSIVE', EM['orange'], cyclic=True), 'orange')
 # the name shrinks to fit the box: about 0.36 units per letter at size 1 in this face
-name_size = min(0.42, (SIGN_W - 0.9) / (0.62 * max(1, len(LABELS['shop']))))
-glow(text('neonName', LABELS['shop'], 'neon', name_size, fx - 0.03, SY, SZ, 'EMISSIVE', EM['pink'], facing='-x', tube=0.02), 'pink')
+name_size = min(0.55, (SIGN_W - 0.9) / (0.62 * max(1, len(LABELS['shop']))))
+glow(text('neonName', LABELS['shop'], 'neon', name_size, fx - 0.03, SY, SZ, 'EMISSIVE', EM['cyan'], facing='-x', tube=0.013), 'cyan')
 # the TV over the sign, and a little one under it
 bx('tvFrame', 0.24, 1.15, 2.4, -1.55, 3.3, -2.05, 'MACHINES', M['metalDark'])
 screen('tvScreen', 2.2, 1.0, -1.68, 3.3, -2.05, '-x')
@@ -382,7 +385,7 @@ bx('tvFoot', 0.5, 0.08, 0.5, -1.4, R + 0.18, -2.05, 'MACHINES', M['metalDark'])
 bx('littleTvFrame', 0.22, 0.6, 1.15, -1.75, 2.3, -2.4, 'MACHINES', M['grey'])
 screen('littleTvScreen', 1.0, 0.48, -1.87, 2.3, -2.4, '-x')
 # open sign in yellow neon
-glow(text('neonOpen', LABELS['open'], 'kanji', 0.26, -2.34, 2.95, 0.55, 'EMISSIVE', EM['yellow'], facing='-x', tube=0.012), 'yellow')
+glow(text('neonOpen', LABELS['open'], face_for(LABELS['open']), 0.26, -2.34, 2.95, 0.55, 'EMISSIVE', EM['green'], facing='-x', tube=0.012), 'green')
 bx('neonOpenBoard', 0.06, 0.5, 1.0, -2.25, 2.95, 0.55, 'MACHINES', M['black'])
 bx('neonOpenPost', 0.08, 2.4, 0.08, -2.2, R + 1.3, 0.55, 'MACHINES', M['metalDark'])
 # chalkboard easel at the +z end of the counter
@@ -586,20 +589,33 @@ tube('cable0', catenary((MASTS[0][0], MASTS[0][1] - 0.6, MASTS[0][2]), (MASTS[1]
 tube('cable1', catenary((MASTS[1][0], MASTS[1][1] - 0.6, MASTS[1][2]), (1.55, BSY + 2.3, -0.15), 0.9, 12), 0.015, 'SHOP', M['black'])
 tube('cable2', catenary((MASTS[0][0], MASTS[0][1] - 1.2, MASTS[0][2]), (1.3, BSY + 0.6, -1.05), 0.8, 12), 0.015, 'SHOP', M['black'])
 tube('cable3', catenary((MASTS[1][0], MASTS[1][1] - 0.3, MASTS[1][2]), (-1.5, R + 5.6, 1.15), 0.15, 8), 0.015, 'SHOP', M['black'])
-# the neon ramen bowl at the -x/+z corner: a cyan bowl, pink chopsticks and steam
-NBX, NBY, NBZ = -2.45, 2.65, 1.05
-glow(tube('neonBowl', arc(NBX, NBY, NBZ, 0.42, math.pi, 2 * math.pi, 16) + [(NBX, NBY, NBZ + 0.42), (NBX, NBY, NBZ - 0.42)], 0.02, 'EMISSIVE', EM['cyan']), 'cyan')
-glow(tube('neonBowlRim', [(NBX, NBY + 0.02, NBZ - 0.5), (NBX, NBY + 0.02, NBZ + 0.5)], 0.02, 'EMISSIVE', EM['cyan']), 'cyan')
-glow(tube('neonChop0', [(NBX, NBY + 0.05, NBZ - 0.1), (NBX, NBY + 0.85, NBZ + 0.45)], 0.018, 'EMISSIVE', EM['pink']), 'pink')
-glow(tube('neonChop1', [(NBX, NBY + 0.05, NBZ + 0.05), (NBX, NBY + 0.9, NBZ + 0.55)], 0.018, 'EMISSIVE', EM['pink']), 'pink')
-for i in range(3):
-    zc = NBZ - 0.28 + i * 0.22
-    pts = [(NBX, NBY + 0.12 + k * 0.16, zc + math.sin(k * 1.4 + i) * 0.05) for k in range(5)]
-    glow(tube(f'neonSteam{i}', pts, 0.015, 'EMISSIVE', EM['pink']), 'pink')
-bx('neonBowlBoard', 0.06, 1.7, 1.4, NBX + 0.1, NBY + 0.35, NBZ, 'MACHINES', M['black'])
-bx('neonBowlPost', 0.08, 1.7, 0.08, NBX + 0.15, R + 0.95, NBZ, 'MACHINES', M['metalDark'])
+# the neon ice-cream cone at the -x/+z corner: a hatched cone, two scoops and a cherry
+NBX, NBY, NBZ = -2.45, 2.55, 1.05
+glow(tube('neonCone', [(NBX, NBY - 0.55, NBZ), (NBX, NBY + 0.15, NBZ - 0.32), (NBX, NBY + 0.15, NBZ + 0.32)], 0.02, 'EMISSIVE', EM['orange'], cyclic=True), 'orange')
+glow(tube('neonConeHatch0', [(NBX, NBY - 0.22, NBZ - 0.15), (NBX, NBY + 0.08, NBZ + 0.17)], 0.013, 'EMISSIVE', EM['orange']), 'orange')
+glow(tube('neonConeHatch1', [(NBX, NBY - 0.22, NBZ + 0.15), (NBX, NBY + 0.08, NBZ - 0.17)], 0.013, 'EMISSIVE', EM['orange']), 'orange')
+glow(tube('neonScoop0', arc(NBX, NBY + 0.15, NBZ, 0.34, 0, math.pi, 16), 0.02, 'EMISSIVE', EM['pink']), 'pink')
+glow(tube('neonScoop1', arc(NBX, NBY + 0.46, NBZ + 0.06, 0.25, 0, math.pi, 12), 0.018, 'EMISSIVE', EM['pink']), 'pink')
+glow(tube('neonCherry', arc(NBX, NBY + 0.78, NBZ + 0.03, 0.07, 0, 2 * math.pi, 10), 0.013, 'EMISSIVE', EM['red'], cyclic=True), 'red')
+bx('neonConeBoard', 0.06, 1.7, 1.4, NBX + 0.1, NBY + 0.35, NBZ, 'MACHINES', M['black'])
+bx('neonConePost', 0.08, 1.7, 0.08, NBX + 0.15, R + 0.95, NBZ, 'MACHINES', M['metalDark'])
 # pipes across the roof
 tube('pipeRoof', [(-2.4, R + 0.25, -2.0), (0.6, R + 0.25, -2.0), (0.6, R + 0.25, -0.2), (1.9, R + 0.25, -0.2)], 0.05, 'SHOP', M['pipe'])
+
+
+# ---------------------------------------------------------------- the beach: a parasol, a sunbed and a ball by the curtain face
+PBX, PBZ = 0.9, -5.9
+cy('parasolPole', 0.035, 2.7, PBX + 1.0, F + 1.35, PBZ - 0.4, 'SHOP', M['white'], seg=8, rot=(0.12, 0, 0))
+cy('parasol', 1.15, 0.42, PBX + 1.0, F + 2.62, PBZ - 0.7, 'SHOP', M['wallBlue'], seg=12, r2=0.0, smooth=False)
+cy('parasolTop', 0.06, 0.12, PBX + 1.0, F + 2.88, PBZ - 0.72, 'SHOP', M['white'], seg=8, r2=0.0)
+bx('sunbedFrame', 0.72, 0.06, 1.8, PBX, F + 0.32, PBZ, 'SHOP', M['woodDark'])
+for k in range(7):
+    bx(f'sunbedSlat{k}', 0.66, 0.03, 0.18, PBX, F + 0.37, PBZ - 0.75 + k * 0.25, 'SHOP', M['wood'], bevel=False)
+bx('sunbedBack', 0.66, 0.05, 0.62, PBX, F + 0.62, PBZ - 1.05, 'SHOP', M['wood'], rot=(-0.9, 0, 0))
+bx('sunbedTowel', 0.5, 0.03, 1.1, PBX, F + 0.4, PBZ + 0.25, 'SHOP', M['fabric'], bevel=False)
+for dx, dz in ((-0.3, -0.75), (0.3, -0.75), (-0.3, 0.75), (0.3, 0.75)):
+    cy(f'sunbedLeg{dx:+.0f}{dz:+.0f}', 0.025, 0.3, PBX + dx, F + 0.15, PBZ + dz, 'SHOP', M['woodDark'], seg=6)
+sph('beachBall', 0.22, PBX + 1.55, F + 0.22, PBZ + 0.9, 'SHOP', M['orange'], seg=16)
 
 # ---------------------------------------------------------------- the signpost
 PX, PZ = -4.05, -5.05
@@ -654,7 +670,7 @@ glow(bx('greenDot', 0.06, 0.06, 0.06, PX - 0.15, NY - 0.7, PZ - 0.6, 'EMISSIVE',
 # ---------------------------------------------------------------- light for the bake: the neon does most of it
 world = bpy.data.worlds.new('night'); scene.world = world; world.use_nodes = True
 bg = world.node_tree.nodes['Background']
-bg.inputs['Color'].default_value = (0.62, 0.62, 0.9, 1.0)
+bg.inputs['Color'].default_value = (0.72, 0.74, 0.92, 1.0)
 # the reference's stall is lit bright and even, like a diorama under a soft sky; the floor stays
 # black because its material is nearly black, not because the light is dim
 bg.inputs['Strength'].default_value = float(os.environ.get('SHOP_AMBIENT', '1.0'))
@@ -672,7 +688,7 @@ light('key', 'SPOT', 1.0, 15.0, 0.5, float(os.environ.get('SHOP_KEY', '700')), (
 # two pools on the floor: cyan by the machines, pink by the signpost, spots pointing down so they
 # stay pools instead of washing the whole disc
 light('cyanFill', 'SPOT', 3.0, -0.4, 5.6, float(os.environ.get('SHOP_CYAN', '7500')), (0.2, 0.9, 1.0), size=0.8, rot=(0, 0, 0), cone=135, blend=0.9)
-light('pinkFill', 'SPOT', -6.2, -0.4, -4.6, float(os.environ.get('SHOP_PINK', '7500')), (1.0, 0.3, 0.85), size=0.8, rot=(0, 0, 0), cone=135, blend=0.9)
+light('pinkFill', 'SPOT', -6.2, -0.4, -4.6, float(os.environ.get('SHOP_PINK', '7500')), (1.0, 0.5, 0.3), size=0.8, rot=(0, 0, 0), cone=135, blend=0.9)
 
 # ---------------------------------------------------------------- cameras and previews
 def camera(name, pos, lens=22):

@@ -295,7 +295,7 @@ export function createScreens(): Screens {
       ctx.font = `700 20px ${FONT}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'alphabetic'
-      ctx.fillText(['ramen', 'night', 'street'][i].toUpperCase(), 20, h - 22)
+      ctx.fillText(['beach', 'night', 'spille'][i].toUpperCase(), 20, h - 22)
     }
     scanlines(ctx, w, h, 0.08)
     s.done()

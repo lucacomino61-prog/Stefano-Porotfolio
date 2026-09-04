@@ -1,7 +1,7 @@
 {
   "name": "Stefano Doko",
   "shortName": "s. doko",
-  "shop": "STEFANO'S RAMEN",
+  "shop": "BAR MARTIRI",
   "roles": ["Web designer and developer", "Design and build, end to end"],
   "signs": {
     "projects": "projects",
@@ -9,6 +9,6 @@
     "contact": "contact",
     "credits": "credits"
   },
-  "kanji": "ラーメン",
-  "open": "営業中"
+  "kanji": "SPILLE",
+  "open": "OPEN"
 }

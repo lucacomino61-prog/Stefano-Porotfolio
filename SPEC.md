@@ -1,8 +1,12 @@
-# Ramen — spec
+# Bar Martiri — spec
 
-A personal portfolio that is a copy of jesse-zhou.com's ramen shop: a night
-street stall on a mirror floor, looked at from outside like a diorama, with a
-signpost of arrow signs beside it. The four signs are the site's navigation.
+A personal portfolio built as a copy of jesse-zhou.com's ramen shop and then
+dressed as Bar Martiri, a beach bar Stefano Doko shipped (barmartiri.com, on
+the sand at Spille): the same night stall on a mirror floor, looked at from
+outside like a diorama, with a signpost of arrow signs beside it — now in
+white and turquoise with a bamboo bar, cups of ice cream, an ice-cream cone in
+neon where the ramen bowl was, and a parasol, a sunbed and a ball on the sand
+side. The four signs are the site's navigation.
 Clicking one flies the camera to the thing in the world that holds that
 section — a vending machine full of project posters, a big screen with the
 about pages, an arcade cabinet that plays the credits — and the section is

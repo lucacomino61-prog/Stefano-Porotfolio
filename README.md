@@ -1,8 +1,10 @@
-# Ramen
+# Bar Martiri
 
-A portfolio in a ramen shop at night, after [jesse-zhou.com](https://www.jesse-zhou.com/):
-a neon stall on a mirror floor, built and lit in Blender, baked into four
-textures, looked at like a diorama. Four arrow signs on the post beside it
+Stefano Doko's portfolio as a beach bar at night, after
+[jesse-zhou.com](https://www.jesse-zhou.com/)'s ramen shop: the same neon stall
+on a mirror floor, built and lit in Blender, baked into four textures, looked
+at like a diorama, dressed as [barmartiri.com](https://barmartiri.com), one of
+his shipped sites. Four arrow signs on the post beside it
 are the navigation; each flies the camera to the machine or screen in the
 world that holds that section. Vite + Three.js; the only downloads are one
 Draco GLB, the atlases and a manifest.
