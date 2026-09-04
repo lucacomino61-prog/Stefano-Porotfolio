@@ -127,8 +127,12 @@ export function createInteraction(
     return { position: view.target.clone().add(view.position.clone().sub(view.target).multiplyScalar(k)), target: view.target.clone() }
   }
 
+  /** the aspect the current framing was computed for */
+  let framedAspect = camera.aspect
+
   function flyTo(mode: Mode, duration = 1.5): void {
     const to = framing(VIEWS[mode])
+    framedAspect = camera.aspect
     flight = {
       from: camera.position.clone(),
       fromTarget: controls.target.clone(),
@@ -156,10 +160,13 @@ export function createInteraction(
       const to = framing(VIEWS[state.mode])
       flight.to = to.position
       flight.toTarget = to.target
+      framedAspect = camera.aspect
       return
     }
-    // parked in the default view the visitor may have orbited; that is left alone
+    // parked in the default view the visitor may have orbited; that is left alone, and so is a
+    // close-up whose framing would not change (a resize that barely moved the aspect)
     if (state.mode === 'default') return
+    if (Math.abs(camera.aspect - framedAspect) < 0.08 && camera.aspect < 1 === framedAspect < 1) return
     flyTo(state.mode, 0.6)
   }
 
