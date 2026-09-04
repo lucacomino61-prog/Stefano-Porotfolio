@@ -72,9 +72,15 @@ quadratic ease. On narrow screens the close views stand further back.
 | credits | the arcade | the screen advances a page per click |
 | name tag | a high view from the far side | click anywhere to return |
 
-Click targets are invisible boxes in the model (`hit_*`). Hovering a sign
-brightens its plate. A click on nothing while close returns to the default
-view; so do Escape and the Back control.
+Click targets are invisible boxes in the model (`hit_*`); what each does in
+each mode is one table in `main.ts`, and the same table says what the pointer
+can hit there. Hovering a sign brightens its plate. A click is one
+primary-button pointer that went down and up within 8 px and 700 ms with no
+other pointer down, so drags, pinches and right-clicks are not clicks. A click
+on nothing while close returns to the default view; so do Escape and the Back
+control, and both work mid-flight. Upright phones get their own framing for
+the about view and stand further back elsewhere; a resize re-aims a parked
+close-up.
 
 ## Interface
 
