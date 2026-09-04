@@ -13,8 +13,10 @@ import { Reflector } from 'three/addons/objects/Reflector.js'
  */
 export const FLOOR_RADIUS = 25
 export const FLOOR_Y = -2.9
-/** the bake lands a little dark for the reference's saturated look; every atlas is lifted by this */
-export const BAKE_LIFT = 1.25
+/** the bake lands a little dark for the reference's saturated look; the shop's atlases are lifted by this */
+export const BAKE_LIFT = 1.55
+/** the floor is not: its pools of light must stay pools, and the dark beyond them must stay dark */
+export const FLOOR_LIFT = 1.0
 
 const shader = {
   name: 'BakedReflector',
@@ -23,8 +25,8 @@ const shader = {
     tDiffuse: { value: null as unknown as Texture },
     tBaked: { value: null as unknown as Texture },
     textureMatrix: { value: null },
-    mirror: { value: 0.32 },
-    lift: { value: BAKE_LIFT },
+    mirror: { value: 0.24 },
+    lift: { value: FLOOR_LIFT },
   },
   vertexShader: /* glsl */ `
     uniform mat4 textureMatrix;
@@ -56,7 +58,7 @@ const shader = {
       #include <logdepthbuf_fragment>
       vec4 baked = texture2D(tBaked, vUv);
       vec4 refl = texture2DProj(tDiffuse, vUv4);
-      float near = 1.0 - smoothstep(4.0, 14.0, length(vWorld.xz));
+      float near = 1.0 - smoothstep(3.0, 10.0, length(vWorld.xz));
       vec3 col = baked.rgb * lift + refl.rgb * color * mirror * (0.35 + 0.65 * near);
       gl_FragColor = vec4(col, 1.0);
       #include <tonemapping_fragment>
@@ -72,7 +74,7 @@ export function createFloor(renderer: WebGLRenderer, baked: Texture, mirror: boo
   const uv = geometry.attributes.uv
   for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i))
   if (!mirror) {
-    const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: baked, color: new Color(BAKE_LIFT, BAKE_LIFT, BAKE_LIFT), toneMapped: false }))
+    const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: baked, color: new Color(FLOOR_LIFT, FLOOR_LIFT, FLOOR_LIFT), toneMapped: false }))
     mesh.rotation.x = -Math.PI / 2
     mesh.position.y = FLOOR_Y
     mesh.name = 'floorFlat'

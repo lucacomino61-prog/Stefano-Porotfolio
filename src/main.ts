@@ -233,7 +233,7 @@ async function main() {
   scene.add(floor.mesh)
   const hologram = createHologram(holoAt, renderer.getPixelRatio())
   scene.add(hologram.points)
-  const bloom = lite ? null : createBloom(renderer, scene, camera, compact ? 3 : 2, 0.8, !compact)
+  const bloom = lite ? null : createBloom(renderer, scene, camera, compact ? 3 : 2, 0.75, !compact)
 
   const hud = createHud({ onGo: (mode) => go(mode), onBack: () => go('default') })
   const interaction = createInteraction(

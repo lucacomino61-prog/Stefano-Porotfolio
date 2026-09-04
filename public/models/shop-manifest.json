@@ -22,37 +22,37 @@
   "palette": {
    "pink": {
     "color": "#ff2f9c",
-    "gain": 1,
+    "gain": 1.25,
     "bloom": true
    },
    "cyan": {
     "color": "#28e7ff",
-    "gain": 1,
+    "gain": 1.2,
     "bloom": true
    },
    "green": {
     "color": "#41ff8f",
-    "gain": 1,
+    "gain": 1.2,
     "bloom": true
    },
    "yellow": {
     "color": "#ffd23a",
-    "gain": 1,
+    "gain": 1.15,
     "bloom": true
    },
    "orange": {
     "color": "#ff8c2a",
-    "gain": 0.9,
+    "gain": 1.1,
     "bloom": true
    },
    "red": {
     "color": "#ff3b5c",
-    "gain": 0.9,
+    "gain": 1.1,
     "bloom": true
    },
    "blue": {
     "color": "#3d6bff",
-    "gain": 0.9,
+    "gain": 1.1,
     "bloom": true
    },
    "white": {
@@ -62,7 +62,7 @@
    },
    "globe": {
     "color": "#ffe4fb",
-    "gain": 1,
+    "gain": 0.8,
     "bloom": true
    },
    "lantern": {
@@ -72,7 +72,7 @@
    },
    "holo": {
     "color": "#3cf5ff",
-    "gain": 1,
+    "gain": 0.9,
     "bloom": true
    },
    "platePink": {
@@ -192,8 +192,7 @@
   "TEXT": [
    "floorName",
    "floorRole0",
-   "floorRole1",
-   "floorRole2"
+   "floorRole1"
   ],
   "EMISSIVE": [
    "arcadeBtnA",
@@ -289,5 +288,5 @@
   ]
  },
  "glb": "shop.glb",
- "glbBytes": 392696
+ "glbBytes": 363572
 }

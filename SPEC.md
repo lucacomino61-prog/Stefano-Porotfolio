@@ -33,20 +33,29 @@ blender -b blender/shop.blend -P blender/bake_shop.py -- 64  # public/textures/*
 
 ## Light
 
-The neon lights the bake. Every emissive mesh carries a Cycles emission whose
-strength is set per colour in the builder's `GLOW` table; the two globe lamps
-on the signpost are the strongest and pool pink on the floor, the arcade rim
-and vending machine pool cyan on the other side. A dim blue world and a weak
-area key from above keep the unlit faces readable; two low point lights make
-the floor pools fall off fast. The bake lands in 8-bit atlases with no tone
-mapping, so nothing is meant to exceed 1.0 except the emitters themselves,
-which the runtime paints flat anyway.
+The light is concentrated on the stall and the floor beyond it goes black,
+the way the reference sits in the dark. Every emissive mesh carries a Cycles
+emission whose strength is set per colour in the builder's `GLOW` table, kept
+low: with the lamps switched off the emitters alone had been washing the whole
+floor an even grey, so the neon, globes and lanterns now light only what is
+next to them. A cool spot from fifteen metres up, its cone ending just past
+the signpost, keys the roof and the faces; a whisper of blue world keeps unlit
+faces readable; two spots a metre and a half above the floor make the pink
+pool under the signpost and the cyan one by the machines, falling off fast.
+The bake lands in 8-bit atlases with no tone mapping; the runtime lifts the
+shop's atlases by 1.25 and leaves the floor's alone, so the pools stay pools.
+
+At runtime the neon carries gains above 1.0 (pink 1.45, cyan and green 1.35),
+so its core burns toward white and the bloom (strength 1.0, radius 0.32,
+threshold 0) puts the colour in a tight halo against the dark: contrast, not
+haze.
 
 ## What stays live
 
 - Neon, LEDs, lamps and sign plates: flat colours from the manifest on a
-  bloom layer (UnrealBloom strength 1.25, radius 1, threshold 0, like the
-  reference), rendered with the black-pass trick so only they glow.
+  bloom layer (UnrealBloom strength 1.0, radius 0.32, threshold 0), rendered
+  with the black-pass trick so only they glow; the white lamps are painted
+  flat but kept off the bloom layer.
 - Twelve screens: canvases. The big screen holds the about pages (intro,
   skills, experience); the three small screens under it are its buttons while
   the camera is close and art otherwise; the vending machine shows one project

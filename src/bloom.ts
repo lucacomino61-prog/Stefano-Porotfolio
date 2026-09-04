@@ -42,7 +42,8 @@ export function createBloom(renderer: WebGLRenderer, scene: Scene, camera: Camer
 
   const size = renderer.getSize(new Vector2())
   const dpr = () => renderer.getPixelRatio()
-  const bloomPass = new UnrealBloomPass(new Vector2((size.x * dpr()) / divisor, (size.y * dpr()) / divisor), strength, 0.45, 0.0)
+  // a short radius keeps the glow close to the tube: a bright core, a halo, and dark around it
+  const bloomPass = new UnrealBloomPass(new Vector2((size.x * dpr()) / divisor, (size.y * dpr()) / divisor), strength, 0.05, 0.0)
   const bloomComposer = new EffectComposer(renderer)
   bloomComposer.renderToScreen = false
   bloomComposer.addPass(new RenderPass(scene, camera))

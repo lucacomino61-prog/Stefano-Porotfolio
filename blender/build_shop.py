@@ -137,7 +137,7 @@ M = {k: mat(k, *v) for k, v in {
     'greenDark':   ('#2b6b2b', 0.7),
     'yellow':      ('#f2c230', 0.5),
     'cream':       ('#f1e6c8', 0.7),
-    'floor':       ('#4e4768', 0.9),
+    'floor':       ('#3a3454', 0.9),
     'hitbox':      ('#ff0000', 1.0),
     'text':        ('#f4f2ff', 0.6),
     'ink':         ('#0a0812', 0.7),
@@ -148,29 +148,30 @@ M['woodDark'] = mat_wood('woodDark', ('#7a4b2a', '#a86c3f'))
 # neon and lamps: hex colour the runtime paints, bake emission strength, runtime gain,
 # and whether the runtime blooms it (the white lamps light the bake but glow too much on screen)
 GLOW = {
-    'pink':    ('#ff2f9c', 14, 1.0),
-    'cyan':    ('#28e7ff', 12, 1.0),
-    'green':   ('#41ff8f', 12, 1.0),
-    'yellow':  ('#ffd23a', 10, 1.0),
-    'orange':  ('#ff8c2a', 8, 0.9),
-    'red':     ('#ff3b5c', 8, 0.9),
-    'blue':    ('#3d6bff', 8, 0.9),
-    'white':   ('#f2f4ff', 5, 0.75, False),
-    'globe':   ('#ffe4fb', 36, 1.0),
-    'lantern': ('#ffe3a8', 9, 0.8),
-    'holo':    ('#3cf5ff', 26, 1.0),
-    'platePink':   ('#ff2f7a', 2.0, 0.9),
-    'plateCyan':   ('#27dcff', 2.0, 0.9),
-    'plateGreen':  ('#45ff96', 2.0, 0.9),
-    'plateOrange': ('#ff9d2a', 2.0, 0.9),
-    'plateRed':    ('#ff3a5f', 2.0, 0.9),
+    # the neon runs above 1.0 so its core burns toward white and its halo carries the colour
+    'pink':    ('#ff2f9c', 6, 1.25),
+    'cyan':    ('#28e7ff', 5, 1.2),
+    'green':   ('#41ff8f', 5, 1.2),
+    'yellow':  ('#ffd23a', 4, 1.15),
+    'orange':  ('#ff8c2a', 3, 1.1),
+    'red':     ('#ff3b5c', 3, 1.1),
+    'blue':    ('#3d6bff', 3, 1.1),
+    'white':   ('#f2f4ff', 2.5, 0.75, False),
+    'globe':   ('#ffe4fb', 9, 0.8),
+    'lantern': ('#ffe3a8', 5, 0.8),
+    'holo':    ('#3cf5ff', 12, 0.9),
+    'platePink':   ('#ff2f7a', 1.2, 0.9),
+    'plateCyan':   ('#27dcff', 1.2, 0.9),
+    'plateGreen':  ('#45ff96', 1.2, 0.9),
+    'plateOrange': ('#ff9d2a', 1.2, 0.9),
+    'plateRed':    ('#ff3a5f', 1.2, 0.9),
     'plateWhite':  ('#f8f6ff', 1.2, 0.5),
-    'vendGlow':    ('#dcf6ff', 6, 0.7),
+    'vendGlow':    ('#dcf6ff', 4, 0.7),
     'vendHeader':  ('#8fe9ff', 3, 0.6),
-    'ledCyan':     ('#5df3ff', 6, 0.9),
-    'ledRed':      ('#ff4a5a', 6, 0.9),
-    'ledGreen':    ('#5cff8a', 6, 0.9),
-    'ledWhite':    ('#ffffff', 5, 0.8),
+    'ledCyan':     ('#5df3ff', 3, 0.9),
+    'ledRed':      ('#ff4a5a', 3, 0.9),
+    'ledGreen':    ('#5cff8a', 3, 0.9),
+    'ledWhite':    ('#ffffff', 3, 0.8),
 }
 EM = {k: mat('glow_' + k, v[0], 0.5, emit=v[0], strength=v[1]) for k, v in GLOW.items()}
 GLOW_OF = {}   # object name -> glow key, written to the manifest by the bake
@@ -364,11 +365,15 @@ for i, zc in enumerate((-2.0, 0.1)):
     cy(f'lanternFoot{i}', 0.09, 0.05, -3.3, -0.9, zc, 'SHOP', M['black'], seg=10)
 # the sign box over the awning: a dark box, a cyan neon frame, the name in pink neon
 SX, SY, SZ = -2.95, 1.05, -0.95
-bx('signBox', 0.45, 1.05, 4.6, SX + 0.2, SY, SZ, 'MACHINES', M['black'])
-bx('signBoxBack', 0.5, 1.2, 4.75, SX + 0.3, SY, SZ, 'MACHINES', M['trim'])
+SIGN_W = 5.2                                              # the box; the awning below is 6.05 wide
+bx('signBox', 0.45, 1.05, SIGN_W, SX + 0.2, SY, SZ, 'MACHINES', M['black'])
+bx('signBoxBack', 0.5, 1.2, SIGN_W + 0.15, SX + 0.3, SY, SZ, 'MACHINES', M['trim'])
 fx = SX - 0.03
-glow(tube('neonFrame', [(fx, SY - 0.4, SZ - 2.15), (fx, SY - 0.4, SZ + 2.15), (fx, SY + 0.4, SZ + 2.15), (fx, SY + 0.4, SZ - 2.15)], 0.018, 'EMISSIVE', EM['cyan'], cyclic=True), 'cyan')
-glow(text('neonName', LABELS['shop'], 'neon', 0.42, fx - 0.03, SY, SZ, 'EMISSIVE', EM['pink'], facing='-x', tube=0.02), 'pink')
+hw = SIGN_W / 2 - 0.15
+glow(tube('neonFrame', [(fx, SY - 0.4, SZ - hw), (fx, SY - 0.4, SZ + hw), (fx, SY + 0.4, SZ + hw), (fx, SY + 0.4, SZ - hw)], 0.018, 'EMISSIVE', EM['cyan'], cyclic=True), 'cyan')
+# the name shrinks to fit the box: about 0.36 units per letter at size 1 in this face
+name_size = min(0.42, (SIGN_W - 0.9) / (0.62 * max(1, len(LABELS['shop']))))
+glow(text('neonName', LABELS['shop'], 'neon', name_size, fx - 0.03, SY, SZ, 'EMISSIVE', EM['pink'], facing='-x', tube=0.02), 'pink')
 # the TV over the sign, and a little one under it
 bx('tvFrame', 0.24, 1.15, 2.4, -1.55, 3.3, -2.05, 'MACHINES', M['metalDark'])
 screen('tvScreen', 2.2, 1.0, -1.68, 3.3, -2.05, '-x')
@@ -650,18 +655,23 @@ glow(bx('greenDot', 0.06, 0.06, 0.06, PX - 0.11, NY - 0.7, PZ - 0.6, 'EMISSIVE',
 world = bpy.data.worlds.new('night'); scene.world = world; world.use_nodes = True
 bg = world.node_tree.nodes['Background']
 bg.inputs['Color'].default_value = (0.33, 0.30, 0.78, 1.0)
-bg.inputs['Strength'].default_value = float(os.environ.get('SHOP_AMBIENT', '0.06'))
+# a whisper of blue: unlit faces stay just readable, the far floor goes black
+bg.inputs['Strength'].default_value = float(os.environ.get('SHOP_AMBIENT', '0.025'))
 
-def light(name, kind, x, y, z, energy, color=(1, 1, 1), size=1.0, rot=(0, 0, 0)):
+def light(name, kind, x, y, z, energy, color=(1, 1, 1), size=1.0, rot=(0, 0, 0), cone=None, blend=0.6):
     ld = bpy.data.lights.new(name, kind); ld.energy = energy; ld.color = color
     if kind == 'AREA': ld.size = size
+    if kind == 'SPOT':
+        ld.spot_size = math.radians(cone); ld.spot_blend = blend; ld.shadow_soft_size = size
     ob = bpy.data.objects.new(name, ld); ob.location = T(x, y, z); ob.rotation_euler = Euler(rot)
     COLL['LIGHTS'].objects.link(ob); return ob
-# a cool key from high up, so the roof and the far faces read; the pools on the floor come from the emissive meshes
-light('key', 'AREA', 4, 14, 6, float(os.environ.get('SHOP_KEY', '70')), (0.62, 0.7, 1.0), size=10, rot=(math.radians(-20), math.radians(15), 0))
-# two pools on the floor: cyan by the machines, pink by the signpost, low so they fall off fast
-light('cyanFill', 'POINT', 2.2, -1.2, 5.0, float(os.environ.get('SHOP_CYAN', '150')), (0.25, 0.95, 1.0))
-light('pinkFill', 'POINT', -6.0, -1.4, -4.0, float(os.environ.get('SHOP_PINK', '130')), (1.0, 0.35, 0.85))
+# the light is concentrated on the stall: a cool spot from high up whose cone ends just past the
+# signpost, so the roof and the faces read while the floor beyond stays dark
+light('key', 'SPOT', 1.0, 15.0, 0.5, float(os.environ.get('SHOP_KEY', '1400')), (0.62, 0.7, 1.0), size=2.5, rot=(math.radians(-6), math.radians(4), 0), cone=46, blend=0.7)
+# two pools on the floor: cyan by the machines, pink by the signpost, spots pointing down so they
+# stay pools instead of washing the whole disc
+light('cyanFill', 'SPOT', 2.2, -1.0, 5.2, float(os.environ.get('SHOP_CYAN', '420')), (0.25, 0.95, 1.0), size=0.6, rot=(0, 0, 0), cone=120, blend=0.9)
+light('pinkFill', 'SPOT', -6.0, -1.2, -4.4, float(os.environ.get('SHOP_PINK', '420')), (1.0, 0.35, 0.85), size=0.6, rot=(0, 0, 0), cone=120, blend=0.9)
 
 # ---------------------------------------------------------------- cameras and previews
 def camera(name, pos, lens=22):
