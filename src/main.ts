@@ -25,7 +25,7 @@ import { CONTENT } from './content'
 import { createInteraction, type Mode } from './interaction'
 import { createHud } from './ui/hud'
 import { createLoader } from './ui/loader'
-import { createFloor } from './world/floor'
+import { BAKE_LIFT, createFloor } from './world/floor'
 import { createHologram } from './world/hologram'
 import { createScreens } from './world/screens'
 
@@ -36,8 +36,9 @@ import { createScreens } from './world/screens'
  * atlases; nothing here is lit at runtime, every surface paints its atlas.
  * What stays live is what a bake cannot hold: the neon as flat colours on a
  * bloom layer, the screens as canvases, the fans, the hologram, the mirror
- * under everything, and the camera. Every mesh gets its role from its name,
- * and the manifest the bake wrote says which name is which.
+ * under everything, and the camera. Every mesh gets its role from the
+ * manifest the bake wrote: which names are baked groups, which glow (and in
+ * what colour), which are screens, click targets, text, moving parts.
  */
 type Manifest = {
   groups: Record<string, { atlas: string; size: number }>
@@ -45,13 +46,6 @@ type Manifest = {
   live: Record<string, string[]>
 }
 
-const LIVE_TARGETS: Record<Mode, string[]> = {
-  default: ['hit_projects', 'hit_about', 'hit_articles', 'hit_credits', 'hit_name', 'hit_arcade', 'hit_arcadeScreen', 'hit_vending', 'hit_vendScreen', 'hit_bigScreen', 'hit_articles_easel'],
-  projects: ['hit_vend_prev', 'hit_vend_next', 'hit_vendScreen'],
-  about: ['hit_small1', 'hit_small2', 'hit_small3', 'hit_bigScreen'],
-  credits: ['hit_arcadeScreen', 'hit_arcade'],
-  name: [],
-}
 const HINTS: Record<Mode, string> = {
   default: 'Drag to look around · Click a sign',
   projects: 'Click the buttons to browse · Click the poster to open it',
@@ -59,6 +53,9 @@ const HINTS: Record<Mode, string> = {
   credits: 'Click the screen to continue',
   name: 'Click anywhere to go back',
 }
+
+const BASE = import.meta.env.BASE_URL
+const loader = createLoader()
 
 function matcapTexture(): CanvasTexture {
   const canvas = document.createElement('canvas')
@@ -98,16 +95,17 @@ function fillReadable(): void {
 
 async function main() {
   fillReadable()
-  const loader = createLoader()
   const compact = window.innerWidth < 760 || window.matchMedia('(pointer: coarse)').matches
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const params = new URLSearchParams(location.search)
   const lite = params.has('lite')
+  const pixelRatio = () => (lite ? 1 : Math.min(window.devicePixelRatio, compact ? 1.5 : 2))
+  const viewport = () => ({ width: Math.max(1, window.innerWidth), height: Math.max(1, window.innerHeight) })
 
   const app = document.getElementById('app') as HTMLElement
   const renderer = new WebGLRenderer({ antialias: lite, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio, compact ? 1.5 : 2))
-  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setPixelRatio(pixelRatio())
+  renderer.setSize(viewport().width, viewport().height)
   renderer.toneMapping = NoToneMapping
   renderer.outputColorSpace = SRGBColorSpace
   renderer.setClearColor(0x000000, 1)
@@ -115,29 +113,34 @@ async function main() {
 
   const scene = new Scene()
   scene.background = new Color(0x000000)
-  const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.4, 80)
+  const camera = new PerspectiveCamera(75, viewport().width / viewport().height, 0.4, 80)
 
-  // ---- the shop: one GLB, four atlases, a manifest
-  const manifest = (await fetch('/models/shop-manifest.json').then((r) => r.json())) as Manifest
-  loader.step(0.04)
-  const draco = new DRACOLoader()
-  draco.setDecoderPath('/draco/')
-  const gltfLoader = new GLTFLoader()
-  gltfLoader.setDRACOLoader(draco)
-  const textureLoader = new TextureLoader()
-  const groups = Object.entries(manifest.groups)
+  // ---- the shop: one GLB, four atlases, a manifest. The GLB does not wait for the manifest.
   let arrived = 0
-  const total = groups.length + 1
+  let total = 0
   const tick = () => {
     arrived++
-    loader.step(0.05 + (arrived / total) * 0.9)
+    loader.step(0.05 + (arrived / Math.max(total, arrived + 1)) * 0.9)
   }
-  const atlasPath = (atlas: string) => `/textures/${compact ? atlas.replace(/\.(jpg|png)$/, '-half.$1') : atlas}`
+  const draco = new DRACOLoader()
+  draco.setDecoderPath(`${BASE}draco/`)
+  const gltfLoader = new GLTFLoader()
+  gltfLoader.setDRACOLoader(draco)
+  const gltfPromise = gltfLoader.loadAsync(`${BASE}models/shop.glb`).then((g) => {
+    tick()
+    return g
+  })
+  const manifest = (await fetch(`${BASE}models/shop-manifest.json`).then((r) => {
+    if (!r.ok) throw new Error(`manifest ${r.status}`)
+    return r.json()
+  })) as Manifest
+  loader.step(0.04)
+  const textureLoader = new TextureLoader()
+  const groups = Object.entries(manifest.groups)
+  total = groups.length + 1
+  const atlasPath = (atlas: string) => `${BASE}textures/${compact ? atlas.replace(/\.(jpg|png)$/, '-half.$1') : atlas}`
   const [gltf, ...atlasTextures] = await Promise.all([
-    gltfLoader.loadAsync('/models/shop.glb').then((g) => {
-      tick()
-      return g
-    }),
+    gltfPromise,
     ...groups.map(([, { atlas }]) =>
       textureLoader.loadAsync(atlasPath(atlas)).then((texture) => {
         texture.flipY = false
@@ -151,6 +154,7 @@ async function main() {
   const atlases: Record<string, Texture> = {}
   groups.forEach(([name], i) => (atlases[name] = atlasTextures[i]))
 
+  // ---- every mesh gets its role from the manifest
   const shop = gltf.scene as Group
   const screens = createScreens()
   const hitboxes = new Map<string, Object3D>()
@@ -158,8 +162,15 @@ async function main() {
   const fans: Object3D[] = []
   const emissiveOf = manifest.glow.objects
   const palette = manifest.glow.palette
+  const role = (name: string) => new Set(manifest.live[name] ?? [])
+  const HITBOX = role('HITBOX')
+  const DYNAMIC = role('DYNAMIC')
+  const TEXT = role('TEXT')
+  const MARKER = role('MARKER')
+  const EMISSIVE = role('EMISSIVE')
   const matcap = new MeshMatcapMaterial({ matcap: matcapTexture() })
   const textMaterial = new MeshBasicMaterial({ color: '#f4f2ff' })
+  const lift = new Color(BAKE_LIFT, BAKE_LIFT, BAKE_LIFT)
   let holoAt = new Vector3(-0.1, 2.05, -0.95)
   let floorBaked: Texture | null = null
 
@@ -174,7 +185,7 @@ async function main() {
     if (atlases[name]) {
       // the noren curtain is a single sheet inside the shop group, seen from both sides;
       // the bake lands a little dark for the reference's saturated look, so the atlases are lifted
-      object.material = new MeshBasicMaterial({ map: atlases[name], color: new Color(1.25, 1.25, 1.25), toneMapped: false, ...(name === 'shopJoined' ? { side: DoubleSide } : {}) })
+      object.material = new MeshBasicMaterial({ map: atlases[name], color: lift, toneMapped: false, ...(name === 'shopJoined' ? { side: DoubleSide } : {}) })
       return
     }
     const glowKey = emissiveOf[name]
@@ -186,28 +197,29 @@ async function main() {
       if (name.startsWith('plate_')) plates.set(name.slice(6), { material, base })
       return
     }
+    if (EMISSIVE.has(name)) console.warn(`ramen: emissive mesh "${name}" has no glow colour in the manifest; painted grey`)
     const screenMaterial = screens.material(name)
     if (screenMaterial) {
       object.material = screenMaterial
       return
     }
-    if (name.startsWith('hit_')) {
+    if (HITBOX.has(name)) {
       object.material = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false })
       object.userData.skipBloom = true
       hitboxes.set(name, object)
       return
     }
-    if (name === 'holoMarker') {
-      holoAt = object.getWorldPosition(new Vector3())
+    if (MARKER.has(name)) {
+      if (name === 'holoMarker') holoAt = object.getWorldPosition(new Vector3())
       object.visible = false
       return
     }
-    if (/^fan\d$/.test(name) || /^fanHub\d$/.test(name)) {
+    if (DYNAMIC.has(name)) {
       object.material = matcap
       if (/^fan\d$/.test(name)) fans.push(object)
       return
     }
-    if (name.startsWith('floor')) {
+    if (TEXT.has(name)) {
       object.material = textMaterial
       return
     }
@@ -242,7 +254,8 @@ async function main() {
   }
 
   function go(mode: Mode): void {
-    if (interaction.flying) return
+    // a flight can only be interrupted to come back; everything else waits for the landing
+    if (interaction.flying && mode !== 'default') return
     if (mode === interaction.mode && mode !== 'default') return
     interaction.setLive([])
     screens.setButtons(false)
@@ -252,7 +265,7 @@ async function main() {
   }
 
   function arrive(mode: Mode): void {
-    interaction.setLive(LIVE_TARGETS[mode])
+    interaction.setLive(Object.keys(ACTIONS[mode]))
     screens.setButtons(mode === 'about')
     if (mode === 'about') screens.setAboutPage('intro')
     hud.setMode(mode)
@@ -263,37 +276,46 @@ async function main() {
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  // what a click on each target does in each mode; the keys are also what the pointer can hit there
+  const toProjects = () => go('projects')
+  const toAbout = () => go('about')
+  const toCredits = () => go('credits')
+  const toArticles = () => open(CONTENT.articlesUrl)
+  const nextCredits = () => screens.setCreditsPage(screens.creditsPage + 1)
+  const ACTIONS: Record<Mode, Record<string, () => void>> = {
+    default: {
+      hit_projects: toProjects,
+      hit_vending: toProjects,
+      hit_vendScreen: toProjects,
+      hit_about: toAbout,
+      hit_bigScreen: toAbout,
+      hit_credits: toCredits,
+      hit_arcade: toCredits,
+      hit_arcadeScreen: toCredits,
+      hit_name: () => go('name'),
+      hit_articles: toArticles,
+      hit_articles_easel: toArticles,
+    },
+    projects: {
+      hit_vend_prev: () => screens.setProject(screens.project - 1),
+      hit_vend_next: () => screens.setProject(screens.project + 1),
+      hit_vendScreen: () => open(CONTENT.projects[screens.project]?.url),
+    },
+    about: {
+      hit_small3: () => screens.setAboutPage('skills'),
+      hit_small2: () => screens.setAboutPage('experience'),
+      hit_small1: () => go('default'),
+      hit_bigScreen: () => screens.setAboutPage('intro'),
+    },
+    credits: { hit_arcadeScreen: nextCredits, hit_arcade: nextCredits },
+    name: {},
+  }
+
   function click(name: string | null): void {
     const mode = interaction.mode
-    if (mode === 'default') {
-      if (!name) return
-      if (name === 'hit_projects' || name === 'hit_vending' || name === 'hit_vendScreen') go('projects')
-      else if (name === 'hit_about' || name === 'hit_bigScreen') go('about')
-      else if (name === 'hit_credits' || name === 'hit_arcade' || name === 'hit_arcadeScreen') go('credits')
-      else if (name === 'hit_name') go('name')
-      else if (name === 'hit_articles' || name === 'hit_articles_easel') open(CONTENT.articlesUrl)
-      return
-    }
-    if (mode === 'projects') {
-      if (name === 'hit_vend_prev') screens.setProject(screens.project - 1)
-      else if (name === 'hit_vend_next') screens.setProject(screens.project + 1)
-      else if (name === 'hit_vendScreen') open(CONTENT.projects[screens.project].url)
-      else go('default')
-      return
-    }
-    if (mode === 'about') {
-      if (name === 'hit_small3') screens.setAboutPage('skills')
-      else if (name === 'hit_small2') screens.setAboutPage('experience')
-      else if (name === 'hit_bigScreen') screens.setAboutPage('intro')
-      else go('default')
-      return
-    }
-    if (mode === 'credits') {
-      if (name === 'hit_arcadeScreen' || name === 'hit_arcade') screens.setCreditsPage(screens.creditsPage + 1)
-      else go('default')
-      return
-    }
-    go('default')
+    const action = name ? ACTIONS[mode][name] : undefined
+    if (action) action()
+    else if (mode !== 'default') go('default')
   }
 
   // one frame behind the door, so the first thing seen is the shop
@@ -318,12 +340,18 @@ async function main() {
   }
   requestAnimationFrame(frame)
 
+  let refitTimer = 0
   window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight
+    const { width, height } = viewport()
+    camera.aspect = width / height
     camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-    bloom?.resize(window.innerWidth, window.innerHeight)
-    floor.resize(window.innerWidth, window.innerHeight)
+    renderer.setPixelRatio(pixelRatio())
+    renderer.setSize(width, height)
+    bloom?.resize(width, height)
+    floor.resize(width, height)
+    // a parked close-up is re-aimed once the resizing settles (a rotation, a window drag)
+    window.clearTimeout(refitTimer)
+    refitTimer = window.setTimeout(() => interaction.refit(), 150)
   })
 
   if (import.meta.env.DEV) {
@@ -333,9 +361,5 @@ async function main() {
 
 main().catch((error: unknown) => {
   console.error(error)
-  const note = document.getElementById('loader-note')
-  if (note) {
-    note.hidden = false
-    note.textContent = 'The shop could not load. This needs a browser with WebGL.'
-  }
+  loader.fail('The shop could not load. This needs a browser with WebGL.')
 })

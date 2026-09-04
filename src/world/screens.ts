@@ -1,4 +1,4 @@
-import { CanvasTexture, LinearFilter, MeshBasicMaterial, NearestFilter, SRGBColorSpace } from 'three'
+import { CanvasTexture, LinearFilter, MathUtils, MeshBasicMaterial, NearestFilter, SRGBColorSpace } from 'three'
 
 import { CONTENT, LABELS } from '../content'
 
@@ -74,19 +74,40 @@ class Screen {
   }
 }
 
+/** Break text into lines no wider than maxWidth; a single word wider than that is broken mid-word. */
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ')
   const lines: string[] = []
   let line = ''
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word
-    if (ctx.measureText(test).width > maxWidth && line) {
-      lines.push(line)
-      line = word
-    } else line = test
+  const flush = () => {
+    if (line) lines.push(line)
+    line = ''
   }
-  if (line) lines.push(line)
+  for (const word of text.split(' ')) {
+    const test = line ? `${line} ${word}` : word
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test
+      continue
+    }
+    flush()
+    if (ctx.measureText(word).width <= maxWidth) {
+      line = word
+      continue
+    }
+    for (const ch of word) {
+      if (ctx.measureText(line + ch).width > maxWidth) flush()
+      line += ch
+    }
+  }
+  flush()
   return lines
+}
+
+/** roundRect with a plain rectangle behind it for browsers that lack it */
+function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath()
+  if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r)
+  else ctx.rect(x, y, w, h)
+  ctx.fill()
 }
 
 function sunburst(ctx: CanvasRenderingContext2D, w: number, h: number, a: string, b: string, rays = 18, spin = 0): void {
@@ -110,15 +131,15 @@ function sunburst(ctx: CanvasRenderingContext2D, w: number, h: number, a: string
 }
 
 function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string, ink: string, text: string, font: string): void {
+  ctx.save()
   ctx.fillStyle = fill
-  ctx.beginPath()
-  ctx.roundRect(x, y, w, h, h / 2)
-  ctx.fill()
+  rrect(ctx, x, y, w, h, h / 2)
   ctx.fillStyle = ink
   ctx.font = font
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(text, x + w / 2, y + h / 2 + 1)
+  ctx.restore()
 }
 
 function scanlines(ctx: CanvasRenderingContext2D, w: number, h: number, alpha = 0.12): void {
@@ -149,9 +170,7 @@ export function createScreens(): Screens {
     const { ctx, w, h } = s
     sunburst(ctx, w, h, '#33e2ff', '#5cf0ff', 22)
     ctx.fillStyle = 'rgba(30, 10, 80, 0.86)'
-    ctx.beginPath()
-    ctx.roundRect(60, 56, w - 120, h - 112, 28)
-    ctx.fill()
+    rrect(ctx, 60, 56, w - 120, h - 112, 28)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'alphabetic'
     if (state.aboutPage === 'intro') {
@@ -275,6 +294,16 @@ export function createScreens(): Screens {
     const s = S.vendScreen
     const { ctx, w, h } = s
     const p = CONTENT.projects[state.project]
+    if (!p) {
+      sunburst(ctx, w, h, '#2a1a66', '#3a2a80', 20)
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.font = `700 26px ${FONT}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('sold out', w / 2, h / 2)
+      s.done()
+      return
+    }
     sunburst(ctx, w, h, p.colours[0], shade(p.colours[0], 0.82), 20)
     ctx.fillStyle = 'rgba(12, 6, 40, 0.55)'
     ctx.beginPath()
@@ -352,7 +381,7 @@ export function createScreens(): Screens {
     ctx.fillText('0000', w / 2, 30)
     ctx.textAlign = 'right'
     ctx.fillText(String(state.creditsPage + 1).padStart(4, '0'), w - 14, 30)
-    const page = CONTENT.credits[state.creditsPage]
+    const page = CONTENT.credits[state.creditsPage] ?? { title: 'Insert coin', lines: [] }
     const g = ctx.createLinearGradient(0, 70, 0, 100)
     g.addColorStop(0, '#ffd23a')
     g.addColorStop(0.5, '#ff8c2a')
@@ -370,26 +399,37 @@ export function createScreens(): Screens {
   }
 
   // ---- the animated ones
-  const tickerText = CONTENT.ticker.map((t) => `   ${t}   `).join('•')
+  // the ticker's text never changes, so its parts are measured once, on the first draw
+  const TICKER_FONT = `700 30px ${PIXEL}`
+  let tickerParts: { text: string; width: number; down: boolean }[] | null = null
+  let tickerDot = 0
+  let tickerWidth = 0
   function drawTicker(t: number): void {
     const s = S.tickerScreen
     const { ctx, w, h } = s
     ctx.fillStyle = '#050509'
     ctx.fillRect(0, 0, w, h)
-    ctx.font = `700 30px ${PIXEL}`
+    ctx.font = TICKER_FONT
     ctx.textBaseline = 'middle'
     ctx.textAlign = 'left'
-    const width = ctx.measureText(tickerText).width + 60
-    const x = -((t * 60) % width)
+    if (!tickerParts) {
+      tickerParts = CONTENT.ticker.map((item) => {
+        const text = `   ${item}   `
+        return { text, width: ctx.measureText(text).width, down: item.includes('▼') }
+      })
+      tickerDot = ctx.measureText('•').width
+      tickerWidth = tickerParts.reduce((sum, p) => sum + p.width + tickerDot, 0) + 60
+    }
+    const x = -((t * 60) % tickerWidth)
     for (let k = 0; k < 2; k++) {
-      let cursor = x + k * width
-      for (const part of tickerText.split('•')) {
-        ctx.fillStyle = part.includes('▼') ? '#ff4a5a' : '#5cff8a'
-        ctx.fillText(part, cursor, h / 2)
-        cursor += ctx.measureText(part).width
+      let cursor = x + k * tickerWidth
+      for (const part of tickerParts) {
+        ctx.fillStyle = part.down ? '#ff4a5a' : '#5cff8a'
+        ctx.fillText(part.text, cursor, h / 2)
+        cursor += part.width
         ctx.fillStyle = '#5cf0ff'
         ctx.fillText('•', cursor, h / 2)
-        cursor += ctx.measureText('•').width
+        cursor += tickerDot
       }
     }
     // the dot-matrix
@@ -528,10 +568,11 @@ export function createScreens(): Screens {
     s.done()
   }
 
+  const staticImage = S.littleTvScreen.ctx.createImageData(S.littleTvScreen.w, S.littleTvScreen.h)
   function drawStatic(): void {
     const s = S.littleTvScreen
-    const { ctx, w, h } = s
-    const img = ctx.createImageData(w, h)
+    const { ctx } = s
+    const img = staticImage
     for (let i = 0; i < img.data.length; i += 4) {
       const v = Math.random() * 200 + 30
       img.data[i] = v * 0.8
@@ -551,46 +592,50 @@ export function createScreens(): Screens {
     return `rgb(${r},${g},${b})`
   }
 
+  const redrawSmalls = () => {
+    for (let i = 0; i < 3; i++) drawSmall(i)
+  }
   drawBig()
-  for (let i = 0; i < 3; i++) drawSmall(i)
+  redrawSmalls()
   drawVend()
   drawArcade()
   drawClock()
-  let lastT = 0
+  let rainAt = 0
 
   return {
     material(name) {
       return (S as Record<string, Screen>)[name]?.material ?? null
     },
     update(t) {
-      const dt = Math.min(0.1, t - lastT)
-      lastT = t
       if (S.tickerScreen.due(t, 30)) drawTicker(t)
       if (S.tvScreen.due(t, 20)) drawTv(t)
-      if (S.tallScreen.due(t, 15)) drawRain(t, 1 / 15)
+      if (S.tallScreen.due(t, 15)) {
+        drawRain(t, Math.min(0.25, t - rainAt))
+        rainAt = t
+      }
       if (S.smallScreen4.due(t, 12)) drawBars(t)
       if (S.smallScreen5.due(t, 1)) drawClock()
       if (S.littleTvScreen.due(t, 12)) drawStatic()
-      void dt
     },
     setAboutPage(page) {
       state.aboutPage = page
       drawBig()
-      for (let i = 0; i < 3; i++) drawSmall(i)
+      redrawSmalls()
     },
     setProject(index) {
       const n = CONTENT.projects.length
-      state.project = ((index % n) + n) % n
+      if (n) state.project = MathUtils.euclideanModulo(index, n)
       drawVend()
     },
     setCreditsPage(index) {
-      state.creditsPage = ((index % CONTENT.credits.length) + CONTENT.credits.length) % CONTENT.credits.length
+      const n = CONTENT.credits.length
+      if (n) state.creditsPage = MathUtils.euclideanModulo(index, n)
       drawArcade()
     },
     setButtons(on) {
       if (state.buttons === on) return
       state.buttons = on
-      for (let i = 0; i < 3; i++) drawSmall(i)
+      redrawSmalls()
     },
     setHover(name) {
       if (state.hover === name) return

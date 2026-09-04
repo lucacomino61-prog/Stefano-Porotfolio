@@ -13,6 +13,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
  * lands. Hovering a live click target lights it and changes the cursor; a
  * click that did not drag is handed to the page, which decides what it means
  * in the current mode.
+ *
+ * A click is one primary-button pointer that went down and came up within
+ * 8 px and 700 ms while no other pointer was down, so a pinch, a drag and a
+ * right-click are not clicks.
  */
 export type Mode = 'default' | 'projects' | 'about' | 'credits' | 'name'
 
@@ -22,13 +26,24 @@ export type View = {
   distance: [number, number]
   polar: [number, number]
   azimuth: [number, number] | null
+  /** a different framing for screens taller than they are wide */
+  portrait?: { position: Vector3; target: Vector3 }
 }
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z)
 export const VIEWS: Record<Mode, View> = {
   default: { position: v(-11.1, -1, -7.6), target: v(0, 0, -1), distance: [7, 16], polar: [0.63, 1.73], azimuth: null },
   projects: { position: v(1.15, -1.05, 5.25), target: v(1.15, -1.05, 3.06), distance: [1.6, 3.2], polar: [1.26, 1.67], azimuth: [-0.31, 0.31] },
-  about: { position: v(0.68, 3.35, 3.15), target: v(0.68, 3.35, 0.52), distance: [1.2, 3.0], polar: [0.94, 2.04], azimuth: [-0.63, 0.63] },
+  about: {
+    position: v(0.68, 3.35, 3.15),
+    target: v(0.68, 3.35, 0.52),
+    distance: [1.2, 3.0],
+    polar: [0.94, 2.04],
+    azimuth: [-0.63, 0.63],
+    // upright, the big screen fills the width, so the camera stands back and aims between
+    // the big screen and the row of small ones under it, which sit further left
+    portrait: { position: v(-0.2, 2.95, 5.3), target: v(-0.2, 2.95, 0.52) },
+  },
   credits: { position: v(-0.58, -1.12, 4.5), target: v(-0.58, -1.18, 2.85), distance: [1.0, 2.4], polar: [0.94, 2.04], azimuth: [-0.63, 0.63] },
   name: { position: v(-10.2, 6.3, 3.8), target: v(0, 0, -1), distance: [7, 16], polar: [0.63, 1.73], azimuth: null },
 }
@@ -41,10 +56,13 @@ export type Interaction = {
   flying: boolean
   flyTo: (mode: Mode, duration?: number) => void
   intro: () => void
+  /** after the viewport changed shape: re-aim a parked close-up for the new aspect */
+  refit: () => void
   setLive: (names: string[]) => void
   update: (dt: number) => void
 }
 
+/** quadratic in/out, the reference's power1.inOut */
 function ease(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 }
@@ -69,7 +87,9 @@ export function createInteraction(
   const raycaster = new Raycaster()
   const pointer = new Vector2()
   let pointerDirty = false
-  let downAt: { x: number; y: number; time: number } | null = null
+  let rect = dom.getBoundingClientRect()
+  let downAt: { id: number; x: number; y: number; time: number } | null = null
+  const activePointers = new Set<number>()
   let live: Object3D[] = []
 
   const state: Interaction = {
@@ -79,38 +99,42 @@ export function createInteraction(
     flying: false,
     flyTo,
     intro,
+    refit,
     setLive,
     update,
   }
 
-  let flight: { from: Vector3; fromTarget: Vector3; to: Vector3; toTarget: Vector3; t: number; duration: number; mode: Mode } | null = null
+  let flight: { from: Vector3; fromTarget: Vector3; to: Vector3; toTarget: Vector3; t: number; duration: number } | null = null
 
   function applyLimits(view: View): void {
-    controls.minDistance = view.distance[0]
-    controls.maxDistance = view.distance[1]
+    // the landing distance may exceed the view's range on narrow screens; the range must include it
+    // or the controls would snap the camera in on their first update
+    const landed = camera.position.distanceTo(controls.target)
+    controls.minDistance = Math.min(view.distance[0], landed)
+    controls.maxDistance = Math.max(view.distance[1], landed)
     controls.minPolarAngle = view.polar[0]
     controls.maxPolarAngle = view.polar[1]
     controls.minAzimuthAngle = view.azimuth ? view.azimuth[0] : -Infinity
     controls.maxAzimuthAngle = view.azimuth ? view.azimuth[1] : Infinity
   }
 
-  /** phones held upright see less of the width, so the close views stand a little further back */
-  function fitted(view: View): Vector3 {
-    const aspect = camera.aspect
-    const k = aspect < 1 ? 1.45 : aspect < 1.4 ? 1.15 : 1
-    return view.target.clone().add(view.position.clone().sub(view.target).multiplyScalar(k))
+  /** where the camera should stand for a view at the current aspect */
+  function framing(view: View): { position: Vector3; target: Vector3 } {
+    if (camera.aspect < 1 && view.portrait) return { position: view.portrait.position.clone(), target: view.portrait.target.clone() }
+    // screens not much wider than tall see less of the width, so the close views stand a little further back
+    const k = camera.aspect < 1 ? 1.45 : camera.aspect < 1.4 ? 1.15 : 1
+    return { position: view.target.clone().add(view.position.clone().sub(view.target).multiplyScalar(k)), target: view.target.clone() }
   }
 
   function flyTo(mode: Mode, duration = 1.5): void {
-    const view = VIEWS[mode]
+    const to = framing(VIEWS[mode])
     flight = {
       from: camera.position.clone(),
       fromTarget: controls.target.clone(),
-      to: fitted(view),
-      toTarget: view.target.clone(),
+      to: to.position,
+      toTarget: to.target,
       t: 0,
       duration: options.reducedMotion ? 0.001 : duration,
-      mode,
     }
     controls.enabled = false
     state.flying = true
@@ -122,6 +146,12 @@ export function createInteraction(
     camera.position.copy(INTRO_FROM)
     controls.target.copy(VIEWS.default.target)
     flyTo('default', 2.6)
+  }
+
+  function refit(): void {
+    rect = dom.getBoundingClientRect()
+    if (state.flying || state.mode === 'default') return
+    flyTo(state.mode, 0.6)
   }
 
   function setLive(names: string[]): void {
@@ -144,26 +174,39 @@ export function createInteraction(
   }
 
   const onMove = (event: PointerEvent) => {
-    const rect = dom.getBoundingClientRect()
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
     pointerDirty = true
   }
   const onDown = (event: PointerEvent) => {
-    downAt = { x: event.clientX, y: event.clientY, time: performance.now() }
+    // the primary pointer going down starts a new gesture; anything left over from an interrupted one is forgotten
+    if (event.isPrimary) activePointers.clear()
+    activePointers.add(event.pointerId)
+    if (event.button !== 0 || activePointers.size > 1) {
+      downAt = null
+      return
+    }
+    downAt = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
   }
   const onUp = (event: PointerEvent) => {
-    if (!downAt) return
+    const lone = activePointers.size <= 1
+    activePointers.delete(event.pointerId)
+    if (!downAt || downAt.id !== event.pointerId) return
     const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y)
     const quick = performance.now() - downAt.time < 700
     downAt = null
-    if (moved > 8 || !quick || state.flying) return
+    if (!lone || moved > 8 || !quick || state.flying) return
     onMove(event)
     callbacks.onClick(pick())
+  }
+  const onCancel = (event: PointerEvent) => {
+    activePointers.delete(event.pointerId)
+    if (downAt && downAt.id === event.pointerId) downAt = null
   }
   const onLeave = () => setHover(null)
   dom.addEventListener('pointermove', onMove)
   dom.addEventListener('pointerdown', onDown)
   dom.addEventListener('pointerup', onUp)
+  dom.addEventListener('pointercancel', onCancel)
   dom.addEventListener('pointerleave', onLeave)
 
   function update(dt: number): void {
@@ -174,14 +217,13 @@ export function createInteraction(
       controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k)
       camera.lookAt(controls.target)
       if (flight.t >= 1) {
-        const landed = flight.mode
         flight = null
-        applyLimits(VIEWS[landed])
+        applyLimits(VIEWS[state.mode])
         controls.enabled = true
         controls.update()
         state.flying = false
         pointerDirty = true
-        callbacks.onArrive(landed)
+        callbacks.onArrive(state.mode)
       }
       return
     }

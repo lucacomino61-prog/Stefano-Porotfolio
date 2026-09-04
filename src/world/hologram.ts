@@ -43,7 +43,7 @@ const VERTEX = /* glsl */ `
     vAlpha = alpha * scan;
     vKind = aKind;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
-    gl_PointSize = uScale * (aKind > 1.5 ? 2.4 : 1.7) * (16.0 / -mv.z);
+    gl_PointSize = uScale * (aKind > 1.5 ? 2.4 : 1.7) * (16.0 / max(0.1, -mv.z));
     gl_Position = projectionMatrix * mv;
   }
 `

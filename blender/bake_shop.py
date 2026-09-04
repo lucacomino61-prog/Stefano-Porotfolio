@@ -141,8 +141,12 @@ for coll_name, joined_name, tex_name, size, planar in GROUPS:
     entry = {'size': size}
     manifest['groups'][joined_name] = entry
     if ONLY and coll_name not in ONLY:
-        log(f'{coll_name}: bake skipped (not in ONLY)')
-        entry['atlas'] = f'{tex_name}.png' if planar else f'{tex_name}.jpg'
+        # a partial run keeps the atlas from an earlier full run, which must exist on disk
+        kept = f'{tex_name}.png' if planar else f'{tex_name}.jpg'
+        if not os.path.exists(os.path.join(TEX_DIR, kept)):
+            raise SystemExit(f'{coll_name}: bake skipped but {kept} does not exist yet; run a full bake first')
+        log(f'{coll_name}: bake skipped (not in ONLY), keeping {kept}')
+        entry['atlas'] = kept
         continue
     entry['atlas'] = bake_group(ob, tex_name, size, png=planar)
 

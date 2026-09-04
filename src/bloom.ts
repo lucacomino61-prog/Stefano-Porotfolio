@@ -13,7 +13,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
  *
  * Anything with `userData.skipBloom` (the click targets, the mirror floor) is
  * hidden for the black pass rather than painted black, or it would occlude
- * the neon behind it.
+ * the neon behind it. Points, lines and sprites that do not glow are hidden
+ * too, since a black mesh material cannot stand in for them.
+ *
+ * The scene's split into glowing / painted black / hidden is fixed once the
+ * shop is loaded, so it is gathered once (call `refresh()` after adding to the
+ * scene) rather than walked every frame.
  *
  * The mix pass takes a ShaderMaterial rather than a shader object on purpose:
  * handed an object, ShaderPass clones the uniforms and the bloom texture never
@@ -24,22 +29,28 @@ export const BLOOM_LAYER = 1
 export type Bloom = {
   render: () => void
   resize: (width: number, height: number) => void
+  refresh: () => void
   setStrength: (value: number) => void
 }
+
+type Renderable = Object3D & { isMesh?: boolean; isPoints?: boolean; isLine?: boolean; isSprite?: boolean }
 
 export function createBloom(renderer: WebGLRenderer, scene: Scene, camera: Camera, divisor: number, strength = 1.3, smaa = false): Bloom {
   const layer = new Layers()
   layer.set(BLOOM_LAYER)
   const dark = new MeshBasicMaterial({ color: 'black' })
-  const swapped = new Map<Object3D, Material | Material[]>()
-  const hidden: Object3D[] = []
 
   const size = renderer.getSize(new Vector2())
-  const bloomPass = new UnrealBloomPass(new Vector2(size.x / divisor, size.y / divisor), strength, 0.45, 0.0)
+  const dpr = () => renderer.getPixelRatio()
+  const bloomPass = new UnrealBloomPass(new Vector2((size.x * dpr()) / divisor, (size.y * dpr()) / divisor), strength, 0.45, 0.0)
   const bloomComposer = new EffectComposer(renderer)
   bloomComposer.renderToScreen = false
   bloomComposer.addPass(new RenderPass(scene, camera))
   bloomComposer.addPass(bloomPass)
+  // addPass and setSize both hand every pass the composer's full size, and the bloom pass
+  // only reads its own resolution in the constructor: it is sized down again after each
+  const sizeBloom = (width: number, height: number) => bloomPass.setSize((width * dpr()) / divisor, (height * dpr()) / divisor)
+  sizeBloom(size.x, size.y)
 
   const mix = new ShaderMaterial({
     uniforms: {
@@ -64,41 +75,57 @@ export function createBloom(renderer: WebGLRenderer, scene: Scene, camera: Camer
   const finalComposer = new EffectComposer(renderer)
   finalComposer.addPass(new RenderPass(scene, camera))
   finalComposer.addPass(new ShaderPass(mix, 'baseTexture'))
+  // the composer's targets are not multisampled, so the edges are smoothed on the linear image,
+  // before the output pass encodes it, the way three's own example orders them
+  if (smaa) finalComposer.addPass(new SMAAPass(size.x * dpr(), size.y * dpr()))
   finalComposer.addPass(new OutputPass())
-  // the composer's targets are not multisampled, so the edges are smoothed after the fact
-  const smaaPass = smaa ? new SMAAPass(size.x * renderer.getPixelRatio(), size.y * renderer.getPixelRatio()) : null
-  if (smaaPass) finalComposer.addPass(smaaPass)
+
+  let dim: Mesh[] = []
+  let hide: Object3D[] = []
+  const restore: (Material | Material[])[] = []
+  const wasVisible: boolean[] = []
+
+  function refresh(): void {
+    dim = []
+    hide = []
+    scene.traverse((object: Renderable) => {
+      if (object.userData.skipBloom) {
+        hide.push(object)
+        return
+      }
+      const renderable = object.isMesh || object.isPoints || object.isLine || object.isSprite
+      if (!renderable || layer.test(object.layers)) return
+      if (object.isMesh) dim.push(object as Mesh)
+      else hide.push(object)
+    })
+  }
+  refresh()
 
   return {
     render() {
-      scene.traverse((object) => {
-        if (object.userData.skipBloom) {
-          if (object.visible) {
-            object.visible = false
-            hidden.push(object)
-          }
-          return
-        }
-        if (object instanceof Mesh && !layer.test(object.layers)) {
-          swapped.set(object, object.material)
-          object.material = dark
-        }
-      })
+      for (const object of hide) {
+        wasVisible.push(object.visible)
+        object.visible = false
+      }
+      for (const mesh of dim) {
+        restore.push(mesh.material)
+        mesh.material = dark
+      }
       bloomComposer.render()
-      swapped.forEach((material, object) => {
-        ;(object as Mesh).material = material
-      })
-      swapped.clear()
-      for (const object of hidden) object.visible = true
-      hidden.length = 0
+      dim.forEach((mesh, i) => (mesh.material = restore[i]))
+      restore.length = 0
+      hide.forEach((object, i) => (object.visible = wasVisible[i]))
+      wasVisible.length = 0
       finalComposer.render()
     },
     resize(width, height) {
+      bloomComposer.setPixelRatio(dpr())
+      finalComposer.setPixelRatio(dpr())
       bloomComposer.setSize(width, height)
       finalComposer.setSize(width, height)
-      bloomPass.resolution.set(width / divisor, height / divisor)
-      smaaPass?.setSize(width * renderer.getPixelRatio(), height * renderer.getPixelRatio())
+      sizeBloom(width, height)
     },
+    refresh,
     setStrength(value) {
       bloomPass.strength = value
     },

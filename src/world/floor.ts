@@ -13,6 +13,8 @@ import { Reflector } from 'three/addons/objects/Reflector.js'
  */
 export const FLOOR_RADIUS = 25
 export const FLOOR_Y = -2.9
+/** the bake lands a little dark for the reference's saturated look; every atlas is lifted by this */
+export const BAKE_LIFT = 1.25
 
 const shader = {
   name: 'BakedReflector',
@@ -22,6 +24,7 @@ const shader = {
     tBaked: { value: null as unknown as Texture },
     textureMatrix: { value: null },
     mirror: { value: 0.32 },
+    lift: { value: BAKE_LIFT },
   },
   vertexShader: /* glsl */ `
     uniform mat4 textureMatrix;
@@ -44,6 +47,7 @@ const shader = {
     uniform sampler2D tDiffuse;
     uniform sampler2D tBaked;
     uniform float mirror;
+    uniform float lift;
     varying vec4 vUv4;
     varying vec2 vUv;
     varying vec3 vWorld;
@@ -53,7 +57,7 @@ const shader = {
       vec4 baked = texture2D(tBaked, vUv);
       vec4 refl = texture2DProj(tDiffuse, vUv4);
       float near = 1.0 - smoothstep(4.0, 14.0, length(vWorld.xz));
-      vec3 col = baked.rgb * 1.25 + refl.rgb * color * mirror * (0.35 + 0.65 * near);
+      vec3 col = baked.rgb * lift + refl.rgb * color * mirror * (0.35 + 0.65 * near);
       gl_FragColor = vec4(col, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -68,18 +72,19 @@ export function createFloor(renderer: WebGLRenderer, baked: Texture, mirror: boo
   const uv = geometry.attributes.uv
   for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i))
   if (!mirror) {
-    const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: baked, color: new Color(1.25, 1.25, 1.25), toneMapped: false }))
+    const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: baked, color: new Color(BAKE_LIFT, BAKE_LIFT, BAKE_LIFT), toneMapped: false }))
     mesh.rotation.x = -Math.PI / 2
     mesh.position.y = FLOOR_Y
     mesh.name = 'floorFlat'
     return { mesh, resize: () => undefined }
   }
-  const dpr = Math.min(renderer.getPixelRatio(), 1.5)
+  // the mirror renders at half the canvas size; it follows the renderer's pixel ratio, which resize() may change
+  const dpr = () => Math.min(renderer.getPixelRatio(), 1.5)
   const size = renderer.getSize(new Vector2())
   const reflector = new Reflector(geometry, {
     clipBias: 0.003,
-    textureWidth: Math.round(size.x * dpr * 0.5),
-    textureHeight: Math.round(size.y * dpr * 0.5),
+    textureWidth: Math.round(size.x * dpr() * 0.5),
+    textureHeight: Math.round(size.y * dpr() * 0.5),
     color: 0xb9b9c8,
     shader: { ...shader, uniforms: UniformsUtils.clone(shader.uniforms) },
   })
@@ -93,7 +98,7 @@ export function createFloor(renderer: WebGLRenderer, baked: Texture, mirror: boo
   return {
     mesh: reflector,
     resize(w, h) {
-      reflector.getRenderTarget().setSize(Math.round(w * dpr * 0.5), Math.round(h * dpr * 0.5))
+      reflector.getRenderTarget().setSize(Math.round(w * dpr() * 0.5), Math.round(h * dpr() * 0.5))
     },
   }
 }
