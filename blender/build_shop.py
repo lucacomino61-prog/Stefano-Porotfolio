@@ -137,7 +137,7 @@ M = {k: mat(k, *v) for k, v in {
     'greenDark':   ('#2b6b2b', 0.7),
     'yellow':      ('#f2c230', 0.5),
     'cream':       ('#f1e6c8', 0.7),
-    'floor':       ('#3a3454', 0.9),
+    'floor':       ('#0d0c16', 0.9),
     'hitbox':      ('#ff0000', 1.0),
     'text':        ('#f4f2ff', 0.6),
     'ink':         ('#0a0812', 0.7),
@@ -146,7 +146,7 @@ M['wood'] = mat_wood('wood', ('#c98a52', '#e6b27a'))
 M['woodDark'] = mat_wood('woodDark', ('#7a4b2a', '#a86c3f'))
 
 # neon and lamps: hex colour the runtime paints, bake emission strength, runtime gain,
-# and whether the runtime blooms it (the white lamps light the bake but glow too much on screen)
+# and whether the runtime blooms it (the white lamps and the sign plates are painted flat and crisp)
 GLOW = {
     # the neon runs above 1.0 so its core burns toward white and its halo carries the colour
     'pink':    ('#ff2f9c', 6, 1.25),
@@ -160,11 +160,11 @@ GLOW = {
     'globe':   ('#ffe4fb', 9, 0.8),
     'lantern': ('#ffe3a8', 5, 0.8),
     'holo':    ('#3cf5ff', 12, 0.9),
-    'platePink':   ('#ff2f7a', 1.2, 0.9),
-    'plateCyan':   ('#27dcff', 1.2, 0.9),
-    'plateGreen':  ('#45ff96', 1.2, 0.9),
-    'plateOrange': ('#ff9d2a', 1.2, 0.9),
-    'plateRed':    ('#ff3a5f', 1.2, 0.9),
+    'platePink':   ('#ff2f7a', 1.2, 1.0, False),
+    'plateCyan':   ('#27dcff', 1.2, 1.0, False),
+    'plateGreen':  ('#45ff96', 1.2, 1.0, False),
+    'plateOrange': ('#ff9d2a', 1.2, 1.0, False),
+    'plateRed':    ('#ff3a5f', 1.2, 1.0, False),
     'plateWhite':  ('#f8f6ff', 1.2, 0.5),
     'vendGlow':    ('#dcf6ff', 4, 0.7),
     'vendHeader':  ('#8fe9ff', 3, 0.6),
@@ -632,31 +632,32 @@ for sid, label, key, yc, d in SIGNS:
                   0.08, PX - 0.06, 'SIGNPOST', M['black'])
     plate = prism('plate_' + sid, [(yc - SH / 2, PZ - SL / 2), (yc - SH / 2, PZ + SL / 2), (yc, PZ + SL / 2 + (0.27 if d > 0 else 0)),
                                    (yc + SH / 2, PZ + SL / 2), (yc + SH / 2, PZ - SL / 2), (yc, PZ - SL / 2 - (0.27 if d < 0 else 0))],
-                  0.05, PX - 0.075, 'EMISSIVE', EM[key])
+                  0.05, PX - 0.1, 'EMISSIVE', EM[key])
     glow(plate, key)
     # white on the warm plates, ink on the cool ones, the way the reference's read at a distance
     ink = M['text'] if key in ('platePink', 'plateRed') else M['ink']
-    text('signText_' + sid, label, 'sign', 0.25, PX - 0.11, yc + 0.005, PZ, 'SIGNPOST', ink, facing='-x', extrude=0.012, bold=0.004)
+    text('signText_' + sid, label, 'sign', 0.25, PX - 0.145, yc + 0.005, PZ, 'SIGNPOST', ink, facing='-x', extrude=0.012, bold=0.004)
     hit(sid, 0.5, SH + 0.15, SL + 0.4, PX - 0.05, yc, PZ)
 # the name tag: a pink plate with a barcode and the short name, and a green square beside it
 NY = -0.42
 prism('nameFrame', [(NY - 0.4, PZ - 0.3), (NY - 0.4, PZ + 0.5), (NY + 0.4, PZ + 0.5), (NY + 0.4, PZ - 0.3)], 0.08, PX - 0.06, 'SIGNPOST', M['black'])
-glow(prism('plate_name', [(NY - 0.35, PZ - 0.25), (NY - 0.35, PZ + 0.45), (NY + 0.35, PZ + 0.45), (NY + 0.35, PZ - 0.25)], 0.05, PX - 0.075, 'EMISSIVE', EM['platePink']), 'platePink')
+glow(prism('plate_name', [(NY - 0.35, PZ - 0.25), (NY - 0.35, PZ + 0.45), (NY + 0.35, PZ + 0.45), (NY + 0.35, PZ - 0.25)], 0.05, PX - 0.1, 'EMISSIVE', EM['platePink']), 'platePink')
 for i in range(14):
     w = 0.02 + (i % 3) * 0.012
-    bx(f'barcode{i}', 0.02, 0.3, w, PX - 0.11, NY + 0.14, PZ - 0.18 + i * 0.042, 'SIGNPOST', M['ink'], bevel=False)
-text('nameText', LABELS['shortName'], 'sign', 0.11, PX - 0.11, NY - 0.2, PZ + 0.1, 'SIGNPOST', M['ink'], facing='-x', extrude=0.01)
+    bx(f'barcode{i}', 0.02, 0.3, w, PX - 0.145, NY + 0.14, PZ - 0.18 + i * 0.042, 'SIGNPOST', M['ink'], bevel=False)
+text('nameText', LABELS['shortName'], 'sign', 0.11, PX - 0.145, NY - 0.2, PZ + 0.1, 'SIGNPOST', M['ink'], facing='-x', extrude=0.01)
 hit('name', 0.5, 0.9, 1.0, PX - 0.05, NY, PZ + 0.1)
 prism('greenFrame', [(NY - 0.55, PZ - 0.85), (NY - 0.55, PZ - 0.35), (NY + 0.15, PZ - 0.35), (NY + 0.15, PZ - 0.85)], 0.08, PX - 0.06, 'SIGNPOST', M['black'])
-glow(prism('plate_green', [(NY - 0.5, PZ - 0.8), (NY - 0.5, PZ - 0.4), (NY + 0.1, PZ - 0.4), (NY + 0.1, PZ - 0.8)], 0.05, PX - 0.075, 'EMISSIVE', EM['plateGreen']), 'plateGreen')
-glow(bx('greenDot', 0.06, 0.06, 0.06, PX - 0.11, NY - 0.7, PZ - 0.6, 'EMISSIVE', EM['ledRed']), 'ledRed')
+glow(prism('plate_green', [(NY - 0.5, PZ - 0.8), (NY - 0.5, PZ - 0.4), (NY + 0.1, PZ - 0.4), (NY + 0.1, PZ - 0.8)], 0.05, PX - 0.1, 'EMISSIVE', EM['plateGreen']), 'plateGreen')
+glow(bx('greenDot', 0.06, 0.06, 0.06, PX - 0.15, NY - 0.7, PZ - 0.6, 'EMISSIVE', EM['ledRed']), 'ledRed')
 
 # ---------------------------------------------------------------- light for the bake: the neon does most of it
 world = bpy.data.worlds.new('night'); scene.world = world; world.use_nodes = True
 bg = world.node_tree.nodes['Background']
-bg.inputs['Color'].default_value = (0.33, 0.30, 0.78, 1.0)
-# a whisper of blue: unlit faces stay just readable, the far floor goes black
-bg.inputs['Strength'].default_value = float(os.environ.get('SHOP_AMBIENT', '0.025'))
+bg.inputs['Color'].default_value = (0.62, 0.62, 0.9, 1.0)
+# the reference's stall is lit bright and even, like a diorama under a soft sky; the floor stays
+# black because its material is nearly black, not because the light is dim
+bg.inputs['Strength'].default_value = float(os.environ.get('SHOP_AMBIENT', '1.0'))
 
 def light(name, kind, x, y, z, energy, color=(1, 1, 1), size=1.0, rot=(0, 0, 0), cone=None, blend=0.6):
     ld = bpy.data.lights.new(name, kind); ld.energy = energy; ld.color = color
@@ -667,11 +668,11 @@ def light(name, kind, x, y, z, energy, color=(1, 1, 1), size=1.0, rot=(0, 0, 0),
     COLL['LIGHTS'].objects.link(ob); return ob
 # the light is concentrated on the stall: a cool spot from high up whose cone ends just past the
 # signpost, so the roof and the faces read while the floor beyond stays dark
-light('key', 'SPOT', 1.0, 15.0, 0.5, float(os.environ.get('SHOP_KEY', '1400')), (0.62, 0.7, 1.0), size=2.5, rot=(math.radians(-6), math.radians(4), 0), cone=46, blend=0.7)
+light('key', 'SPOT', 1.0, 15.0, 0.5, float(os.environ.get('SHOP_KEY', '700')), (0.62, 0.7, 1.0), size=2.5, rot=(math.radians(-6), math.radians(4), 0), cone=46, blend=0.7)
 # two pools on the floor: cyan by the machines, pink by the signpost, spots pointing down so they
 # stay pools instead of washing the whole disc
-light('cyanFill', 'SPOT', 2.2, -1.0, 5.2, float(os.environ.get('SHOP_CYAN', '420')), (0.25, 0.95, 1.0), size=0.6, rot=(0, 0, 0), cone=120, blend=0.9)
-light('pinkFill', 'SPOT', -6.0, -1.2, -4.4, float(os.environ.get('SHOP_PINK', '420')), (1.0, 0.35, 0.85), size=0.6, rot=(0, 0, 0), cone=120, blend=0.9)
+light('cyanFill', 'SPOT', 3.0, -0.4, 5.6, float(os.environ.get('SHOP_CYAN', '7500')), (0.2, 0.9, 1.0), size=0.8, rot=(0, 0, 0), cone=135, blend=0.9)
+light('pinkFill', 'SPOT', -6.2, -0.4, -4.6, float(os.environ.get('SHOP_PINK', '7500')), (1.0, 0.3, 0.85), size=0.8, rot=(0, 0, 0), cone=135, blend=0.9)
 
 # ---------------------------------------------------------------- cameras and previews
 def camera(name, pos, lens=22):

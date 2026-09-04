@@ -77,28 +77,28 @@
    },
    "platePink": {
     "color": "#ff2f7a",
-    "gain": 0.9,
-    "bloom": true
+    "gain": 1,
+    "bloom": false
    },
    "plateCyan": {
     "color": "#27dcff",
-    "gain": 0.9,
-    "bloom": true
+    "gain": 1,
+    "bloom": false
    },
    "plateGreen": {
     "color": "#45ff96",
-    "gain": 0.9,
-    "bloom": true
+    "gain": 1,
+    "bloom": false
    },
    "plateOrange": {
     "color": "#ff9d2a",
-    "gain": 0.9,
-    "bloom": true
+    "gain": 1,
+    "bloom": false
    },
    "plateRed": {
     "color": "#ff3a5f",
-    "gain": 0.9,
-    "bloom": true
+    "gain": 1,
+    "bloom": false
    },
    "plateWhite": {
     "color": "#f8f6ff",
@@ -288,5 +288,5 @@
   ]
  },
  "glb": "shop.glb",
- "glbBytes": 363572
+ "glbBytes": 364192
 }

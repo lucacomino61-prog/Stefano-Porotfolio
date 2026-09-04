@@ -14,7 +14,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js'
 export const FLOOR_RADIUS = 25
 export const FLOOR_Y = -2.9
 /** the bake lands a little dark for the reference's saturated look; the shop's atlases are lifted by this */
-export const BAKE_LIFT = 1.55
+export const BAKE_LIFT = 1.3
 /** the floor is not: its pools of light must stay pools, and the dark beyond them must stay dark */
 export const FLOOR_LIFT = 1.0
 
