@@ -8,6 +8,13 @@ import labels from './content/labels.json'
  * the floor — live in `content/labels.json`, which Blender reads too: change
  * those and rebuild + rebake (see README). Everything else here is painted on
  * the screens at runtime and changes with a reload.
+ *
+ * All of it is Stefano Doko's own copy, carried over from his portfolio
+ * (`stefano-portfolio`: lib/i18n/dictionaries.ts, lib/projects.ts,
+ * PRODUCT.md). Nothing here is invented: his brief forbids stating any
+ * project, client, outcome, year, role or link that the evidence does not
+ * support, so where he has no data (articles, social profiles) this site
+ * has none either.
  */
 export type Project = {
   title: string
@@ -22,50 +29,70 @@ export type Project = {
 
 export const LABELS = labels
 
+/** his deployed portfolio; the contact sign opens its form */
+const SITE = 'https://stefano-porotfolio.vercel.app'
+
 export const CONTENT = {
   name: labels.name,
   roles: labels.roles,
 
   about: {
-    headline: 'Best ramen in town',
+    headline: 'One pair of hands',
     intro: [
-      'Replace this with a short introduction: who you are, what you make, and what you care about.',
-      'Two short paragraphs fit on the screen. Keep the second one for how you work or what you are looking for.',
+      'One pair of hands takes the work from the first sketch to the last commit. Nothing is handed over, so nothing arrives broken.',
+      'I design the thing and then I build it. No handover, no translation loss between a file and a repository, no second party to blame when the two disagree.',
     ],
     skills: [
-      { group: 'Build', items: ['TypeScript', 'Three.js', 'React', 'Node'] },
-      { group: 'Make', items: ['Blender', 'Figma', 'Motion', 'Sound'] },
-      { group: 'Ship', items: ['Vite', 'Vercel', 'Git', 'Testing'] },
+      { group: 'Capabilities', items: ['Web design', 'Frontend development', 'UI/UX', 'Creative development', 'Digital experiences'] },
+      { group: 'Builds with', items: ['Next.js', 'TypeScript', 'Tailwind CSS', 'GSAP', 'React Three Fiber', 'Postgres'] },
+      { group: 'Works in', items: ['Italian', 'English', 'Albanian'] },
     ],
-    experience: [
-      { when: '2024 — now', what: 'Independent', where: 'Web & 3D for studios and founders' },
-      { when: '2021 — 2024', what: 'Front-end developer', where: 'A product company' },
-      { when: '2018 — 2021', what: 'Designer', where: 'An agency' },
+    /** how the work runs: five passes, in order, each ending with something to look at */
+    process: [
+      { step: '01', label: 'Brief', body: 'We agree what the site has to do, who it is for, and what it must not become. The constraints get written down before anything is drawn.' },
+      { step: '02', label: 'Structure', body: 'Content and hierarchy first. What a page says and in what order is settled while it is still cheap to change.' },
+      { step: '03', label: 'Design', body: 'Art direction happens in the browser, at real widths, with real copy. A design that only works in a static file is not finished.' },
+      { step: '04', label: 'Build', body: 'Production code, typed throughout, measured against a performance budget rather than a feeling. Accessibility is part of the build, not a pass at the end.' },
+      { step: '05', label: 'Ship', body: 'Deploy, measure the result, and hand over something you can run yourself. You own the code and the accounts.' },
     ],
   },
 
+  /** the two shipped sites: live, his end to end; posters in each site's own colours */
   projects: [
-    { title: 'Project one', blurb: 'One or two lines about the work: the client, the problem, and your part in it.', url: 'https://example.com', colours: ['#7a3cff', '#ff8a2a'], mark: '01', tags: ['Three.js', 'WebGL'] },
-    { title: 'Project two', blurb: 'Keep these to the work you want more of. Six posters fit in the machine.', url: 'https://example.com', colours: ['#ff2f9c', '#3cf5ff'], mark: '02', tags: ['Design', 'Front-end'] },
-    { title: 'Project three', blurb: 'A link is optional; a project without one still reads fine.', colours: ['#28e7ff', '#ffd23a'], mark: '03', tags: ['Experiment'] },
-    { title: 'Project four', blurb: 'A short blurb goes a long way on a screen this size.', url: 'https://example.com', colours: ['#41ff8f', '#7a3cff'], mark: '04', tags: ['Tooling'] },
+    {
+      title: 'Elixir',
+      blurb: 'An online perfume house. Designer, Arabic and niche bottles, catalogued and sold across Albania, on a warm near-black ground built to make a bottle worth looking at.',
+      url: 'https://elixir.al',
+      colours: ['#c7a86b', '#0b0a09'],
+      mark: '01',
+      tags: ['Luxury perfume e-commerce', 'Catalogue and cart', 'Ships across Albania', '2025'],
+    },
+    {
+      title: 'Bar Martiri',
+      blurb: 'A bar on the sand at Spille. The menu, the sunbeds and the walk down to the sea, in three languages, for people deciding where to spend the afternoon.',
+      url: 'https://barmartiri.com',
+      colours: ['#56c4d8', '#14130f'],
+      mark: '02',
+      tags: ['Hospitality', 'Menu and sunbeds', 'Three languages', '2025'],
+    },
   ] as Project[],
 
-  /** the Articles sign opens this in a new tab, like the reference */
-  articlesUrl: 'https://medium.com/',
+  /** the Contact sign opens the form on his site, one gesture away like there */
+  contactUrl: `${SITE}/en#contact`,
 
   credits: [
-    { title: 'Credits', lines: ['Design & code: ' + labels.name, 'Built with Three.js and Blender', 'After jesse-zhou.com by Jesse Zhou'] },
-    { title: 'Thanks', lines: ['Bruno Simon, for Three.js Journey', 'The three.js contributors', 'Everyone who dragged the camera'] },
+    { title: 'Credits', lines: ['A portfolio for ' + labels.name, 'Web designer and developer', 'Built with Three.js and Blender'] },
+    { title: 'Thanks', lines: ['After jesse-zhou.com by Jesse Zhou', 'Bruno Simon, for Three.js Journey', 'The three.js contributors'] },
     { title: 'Press start', lines: ['Click again to loop', '© ' + new Date().getFullYear() + ' ' + labels.name] },
   ],
 
+  /** where to find him: the form on his site and the two sites themselves */
   social: [
-    { label: 'GitHub', url: 'https://github.com/' },
-    { label: 'LinkedIn', url: 'https://www.linkedin.com/' },
-    { label: 'Email', url: 'mailto:hello@example.com' },
+    { label: 'Contact form', url: `${SITE}/en#contact` },
+    { label: 'elixir.al', url: 'https://elixir.al' },
+    { label: 'barmartiri.com', url: 'https://barmartiri.com' },
   ],
 
-  /** the stock-ticker strip above the arcade: short items, they scroll forever */
-  ticker: ['THREE.JS ▲ 3.14', 'BLENDER ▲ 4.20', 'TYPESCRIPT ▲ 5.70', 'COFFEE ▼ 0.02', 'RAMEN ▲ 99.9', 'SLEEP ▼ 6.00'],
+  /** the strip above the arcade, in the words his own site's cash machine prints */
+  ticker: ['SITES SHIPPED ▲ 2', 'ELIXIR.AL ▲ LIVE', 'BARMARTIRI.COM ▲ LIVE', 'CAPABILITIES ▲ 5', 'LANGUAGES ▲ 3', 'HANDOVERS ▼ 0'],
 }

@@ -395,7 +395,7 @@ bx('easelBoard', 0.06, 0.9, 0.7, EX - 0.05, F + 0.78, EZ, 'SHOP', M['black'], ro
 bx('easelFrame', 0.04, 1.0, 0.8, EX - 0.02, F + 0.78, EZ, 'SHOP', M['woodDark'], rot=(0, -0.22, 0))
 for k in range(4):
     bx(f'chalk{k}', 0.02, 0.03, 0.35 - k * 0.05, EX - 0.1 + k * 0.03, F + 0.55 + k * 0.14, EZ + 0.1, 'SHOP', M['white'], bevel=False, rot=(0, -0.22, 0))
-hit('articles_easel', 0.6, 1.3, 1.0, EX - 0.1, F + 0.65, EZ)
+hit('contact_easel', 0.6, 1.3, 1.0, EX - 0.1, F + 0.65, EZ)
 
 # ---------------------------------------------------------------- the noren face (-z)
 # the curtain: a waved grid hanging from the header
@@ -621,7 +621,7 @@ for i, (yy, key) in enumerate(((1.2, 'ledCyan'), (0.85, 'ledRed'), (-0.4, 'ledGr
     glow(bx(f'poleLed{i}', 0.08, 0.08, 0.08, PX - 0.11, yy, PZ + (0.12 if i % 2 else -0.12), 'EMISSIVE', EM[key]), key)
 # the arrow signs: (id, label, plate key, y centre, arrow toward +z or -z)
 SIGNS = [('projects', LABELS['signs']['projects'], 'platePink', 0.4, +1),
-         ('articles', LABELS['signs']['articles'], 'plateRed', -1.22, -1),
+         ('contact', LABELS['signs']['contact'], 'plateRed', -1.22, -1),
          ('about', LABELS['signs']['about'], 'plateCyan', -1.82, -1),
          ('credits', LABELS['signs']['credits'], 'plateOrange', -2.27, +1)]
 SW, SH, SL = 0.06, 0.38, 1.45

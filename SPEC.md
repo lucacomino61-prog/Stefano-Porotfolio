@@ -6,8 +6,8 @@ signpost of arrow signs beside it. The four signs are the site's navigation.
 Clicking one flies the camera to the thing in the world that holds that
 section — a vending machine full of project posters, a big screen with the
 about pages, an arcade cabinet that plays the credits — and the section is
-read there, on the screen, not in a panel over the canvas. Articles opens an
-external link. Everything the owner has to change is in two files.
+read there, on the screen, not in a panel over the canvas. Contact opens the
+form on Stefano's other site. Everything the owner has to change is in two files.
 
 ## Pipeline
 
@@ -46,19 +46,21 @@ the lamps switched off the emitters alone had once washed the whole floor an
 even grey. The bake lands in 8-bit atlases with no tone mapping; the runtime
 lifts the shop's atlases by 1.3 and leaves the floor's alone.
 
-At runtime the neon carries gains above 1.0 (pink 1.45, cyan and green 1.35),
-so its core burns toward white and the bloom (strength 1.0, radius 0.32,
-threshold 0) puts the colour in a tight halo against the dark: contrast, not
-haze.
+At runtime the neon carries gains above 1.0 (pink 1.25, cyan and green 1.2),
+so its core burns toward white and the bloom (strength 0.75, radius 0.05,
+threshold 0) puts the colour in a short halo against the dark: contrast, not
+haze. A wider or stronger bloom fogs the whole frame through its coarse blur
+levels, which is exactly the bleed the reference does not have.
 
 ## What stays live
 
-- Neon, LEDs, lamps and sign plates: flat colours from the manifest on a
-  bloom layer (UnrealBloom strength 1.0, radius 0.32, threshold 0), rendered
-  with the black-pass trick so only they glow; the white lamps are painted
-  flat but kept off the bloom layer.
+- Neon, LEDs, lamps and sign plates: flat colours from the manifest, rendered
+  with the black-pass trick so only the bloom layer glows (UnrealBloom
+  strength 0.75, radius 0.05, threshold 0); the white lamps and the sign
+  plates are painted flat and kept off the bloom layer, so the plates'
+  lettering stays crisp as in the reference.
 - Twelve screens: canvases. The big screen holds the about pages (intro,
-  skills, experience); the three small screens under it are its buttons while
+  capabilities, how the work runs); the three small screens under it are its buttons while
   the camera is close and art otherwise; the vending machine shows one project
   poster at a time; the arcade shows the credits pages; the rest play — a
   ticker, a synthwave horizon, falling katakana, colour bars, a clock, static.
@@ -77,8 +79,8 @@ quadratic ease. On narrow screens the close views stand further back.
 | Sign | Goes to | Then |
 | --- | --- | --- |
 | projects | the vending machine | two buttons page the posters; the poster opens the project |
-| about me | the big screen | the small screens switch intro / skills / experience / back |
-| articles | (external link) | |
+| about me | the big screen | the small screens switch intro / capabilities / process / back |
+| contact | (the form on his site, in a new tab) | |
 | credits | the arcade | the screen advances a page per click |
 | name tag | a high view from the far side | click anywhere to return |
 

@@ -77,27 +77,27 @@
    },
    "platePink": {
     "color": "#ff2f7a",
-    "gain": 1,
+    "gain": 1.0,
     "bloom": false
    },
    "plateCyan": {
     "color": "#27dcff",
-    "gain": 1,
+    "gain": 1.0,
     "bloom": false
    },
    "plateGreen": {
     "color": "#45ff96",
-    "gain": 1,
+    "gain": 1.0,
     "bloom": false
    },
    "plateOrange": {
     "color": "#ff9d2a",
-    "gain": 1,
+    "gain": 1.0,
     "bloom": false
    },
    "plateRed": {
     "color": "#ff3a5f",
-    "gain": 1,
+    "gain": 1.0,
     "bloom": false
    },
    "plateWhite": {
@@ -180,7 +180,7 @@
    "poleLed4": "ledGreen",
    "poleLed5": "ledRed",
    "plate_projects": "platePink",
-   "plate_articles": "plateRed",
+   "plate_contact": "plateRed",
    "plate_about": "plateCyan",
    "plate_credits": "plateOrange",
    "plate_name": "platePink",
@@ -223,7 +223,7 @@
    "neonSteam1",
    "neonSteam2",
    "plate_about",
-   "plate_articles",
+   "plate_contact",
    "plate_credits",
    "plate_green",
    "plate_name",
@@ -263,9 +263,9 @@
    "hit_about",
    "hit_arcade",
    "hit_arcadeScreen",
-   "hit_articles",
-   "hit_articles_easel",
    "hit_bigScreen",
+   "hit_contact",
+   "hit_contact_easel",
    "hit_credits",
    "hit_name",
    "hit_projects",
@@ -288,5 +288,5 @@
   ]
  },
  "glb": "shop.glb",
- "glbBytes": 364192
+ "glbBytes": 390424
 }

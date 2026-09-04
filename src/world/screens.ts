@@ -25,7 +25,7 @@ export type ScreenName =
   | 'arcadeScreen'
   | 'vendScreen'
 
-export type AboutPage = 'intro' | 'skills' | 'experience'
+export type AboutPage = 'intro' | 'skills' | 'process'
 
 export type Screens = {
   material: (name: string) => MeshBasicMaterial | null
@@ -204,37 +204,38 @@ export function createScreens(): Screens {
     } else if (state.aboutPage === 'skills') {
       ctx.fillStyle = '#ff9a2a'
       ctx.font = `800 52px ${FONT}`
-      ctx.fillText('Skills', 110, 140)
+      ctx.fillText('Capabilities', 110, 140)
       const cols = CONTENT.about.skills
       const cw = (w - 220) / cols.length
       cols.forEach((col, i) => {
         const x = 110 + i * cw
         ctx.fillStyle = '#5cf0ff'
-        ctx.font = `700 24px ${FONT}`
+        ctx.font = `700 22px ${FONT}`
         ctx.textAlign = 'left'
-        ctx.fillText(col.group.toUpperCase(), x, 210)
+        ctx.fillText(col.group.toUpperCase(), x, 200)
         col.items.forEach((item, j) => {
-          pill(ctx, x, 236 + j * 58, Math.min(cw - 30, 210), 44, 'rgba(92,240,255,0.16)', '#f4f2ff', item, `600 22px ${FONT}`)
+          pill(ctx, x, 222 + j * 50, Math.min(cw - 30, 250), 40, 'rgba(92,240,255,0.16)', '#f4f2ff', item, `600 20px ${FONT}`)
         })
       })
     } else {
+      // how the work runs: five passes, in order, each with its own line
       ctx.fillStyle = '#ff9a2a'
-      ctx.font = `800 52px ${FONT}`
-      ctx.fillText('Experience', 110, 140)
-      CONTENT.about.experience.forEach((row, i) => {
-        const y = 215 + i * 96
+      ctx.font = `800 44px ${FONT}`
+      ctx.fillText('How the work runs', 110, 124)
+      CONTENT.about.process.forEach((row, i) => {
+        const y = 172 + i * 78
         ctx.textAlign = 'left'
         ctx.fillStyle = '#5cf0ff'
-        ctx.font = `700 20px ${FONT}`
-        ctx.fillText(row.when.toUpperCase(), 110, y)
+        ctx.font = `700 18px ${FONT}`
+        ctx.fillText(row.step, 110, y)
         ctx.fillStyle = '#f4f2ff'
-        ctx.font = `700 30px ${FONT}`
-        ctx.fillText(row.what, 110, y + 36)
-        ctx.fillStyle = 'rgba(244,242,255,0.75)'
-        ctx.font = `400 22px ${FONT}`
-        ctx.fillText(row.where, 110, y + 64)
-        ctx.fillStyle = 'rgba(92,240,255,0.25)'
-        ctx.fillRect(110, y + 80, w - 220, 2)
+        ctx.font = `700 26px ${FONT}`
+        ctx.fillText(row.label, 150, y + 1)
+        ctx.fillStyle = 'rgba(244,242,255,0.8)'
+        ctx.font = `400 17px ${FONT}`
+        wrap(ctx, row.body, w - 430).slice(0, 2).forEach((line, k) => ctx.fillText(line, 320, y - 8 + k * 22))
+        ctx.fillStyle = 'rgba(92,240,255,0.22)'
+        ctx.fillRect(110, y + 26, w - 220, 2)
       })
     }
     s.done()
@@ -249,7 +250,7 @@ export function createScreens(): Screens {
   // smallScreen3 is the leftmost on the shelf, smallScreen1 the rightmost: read left to right
   const BUTTONS: { name: ScreenName; label: string; page: AboutPage | 'back' }[] = [
     { name: 'smallScreen1', label: 'back', page: 'back' },
-    { name: 'smallScreen2', label: 'experience', page: 'experience' },
+    { name: 'smallScreen2', label: 'process', page: 'process' },
     { name: 'smallScreen3', label: 'skills', page: 'skills' },
   ]
   function drawSmall(i: number): void {
@@ -315,25 +316,44 @@ export function createScreens(): Screens {
     sunburst(ctx, w, h, p.colours[0], shade(p.colours[0], 0.82), 20)
     ctx.fillStyle = 'rgba(12, 6, 40, 0.55)'
     ctx.beginPath()
-    ctx.arc(w / 2, h * 0.36, 168, 0, Math.PI * 2)
+    ctx.arc(w / 2, h * 0.3, 138, 0, Math.PI * 2)
     ctx.fill()
     ctx.fillStyle = p.colours[1]
-    ctx.font = `900 150px ${FONT}`
+    ctx.font = `900 124px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(p.mark, w / 2, h * 0.36 + 8)
+    ctx.fillText(p.mark, w / 2, h * 0.3 + 6)
     ctx.fillStyle = '#ffffff'
     ctx.font = `900 40px ${FONT}`
     ctx.textBaseline = 'alphabetic'
-    for (const [k, line] of wrap(ctx, p.title, w - 90).entries()) ctx.fillText(line, w / 2, h * 0.62 + k * 46)
-    ctx.fillStyle = 'rgba(255,255,255,0.88)'
-    ctx.font = `500 22px ${FONT}`
-    const lines = wrap(ctx, p.blurb, w - 110)
-    lines.forEach((line, k) => ctx.fillText(line, w / 2, h * 0.7 + k * 30))
-    const tagsY = h * 0.7 + lines.length * 30 + 18
-    const tagW = 120
-    const total = p.tags.length * (tagW + 10) - 10
-    p.tags.forEach((tag, k) => pill(ctx, w / 2 - total / 2 + k * (tagW + 10), tagsY, tagW, 34, 'rgba(255,255,255,0.18)', '#fff', tag, `600 17px ${FONT}`))
+    const titleLines = wrap(ctx, p.title, w - 90)
+    titleLines.forEach((line, k) => ctx.fillText(line, w / 2, h * 0.52 + k * 46))
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'
+    ctx.font = `500 20px ${FONT}`
+    const top = h * 0.52 + (titleLines.length - 1) * 46 + 36
+    const lines = wrap(ctx, p.blurb, w - 100).slice(0, 6)
+    lines.forEach((line, k) => ctx.fillText(line, w / 2, top + k * 26))
+    // the tags are sized to their words and laid out in rows that fit the poster
+    const tagFont = `600 16px ${FONT}`
+    ctx.font = tagFont
+    const rows: { tag: string; width: number }[][] = [[]]
+    for (const tag of p.tags) {
+      const width = Math.ceil(ctx.measureText(tag).width) + 26
+      const row = rows[rows.length - 1]
+      const used = row.reduce((sum, t) => sum + t.width + 8, 0)
+      if (row.length && used + width > w - 80) rows.push([{ tag, width }])
+      else row.push({ tag, width })
+    }
+    let tagsY = top + lines.length * 26 + 14
+    for (const row of rows.slice(0, 2)) {
+      const total = row.reduce((sum, t) => sum + t.width + 8, -8)
+      let x = w / 2 - total / 2
+      for (const t of row) {
+        pill(ctx, x, tagsY, t.width, 30, 'rgba(255,255,255,0.18)', '#fff', t.tag, tagFont)
+        x += t.width + 8
+      }
+      tagsY += 38
+    }
     ctx.fillStyle = 'rgba(255,255,255,0.75)'
     ctx.font = `700 18px ${FONT}`
     ctx.textAlign = 'center'

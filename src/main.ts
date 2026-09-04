@@ -84,13 +84,13 @@ function fillReadable(): void {
     .map((p) => `<li>${p.url ? `<a href="${esc(p.url)}">${esc(p.title)}</a>` : esc(p.title)}: ${esc(p.blurb)}</li>`)
     .join('')
   const skills = CONTENT.about.skills.map((s) => `<li>${esc(s.group)}: ${esc(s.items.join(', '))}</li>`).join('')
-  const experience = CONTENT.about.experience.map((e) => `<li>${esc(e.when)} — ${esc(e.what)}, ${esc(e.where)}</li>`).join('')
+  const process = CONTENT.about.process.map((p) => `<li>${esc(p.label)}: ${esc(p.body)}</li>`).join('')
   const credits = CONTENT.credits.map((c) => `<li>${esc(c.title)}: ${esc(c.lines.join('. '))}</li>`).join('')
   const social = CONTENT.social.map((s) => `<li><a href="${esc(s.url)}">${esc(s.label)}</a></li>`).join('')
   body.innerHTML =
     `<p>${esc(CONTENT.roles.join(', '))}</p><h2>About</h2>${CONTENT.about.intro.map((p) => `<p>${esc(p)}</p>`).join('')}` +
-    `<h3>Skills</h3><ul>${skills}</ul><h3>Experience</h3><ul>${experience}</ul><h2>Projects</h2><ul>${projects}</ul>` +
-    `<h2>Articles</h2><p><a href="${esc(CONTENT.articlesUrl)}">Articles</a></p><h2>Credits</h2><ul>${credits}</ul><h2>Contact</h2><ul>${social}</ul>`
+    `<h3>Capabilities</h3><ul>${skills}</ul><h3>How the work runs</h3><ol>${process}</ol><h2>Work</h2><ul>${projects}</ul>` +
+    `<h2>Credits</h2><ul>${credits}</ul><h2>Contact</h2><p><a href="${esc(CONTENT.contactUrl)}">Send a message</a></p><ul>${social}</ul>`
 }
 
 async function main() {
@@ -282,7 +282,7 @@ async function main() {
   const toProjects = () => go('projects')
   const toAbout = () => go('about')
   const toCredits = () => go('credits')
-  const toArticles = () => open(CONTENT.articlesUrl)
+  const toContact = () => open(CONTENT.contactUrl)
   const nextCredits = () => screens.setCreditsPage(screens.creditsPage + 1)
   const ACTIONS: Record<Mode, Record<string, () => void>> = {
     default: {
@@ -295,8 +295,8 @@ async function main() {
       hit_arcade: toCredits,
       hit_arcadeScreen: toCredits,
       hit_name: () => go('name'),
-      hit_articles: toArticles,
-      hit_articles_easel: toArticles,
+      hit_contact: toContact,
+      hit_contact_easel: toContact,
     },
     projects: {
       hit_vend_prev: () => screens.setProject(screens.project - 1),
@@ -305,7 +305,7 @@ async function main() {
     },
     about: {
       hit_small3: () => screens.setAboutPage('skills'),
-      hit_small2: () => screens.setAboutPage('experience'),
+      hit_small2: () => screens.setAboutPage('process'),
       hit_small1: () => go('default'),
       hit_bigScreen: () => screens.setAboutPage('intro'),
     },

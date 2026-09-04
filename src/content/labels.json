@@ -2,11 +2,11 @@
   "name": "Stefano Doko",
   "shortName": "s. doko",
   "shop": "STEFANO'S RAMEN",
-  "roles": ["Web designer", "Developer"],
+  "roles": ["Web designer and developer", "Design and build, end to end"],
   "signs": {
     "projects": "projects",
     "about": "about me",
-    "articles": "articles",
+    "contact": "contact",
     "credits": "credits"
   },
   "kanji": "ラーメン",

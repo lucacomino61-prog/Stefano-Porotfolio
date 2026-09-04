@@ -25,7 +25,7 @@ export function createHud(callbacks: { onGo: (mode: Mode) => void; onBack: () =>
   const entries: { label: string; mode?: Mode; href?: string }[] = [
     { label: LABELS.signs.projects, mode: 'projects' },
     { label: LABELS.signs.about, mode: 'about' },
-    { label: LABELS.signs.articles, href: CONTENT.articlesUrl },
+    { label: LABELS.signs.contact, href: CONTENT.contactUrl },
     { label: LABELS.signs.credits, mode: 'credits' },
   ]
   for (const entry of entries) {
