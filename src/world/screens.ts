@@ -93,13 +93,21 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
       line = word
       continue
     }
-    for (const ch of word) {
+    for (const ch of graphemes(word)) {
       if (ctx.measureText(line + ch).width > maxWidth) flush()
       line += ch
     }
   }
   flush()
   return lines
+}
+
+/** the user-perceived characters of a word, so a break never lands inside an emoji or a combining mark */
+function graphemes(word: string): string[] {
+  if ('Segmenter' in Intl) {
+    return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(word)].map((s) => s.segment)
+  }
+  return [...word]
 }
 
 /** roundRect with a plain rectangle behind it for browsers that lack it */

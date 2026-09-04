@@ -134,7 +134,6 @@ async function main() {
     if (!r.ok) throw new Error(`manifest ${r.status}`)
     return r.json()
   })) as Manifest
-  loader.step(0.04)
   const textureLoader = new TextureLoader()
   const groups = Object.entries(manifest.groups)
   total = groups.length + 1
@@ -264,10 +263,13 @@ async function main() {
     interaction.flyTo(mode)
   }
 
+  let lastArrived: Mode = 'default'
   function arrive(mode: Mode): void {
     interaction.setLive(Object.keys(ACTIONS[mode]))
     screens.setButtons(mode === 'about')
-    if (mode === 'about') screens.setAboutPage('intro')
+    // a refit after a resize lands in the same mode: the page being read stays open
+    if (mode === 'about' && lastArrived !== 'about') screens.setAboutPage('intro')
+    lastArrived = mode
     hud.setMode(mode)
     hud.setHint(HINTS[mode])
   }
@@ -318,6 +320,22 @@ async function main() {
     else if (mode !== 'default') go('default')
   }
 
+  // the viewport can change while the door is still up, so this listens from here on
+  let refitTimer = 0
+  window.addEventListener('resize', () => {
+    const { width, height } = viewport()
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
+    renderer.setPixelRatio(pixelRatio())
+    renderer.setSize(width, height)
+    hologram.setPixelRatio(renderer.getPixelRatio())
+    bloom?.resize(width, height)
+    floor.resize(width, height)
+    // a parked close-up is re-aimed once the resizing settles (a rotation, a window drag)
+    window.clearTimeout(refitTimer)
+    refitTimer = window.setTimeout(() => interaction.refit(), 150)
+  })
+
   // one frame behind the door, so the first thing seen is the shop
   renderer.render(scene, camera)
   await loader.ready()
@@ -339,20 +357,6 @@ async function main() {
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
-
-  let refitTimer = 0
-  window.addEventListener('resize', () => {
-    const { width, height } = viewport()
-    camera.aspect = width / height
-    camera.updateProjectionMatrix()
-    renderer.setPixelRatio(pixelRatio())
-    renderer.setSize(width, height)
-    bloom?.resize(width, height)
-    floor.resize(width, height)
-    // a parked close-up is re-aimed once the resizing settles (a rotation, a window drag)
-    window.clearTimeout(refitTimer)
-    refitTimer = window.setTimeout(() => interaction.refit(), 150)
-  })
 
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ramen: unknown }).__ramen = { scene, camera, renderer, interaction, screens, hitboxes, shop, bloom, go, manifest }

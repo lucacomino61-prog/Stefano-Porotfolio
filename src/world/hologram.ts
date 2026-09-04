@@ -11,6 +11,8 @@ import { BLOOM_LAYER } from '../bloom'
 export type Hologram = {
   points: Points
   update: (t: number) => void
+  /** point sizes are in device pixels, so they follow the renderer's pixel ratio */
+  setPixelRatio: (ratio: number) => void
 }
 
 const VERTEX = /* glsl */ `
@@ -129,6 +131,9 @@ export function createHologram(at: Vector3, pixelRatio: number): Hologram {
     points,
     update(t) {
       material.uniforms.uTime.value = t
+    },
+    setPixelRatio(ratio) {
+      material.uniforms.uScale.value = ratio
     },
   }
 }

@@ -130,6 +130,12 @@ with open(os.path.join(HERE, 'glow.json'), encoding='utf-8') as f:
     glow = json.load(f)
 
 manifest = {'samples': SAMPLES, 'groups': {}, 'glow': glow, 'live': {}}
+# a partial run keeps the atlases of the groups it skips, which must exist before any baking starts
+if ONLY:
+    for coll_name, joined_name, tex_name, size, planar in GROUPS:
+        kept = f'{tex_name}.png' if planar else f'{tex_name}.jpg'
+        if coll_name not in ONLY and not os.path.exists(os.path.join(TEX_DIR, kept)):
+            raise SystemExit(f'{coll_name}: not in ONLY but {kept} does not exist yet; run a full bake first')
 t_all = time.time()
 for coll_name, joined_name, tex_name, size, planar in GROUPS:
     ob = join_group(coll_name, joined_name)
@@ -141,10 +147,7 @@ for coll_name, joined_name, tex_name, size, planar in GROUPS:
     entry = {'size': size}
     manifest['groups'][joined_name] = entry
     if ONLY and coll_name not in ONLY:
-        # a partial run keeps the atlas from an earlier full run, which must exist on disk
         kept = f'{tex_name}.png' if planar else f'{tex_name}.jpg'
-        if not os.path.exists(os.path.join(TEX_DIR, kept)):
-            raise SystemExit(f'{coll_name}: bake skipped but {kept} does not exist yet; run a full bake first')
         log(f'{coll_name}: bake skipped (not in ONLY), keeping {kept}')
         entry['atlas'] = kept
         continue

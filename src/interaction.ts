@@ -89,7 +89,8 @@ export function createInteraction(
   let pointerDirty = false
   let rect = dom.getBoundingClientRect()
   let downAt: { id: number; x: number; y: number; time: number } | null = null
-  const activePointers = new Set<number>()
+  /** pointers currently down, by id, with their kind (mouse, touch, pen) */
+  const activePointers = new Map<number, string>()
   let live: Object3D[] = []
 
   const state: Interaction = {
@@ -150,7 +151,15 @@ export function createInteraction(
 
   function refit(): void {
     rect = dom.getBoundingClientRect()
-    if (state.flying || state.mode === 'default') return
+    if (flight) {
+      // mid-flight: aim the flight at the framing for the new shape instead of landing on the old one
+      const to = framing(VIEWS[state.mode])
+      flight.to = to.position
+      flight.toTarget = to.target
+      return
+    }
+    // parked in the default view the visitor may have orbited; that is left alone
+    if (state.mode === 'default') return
     flyTo(state.mode, 0.6)
   }
 
@@ -178,10 +187,14 @@ export function createInteraction(
     pointerDirty = true
   }
   const onDown = (event: PointerEvent) => {
-    // the primary pointer going down starts a new gesture; anything left over from an interrupted one is forgotten
-    if (event.isPrimary) activePointers.clear()
-    activePointers.add(event.pointerId)
-    if (event.button !== 0 || activePointers.size > 1) {
+    // the primary pointer of a kind going down starts a new gesture of that kind: anything
+    // left over from an interrupted gesture of the same kind is forgotten, other kinds are kept
+    if (event.isPrimary) {
+      for (const [id, type] of activePointers) if (type === event.pointerType) activePointers.delete(id)
+    }
+    activePointers.set(event.pointerId, event.pointerType)
+    // a press that starts during a flight is not the start of a click, even if it ends after landing
+    if (event.button !== 0 || activePointers.size > 1 || state.flying) {
       downAt = null
       return
     }

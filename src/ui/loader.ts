@@ -16,9 +16,12 @@ export function createLoader(): Loader {
   const start = document.getElementById('loader-start') as HTMLButtonElement
   const note = document.getElementById('loader-note') as HTMLElement
 
+  // the count only ever goes up, whatever order the downloads land in
+  let shown = 0
   return {
     step(fraction) {
-      const pct = Math.round(Math.min(1, fraction) * 100)
+      const pct = Math.max(shown, Math.round(Math.min(1, fraction) * 100))
+      shown = pct
       count.textContent = `${pct}`
       bar.style.setProperty('--p', `${pct}%`)
     },
