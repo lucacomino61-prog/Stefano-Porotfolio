@@ -43,11 +43,12 @@ export const CONTENT = {
       'I design the thing and then I build it. No handover, no translation loss between a file and a repository, no second party to blame when the two disagree.',
     ],
     skills: [
-      { group: 'Capabilities', items: ['Web design', 'Frontend development', 'UI/UX', 'Creative development', 'Digital experiences'] },
-      { group: 'Builds with', items: ['Next.js', 'TypeScript', 'Tailwind CSS', 'GSAP', 'React Three Fiber', 'Postgres'] },
-      { group: 'Works in', items: ['Italian', 'English', 'Albanian'] },
+      { group: 'Craft', items: ['Web design', 'Frontend development', 'UI/UX', 'Creative development', 'Digital experiences'] },
+      { group: 'Stack', items: ['Next.js', 'TypeScript', 'Tailwind CSS', 'GSAP', 'React Three Fiber', 'Postgres'] },
+      { group: 'Languages', items: ['Italian', 'English', 'Albanian'] },
     ],
-    /** how the work runs: five passes, in order, each ending with something to look at */
+    /** how the work runs, in his words */
+    processIntro: 'Five passes, in order. Each one ends with something you can look at, not a status update.',
     process: [
       { step: '01', label: 'Brief', body: 'We agree what the site has to do, who it is for, and what it must not become. The constraints get written down before anything is drawn.' },
       { step: '02', label: 'Structure', body: 'Content and hierarchy first. What a page says and in what order is settled while it is still cheap to change.' },
@@ -65,7 +66,7 @@ export const CONTENT = {
       url: 'https://elixir.al',
       colours: ['#c7a86b', '#0b0a09'],
       mark: '01',
-      tags: ['Luxury perfume e-commerce', 'Catalogue and cart', 'Ships across Albania', '2025'],
+      tags: ['Luxury perfume e-commerce', 'Catalogue and cart', 'Designer, Arabic and niche', 'Ships across Albania', '2025'],
     },
     {
       title: 'Bar Martiri',
@@ -73,7 +74,7 @@ export const CONTENT = {
       url: 'https://barmartiri.com',
       colours: ['#56c4d8', '#14130f'],
       mark: '02',
-      tags: ['Hospitality', 'Menu and sunbeds', 'Three languages', '2025'],
+      tags: ['Hospitality / bar experience', 'Menu and sunbeds', 'Three languages', 'Spille, on the coast', '2025'],
     },
   ] as Project[],
 
@@ -82,7 +83,7 @@ export const CONTENT = {
 
   credits: [
     { title: 'Credits', lines: ['A portfolio for ' + labels.name, 'Web designer and developer', 'Built with Three.js and Blender'] },
-    { title: 'Thanks', lines: ['After jesse-zhou.com by Jesse Zhou', 'Bruno Simon, for Three.js Journey', 'The three.js contributors'] },
+    { title: 'Thanks', lines: ['After jesse-zhou.com by Jesse Zhou', 'The three.js and Blender contributors'] },
     { title: 'Press start', lines: ['Click again to loop', '© ' + new Date().getFullYear() + ' ' + labels.name] },
   ],
 

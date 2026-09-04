@@ -218,24 +218,27 @@ export function createScreens(): Screens {
         })
       })
     } else {
-      // how the work runs: five passes, in order, each with its own line
+      // how the work runs: his intro line, then five passes, in order, each with its own line
       ctx.fillStyle = '#ff9a2a'
-      ctx.font = `800 44px ${FONT}`
-      ctx.fillText('How the work runs', 110, 124)
+      ctx.font = `800 40px ${FONT}`
+      ctx.fillText('How the work runs', 110, 116)
+      ctx.fillStyle = '#5cf0ff'
+      ctx.font = `600 17px ${FONT}`
+      ctx.fillText(CONTENT.about.processIntro, 110, 144)
       CONTENT.about.process.forEach((row, i) => {
-        const y = 172 + i * 78
+        const y = 190 + i * 76
         ctx.textAlign = 'left'
         ctx.fillStyle = '#5cf0ff'
-        ctx.font = `700 18px ${FONT}`
+        ctx.font = `700 17px ${FONT}`
         ctx.fillText(row.step, 110, y)
         ctx.fillStyle = '#f4f2ff'
-        ctx.font = `700 26px ${FONT}`
-        ctx.fillText(row.label, 150, y + 1)
+        ctx.font = `700 25px ${FONT}`
+        ctx.fillText(row.label, 146, y + 1)
         ctx.fillStyle = 'rgba(244,242,255,0.8)'
         ctx.font = `400 17px ${FONT}`
-        wrap(ctx, row.body, w - 430).slice(0, 2).forEach((line, k) => ctx.fillText(line, 320, y - 8 + k * 22))
+        wrap(ctx, row.body, w - 400).slice(0, 3).forEach((line, k) => ctx.fillText(line, 290, y - 10 + k * 21))
         ctx.fillStyle = 'rgba(92,240,255,0.22)'
-        ctx.fillRect(110, y + 26, w - 220, 2)
+        ctx.fillRect(110, y + 54, w - 220, 1)
       })
     }
     s.done()
@@ -314,50 +317,66 @@ export function createScreens(): Screens {
       return
     }
     sunburst(ctx, w, h, p.colours[0], shade(p.colours[0], 0.82), 20)
-    ctx.fillStyle = 'rgba(12, 6, 40, 0.55)'
+    // the mark on a disc of the site's own dark ground, and its words on a panel of the same,
+    // so the ink reads on the sunburst whatever the site's accent colour is
+    const ground = p.colours[1]
+    ctx.fillStyle = ground
     ctx.beginPath()
-    ctx.arc(w / 2, h * 0.3, 138, 0, Math.PI * 2)
+    ctx.arc(w / 2, h * 0.28, 128, 0, Math.PI * 2)
     ctx.fill()
-    ctx.fillStyle = p.colours[1]
-    ctx.font = `900 124px ${FONT}`
+    ctx.fillStyle = '#f4f2ff'
+    ctx.font = `900 116px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(p.mark, w / 2, h * 0.3 + 6)
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `900 40px ${FONT}`
+    ctx.fillText(p.mark, w / 2, h * 0.28 + 6)
+    // measure the words first, then paint the panel, then the words
     ctx.textBaseline = 'alphabetic'
-    const titleLines = wrap(ctx, p.title, w - 90)
-    titleLines.forEach((line, k) => ctx.fillText(line, w / 2, h * 0.52 + k * 46))
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'
-    ctx.font = `500 20px ${FONT}`
-    const top = h * 0.52 + (titleLines.length - 1) * 46 + 36
-    const lines = wrap(ctx, p.blurb, w - 100).slice(0, 6)
-    lines.forEach((line, k) => ctx.fillText(line, w / 2, top + k * 26))
-    // the tags are sized to their words and laid out in rows that fit the poster
-    const tagFont = `600 16px ${FONT}`
+    ctx.font = `900 38px ${FONT}`
+    const titleLines = wrap(ctx, p.title, w - 110)
+    ctx.font = `500 19px ${FONT}`
+    const lines = wrap(ctx, p.blurb, w - 120).slice(0, 6)
+    const tagFont = `600 15px ${FONT}`
     ctx.font = tagFont
     const rows: { tag: string; width: number }[][] = [[]]
     for (const tag of p.tags) {
-      const width = Math.ceil(ctx.measureText(tag).width) + 26
+      const width = Math.ceil(ctx.measureText(tag).width) + 24
       const row = rows[rows.length - 1]
       const used = row.reduce((sum, t) => sum + t.width + 8, 0)
-      if (row.length && used + width > w - 80) rows.push([{ tag, width }])
+      if (row.length && used + width > w - 100) rows.push([{ tag, width }])
       else row.push({ tag, width })
     }
-    let tagsY = top + lines.length * 26 + 14
-    for (const row of rows.slice(0, 2)) {
+    const shownRows = rows.slice(0, 3)
+    const titleTop = h * 0.47
+    const blurbTop = titleTop + (titleLines.length - 1) * 44 + 34
+    const tagsTop = blurbTop + lines.length * 25 + 12
+    const panelBottom = tagsTop + shownRows.length * 36 + 4
+    ctx.fillStyle = ground
+    ctx.globalAlpha = 0.82
+    rrect(ctx, 34, titleTop - 44, w - 68, panelBottom - (titleTop - 44), 20)
+    ctx.globalAlpha = 1
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `900 38px ${FONT}`
+    ctx.textAlign = 'center'
+    titleLines.forEach((line, k) => ctx.fillText(line, w / 2, titleTop + k * 44))
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'
+    ctx.font = `500 19px ${FONT}`
+    lines.forEach((line, k) => ctx.fillText(line, w / 2, blurbTop + k * 25))
+    let tagsY = tagsTop
+    for (const row of shownRows) {
       const total = row.reduce((sum, t) => sum + t.width + 8, -8)
       let x = w / 2 - total / 2
       for (const t of row) {
-        pill(ctx, x, tagsY, t.width, 30, 'rgba(255,255,255,0.18)', '#fff', t.tag, tagFont)
+        pill(ctx, x, tagsY, t.width, 28, 'rgba(255,255,255,0.16)', '#fff', t.tag, tagFont)
         x += t.width + 8
       }
-      tagsY += 38
+      tagsY += 36
     }
     ctx.fillStyle = 'rgba(255,255,255,0.75)'
     ctx.font = `700 18px ${FONT}`
     ctx.textAlign = 'center'
-    ctx.fillText(p.url ? '▶  CLICK TO OPEN' : `${state.project + 1} / ${CONTENT.projects.length}`, w / 2, h - 34)
+    // where the click goes, by name
+    const host = p.url ? p.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : ''
+    ctx.fillText(p.url ? `▶  OPEN ${host.toUpperCase()}` : `${state.project + 1} / ${CONTENT.projects.length}`, w / 2, h - 34)
     ctx.textAlign = 'left'
     ctx.font = `800 22px ${FONT}`
     ctx.fillText(`${state.project + 1}/${CONTENT.projects.length}`, 24, 40)
